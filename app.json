@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "IraqiTube",
+    "slug": "IraqiTube",
+    "scheme": "iraqitube",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#07080C",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#07080C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.iraqitube.app",
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "IraqiTube saves downloaded videos to your library.",
+        "NSPhotoLibraryUsageDescription": "IraqiTube can save videos into your photos."
+      }
+    },
+    "android": {
+      "package": "com.iraqitube.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#07080C",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "SEND",
+          "category": ["DEFAULT"],
+          "data": [{ "mimeType": "text/plain" }]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "category": ["DEFAULT", "BROWSABLE"],
+          "data": [
+            { "scheme": "https", "host": "youtube.com" },
+            { "scheme": "https", "host": "www.youtube.com" },
+            { "scheme": "https", "host": "m.youtube.com" },
+            { "scheme": "https", "host": "youtu.be" },
+            { "scheme": "https", "host": "www.tiktok.com" },
+            { "scheme": "https", "host": "vm.tiktok.com" },
+            { "scheme": "https", "host": "vt.tiktok.com" },
+            { "scheme": "https", "host": "www.instagram.com" },
+            { "scheme": "https", "host": "instagram.com" },
+            { "scheme": "https", "host": "www.facebook.com" },
+            { "scheme": "https", "host": "facebook.com" },
+            { "scheme": "https", "host": "fb.watch" }
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "backgroundColor": "#07080C"
+    },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "IraqiTube saves videos to your gallery.",
+          "savePhotosPermission": "IraqiTube saves downloaded videos to your gallery.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      "expo-video",
+      "expo-font"
+    ]
+  }
+}
