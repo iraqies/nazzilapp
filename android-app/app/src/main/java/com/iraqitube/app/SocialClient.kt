@@ -86,13 +86,27 @@ object SocialClient {
             youtube -> "https://www.youtube.com/"
             else -> "https://www.facebook.com/"
         }
-        return DirectHttp.save(
-            url,
-            dest,
-            referer,
-            onProgress,
-            userAgent = if (youtube) NewPipeHttp.UA else DirectHttp.UA,
-        )
+        val agents = if (youtube) {
+            listOf(NewPipeHttp.UA)
+        } else if ("instagram" in url || "cdninstagram" in url || "fbcdn" in url) {
+            listOf(
+                DirectHttp.UA,
+                InstagramDownloader.FB_UA,
+                InstagramDownloader.GOOGLE_UA,
+                InstagramDownloader.BOT_UA,
+            )
+        } else {
+            listOf(DirectHttp.UA)
+        }
+        var last: Exception? = null
+        for (ua in agents) {
+            try {
+                return DirectHttp.save(url, dest, referer, onProgress, ua)
+            } catch (error: Exception) {
+                last = error
+            }
+        }
+        throw last ?: IllegalStateException("Could not download this video")
     }
 
     private fun parseJson(body: String, pageUrl: String, id: String): VideoMeta {
@@ -117,10 +131,11 @@ object SocialClient {
             if (sd != hd) add(option("SD", sd, MediaKind.VIDEO))
             music.firstOrNull { it.startsWith("http") }?.let { add(option("Audio", clean(it), MediaKind.AUDIO)) }
         }
+        val (igTitle, igAuthor) = HtmlText.instagram(titles.firstOrNull())
         return VideoMeta(
             id = id,
-            title = titles.firstOrNull()?.ifBlank { null } ?: "Instagram video",
-            author = null,
+            title = igTitle,
+            author = igAuthor,
             thumbnail = thumbs.firstOrNull()?.let { clean(it) },
             duration = null,
             webpageUrl = pageUrl,
@@ -201,10 +216,12 @@ object SocialClient {
             add(option("HD", hd, MediaKind.VIDEO))
             if (sd != hd) add(option("SD", sd, MediaKind.VIDEO))
         }
+        val rawTitle = titleRx.find(decoded)?.groupValues?.get(1)
+        val (igTitle, igAuthor) = HtmlText.instagram(rawTitle)
         return VideoMeta(
             id = id,
-            title = decode(titleRx.find(decoded)?.groupValues?.get(1)).ifBlank { "$platform video" },
-            author = null,
+            title = if (platform == "Instagram") igTitle else HtmlText.decode(rawTitle).ifBlank { "$platform video" },
+            author = if (platform == "Instagram") igAuthor else null,
             thumbnail = thumbRx.find(decoded)?.groupValues?.get(1)?.let { clean(it) },
             duration = null,
             webpageUrl = pageUrl,
@@ -250,10 +267,4 @@ object SocialClient {
             .replace("&amp;", "&")
     }
 
-    private fun decode(raw: String?): String {
-        return raw.orEmpty()
-            .replace("&amp;", "&")
-            .replace("&#039;", "'")
-            .replace("&quot;", "\"")
-    }
 }

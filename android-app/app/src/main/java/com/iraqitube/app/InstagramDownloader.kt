@@ -11,9 +11,9 @@ import org.json.JSONObject
 object InstagramDownloader {
     const val BOT_UA =
         "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"
-    private const val FB_UA =
+    const val FB_UA =
         "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
-    private const val GOOGLE_UA =
+    const val GOOGLE_UA =
         "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 
     private val igCode = Regex("""instagram\.com/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)""", RegexOption.IGNORE_CASE)
@@ -62,7 +62,17 @@ object InstagramDownloader {
         if (option.kind == MediaKind.AUDIO) {
             return extractAudio(url, dest, onProgress)
         }
-        return DirectHttp.save(url, dest, refererFor(url), onProgress, userAgentFor(url))
+        val referer = refererFor(url)
+        val agents = listOf(userAgentFor(url), FB_UA, GOOGLE_UA, BOT_UA, DirectHttp.UA).distinct()
+        var last: Exception? = null
+        for (ua in agents) {
+            try {
+                return DirectHttp.save(url, dest, referer, onProgress, ua)
+            } catch (error: Exception) {
+                last = error
+            }
+        }
+        throw last ?: IllegalStateException("Could not download this Instagram video")
     }
 
     private fun fromOfficialPage(code: String, pageUrl: String): VideoMeta {
@@ -75,11 +85,13 @@ object InstagramDownloader {
                     ua,
                 )
                 val videos = extractMp4s(html)
+                    .take(6)
+                    .filter { isPlayable(it, ua, "https://www.instagram.com/") }
                 if (videos.isEmpty()) {
                     last = IllegalStateException("Instagram page had no video")
                     continue
                 }
-                val title = ogTitle.find(html)?.groupValues?.get(1)?.let { decode(it) }
+                val title = ogTitle.find(html)?.groupValues?.get(1)
                 val thumb = ogImage.find(html)?.groupValues?.get(1)?.let { clean(it) }
                 Log.i(TAG, "instagram via official page")
                 return meta(code, pageUrl, Found(videos, thumb, title))
@@ -108,7 +120,7 @@ object InstagramDownloader {
                     ?: "https://$host/offload/$code/1.mp4"
                 val thumb = ogImage.find(html)?.groupValues?.get(1)?.let { abs(it, host) }
                     ?: "https://$host/offload/$code/1?thumbnail=1"
-                val title = ogTitle.find(html)?.groupValues?.get(1)?.let { decode(it) }
+                val title = ogTitle.find(html)?.groupValues?.get(1)
                 if (!looksLikeVideo(video) || !isPlayable(video, BOT_UA, "https://$host/")) {
                     last = IllegalStateException("InstaFix had no video")
                     continue
@@ -177,11 +189,11 @@ object InstagramDownloader {
             if (sd != hd) add(choice("SD", sd, MediaKind.VIDEO))
             add(choice("Audio", hd, MediaKind.AUDIO).copy(ext = "m4a"))
         }
-        val rawTitle = found.title?.ifBlank { null }
+        val (title, author) = HtmlText.instagram(found.title)
         return VideoMeta(
             id = id,
-            title = rawTitle?.removePrefix("@")?.ifBlank { null } ?: "Instagram video",
-            author = rawTitle?.takeIf { it.startsWith("@") },
+            title = title,
+            author = author,
             thumbnail = found.thumb,
             duration = null,
             webpageUrl = pageUrl,
@@ -206,6 +218,7 @@ object InstagramDownloader {
             .map { clean(it.value) }
             .filter { looksLikeVideo(it) && ("fbcdn" in it || "cdninstagram" in it) }
             .distinct()
+            .sortedByDescending { it.length }
             .toList()
     }
 
@@ -267,11 +280,6 @@ object InstagramDownloader {
         .replace("\\u0026", "&")
         .replace("\\/", "/")
         .replace("&amp;", "&")
-
-    private fun decode(raw: String) = raw
-        .replace("&amp;", "&")
-        .replace("&#039;", "'")
-        .replace("&quot;", "\"")
 
     private data class Found(val videos: List<String>, val thumb: String?, val title: String?)
 

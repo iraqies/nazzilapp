@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -63,8 +64,10 @@ fun ConfettiBurst(active: Boolean) {
             )
         }
     }
+    val context = LocalContext.current
     val clock = remember { Animatable(0f) }
     LaunchedEffect(active) {
+        if (active) ConfettiSound.play(context)
         clock.snapTo(0f)
         clock.animateTo(1f, tween(2600, easing = LinearEasing))
     }

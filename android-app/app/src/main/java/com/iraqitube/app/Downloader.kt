@@ -82,8 +82,18 @@ object Downloader {
             "not a bot" in lower ||
             "sign in" in lower ||
             "cookies" in lower
+        val looksUrl = text.startsWith("http") ||
+            "://" in text && (
+                "cdn" in lower ||
+                    "fbcdn" in lower ||
+                    "scontent" in lower ||
+                    "instagram" in lower ||
+                    "googlevideo" in lower
+                )
         return when {
             dump -> "YouTube blocked this one. Try again."
+            looksUrl || error is java.io.FileNotFoundException ->
+                "Could not download this video. Try again."
             else -> text.take(120).ifBlank { "Could not load this link" }
         }
     }
@@ -336,7 +346,7 @@ object Downloader {
         addAudioOption(options, formats)
         return VideoMeta(
             id = info.id ?: System.currentTimeMillis().toString(),
-            title = info.title?.ifBlank { null } ?: "TikTok video",
+            title = HtmlText.decode(info.title).ifBlank { "TikTok video" },
             author = info.uploader,
             thumbnail = info.thumbnail,
             duration = info.duration?.toLong(),
@@ -369,7 +379,7 @@ object Downloader {
         addAudioOption(options, formats)
         return VideoMeta(
             id = info.id ?: System.currentTimeMillis().toString(),
-            title = info.title?.ifBlank { null } ?: "Untitled",
+            title = HtmlText.decode(info.title).ifBlank { "Untitled" },
             author = info.uploader,
             thumbnail = info.thumbnail,
             duration = info.duration?.toLong(),

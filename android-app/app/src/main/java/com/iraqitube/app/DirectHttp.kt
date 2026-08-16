@@ -67,6 +67,24 @@ object DirectHttp {
         userAgent: String = UA,
     ): File {
         val conn = open(url, mapOf("Referer" to referer, "Accept" to "*/*"), userAgent = userAgent)
+        val code = conn.responseCode
+        val type = conn.contentType.orEmpty()
+        if (code !in 200..299 && code != 206) {
+            runCatching { conn.errorStream?.close() }
+            conn.disconnect()
+            throw IllegalStateException(
+                when (code) {
+                    401, 403 -> "This video blocked the download. Try again."
+                    404 -> "This video is gone."
+                    else -> "Download failed ($code)"
+                },
+            )
+        }
+        if (type.startsWith("text/html") || type.startsWith("application/json")) {
+            runCatching { conn.inputStream?.close() }
+            conn.disconnect()
+            throw IllegalStateException("This video blocked the download. Try again.")
+        }
         val length = conn.contentLengthLong
         dest.outputStream().use { output ->
             conn.inputStream.use { input ->
