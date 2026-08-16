@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.IraqiTube" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">#0C0810</item>
+        <item name="android:navigationBarColor">#0C0810</item>
+        <item name="android:windowBackground">#0C0810</item>
+        <item name="colorPrimary">#FF4D8D</item>
+    </style>
+</resources>
