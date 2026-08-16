@@ -10,6 +10,8 @@ $env:JAVA_OPTS = ""
 $env:JAVA_HOME = $javaHome
 $env:ANDROID_HOME = $sdk
 $env:ANDROID_SDK_ROOT = $sdk
+$env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE ".gradle"
+$env:ANDROID_SERIAL = ""
 
 if (-not (Test-Path $adb)) {
     throw "adb not found at $adb"

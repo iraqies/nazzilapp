@@ -34,7 +34,7 @@ export function HomeScreen({
   onOpenItem: (item: LibraryItem) => void;
   onSeeLibrary: () => void;
 }) {
-  const { d, rtl, library, serverOk } = useApp();
+  const { d, rtl, library } = useApp();
   const insets = useSafeAreaInsets();
   const [url, setUrl] = useState('');
   const [clip, setClip] = useState<string | null>(null);
@@ -98,10 +98,10 @@ export function HomeScreen({
               IT
             </Type>
           </View>
-          <View style={[styles.live, serverOk ? styles.liveOn : styles.liveOff]}>
-            <View style={[styles.liveDot, { backgroundColor: serverOk ? colors.success : colors.muted }]} />
-            <Type size={11} color={serverOk ? colors.success : colors.muted} weight="semibold">
-              {serverOk ? d.serverOn : d.serverOff}
+          <View style={[styles.live, styles.liveOn]}>
+            <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+            <Type size={11} color={colors.success} weight="semibold">
+              {d.engineReady}
             </Type>
           </View>
         </View>

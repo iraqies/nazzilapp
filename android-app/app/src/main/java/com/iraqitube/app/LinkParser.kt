@@ -5,6 +5,10 @@ import java.net.URL
 
 object LinkParser {
     private val urlRegex = Regex("""https?://[^\s<>"'\\]+""", RegexOption.IGNORE_CASE)
+    private val looseUrl = Regex(
+        """(?:https?://)?(?:(?:www|m|vm|vt)\.)?(?:tiktok\.com|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|youtube\.com|youtu\.be)/[^\s<>"'\\]+""",
+        RegexOption.IGNORE_CASE,
+    )
     private val shortHosts = setOf(
         "vm.tiktok.com",
         "vt.tiktok.com",
@@ -19,8 +23,13 @@ object LinkParser {
     fun extract(text: String): String {
         val raw = text.trim()
         if (raw.isEmpty()) return ""
-        val found = urlRegex.find(raw)?.value?.trimEnd('.', ',', ';', ')', ']', '"', '\'', '>', '\\')
-        return found ?: raw.lineSequence().map { it.trim() }.firstOrNull { looksLikeUrl(it) }.orEmpty()
+        val found = urlRegex.find(raw)?.value
+            ?: looseUrl.find(raw)?.value
+        val cleaned = found?.trimEnd('.', ',', ';', ')', ']', '"', '\'', '>', '\\').orEmpty()
+        if (cleaned.isNotBlank()) {
+            return if (cleaned.startsWith("http")) cleaned else "https://$cleaned"
+        }
+        return raw.lineSequence().map { it.trim() }.firstOrNull { looksLikeUrl(it) }.orEmpty()
     }
 
     fun resolve(text: String): String {

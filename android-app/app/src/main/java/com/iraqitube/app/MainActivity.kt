@@ -1,6 +1,7 @@
 package com.iraqitube.app
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -17,10 +18,16 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     private var incomingUrl by mutableStateOf("")
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(SettingsStore.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        SettingsStore(this).applyLocale()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         incomingUrl = readIncoming(intent)
+        ClipWatch.sync(this)
         setContent {
             IraqiTubeTheme {
                 IraqiTubeScreen(
@@ -30,6 +37,18 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ClipWatch.appInFront = true
+        OverlayPrompt.hide(this)
+        ClipWatch.sync(this)
+    }
+
+    override fun onPause() {
+        ClipWatch.appInFront = false
+        super.onPause()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -51,7 +70,7 @@ class MainActivity : ComponentActivity() {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(send, "Share"))
+        startActivity(Intent.createChooser(send, getString(R.string.share)))
     }
 
     private fun view(uri: Uri, mime: String) {
@@ -62,7 +81,7 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(open)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "No gallery app found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_gallery), Toast.LENGTH_SHORT).show()
         }
     }
 

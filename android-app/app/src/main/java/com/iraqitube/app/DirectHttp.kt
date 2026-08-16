@@ -1,6 +1,9 @@
 package com.iraqitube.app
 
 import java.io.File
+import java.net.CookieHandler
+import java.net.CookieManager
+import java.net.CookiePolicy
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -8,13 +11,62 @@ object DirectHttp {
     const val UA =
         "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
 
-    fun get(url: String, extra: Map<String, String> = emptyMap()): String {
-        val conn = open(url, extra + mapOf("Accept" to "text/html,application/json,*/*"))
+    init {
+        if (CookieHandler.getDefault() == null) {
+            CookieHandler.setDefault(CookieManager(null, CookiePolicy.ACCEPT_ALL))
+        }
+    }
+
+    data class Located(val url: String, val type: String, val body: String)
+
+    fun get(url: String, extra: Map<String, String> = emptyMap(), userAgent: String = UA): String {
+        val conn = open(url, extra + mapOf("Accept" to "text/html,application/json,*/*"), userAgent = userAgent)
         return readBody(conn)
     }
 
-    fun save(url: String, dest: File, referer: String, onProgress: (Float) -> Unit): File {
-        val conn = open(url, mapOf("Referer" to referer, "Accept" to "*/*"))
+    fun post(url: String, body: String, extra: Map<String, String> = emptyMap(), userAgent: String = UA): String {
+        val conn = open(
+            url,
+            extra + mapOf(
+                "Accept" to "application/json,text/html,*/*",
+                "Content-Type" to "application/x-www-form-urlencoded; charset=UTF-8",
+            ),
+            body,
+            userAgent,
+        )
+        return readBody(conn)
+    }
+
+    fun locate(url: String, extra: Map<String, String> = emptyMap(), userAgent: String = UA): Located {
+        var current = url
+        repeat(8) { hop ->
+            val conn = open(current, extra + mapOf("Accept" to "*/*"), userAgent = userAgent)
+            val code = conn.responseCode
+            if (code in 300..399) {
+                val location = conn.getHeaderField("Location")
+                    ?: throw IllegalStateException("Redirect without location")
+                current = URL(URL(current), location).toString()
+                conn.disconnect()
+                return@repeat
+            }
+            val type = conn.contentType.orEmpty()
+            if (type.startsWith("video") || type.startsWith("audio")) {
+                conn.disconnect()
+                return Located(current, type, "")
+            }
+            return Located(current, type, readBody(conn))
+        }
+        throw IllegalStateException("Too many redirects")
+    }
+
+    fun save(
+        url: String,
+        dest: File,
+        referer: String,
+        onProgress: (Float) -> Unit,
+        userAgent: String = UA,
+    ): File {
+        val conn = open(url, mapOf("Referer" to referer, "Accept" to "*/*"), userAgent = userAgent)
         val length = conn.contentLengthLong
         dest.outputStream().use { output ->
             conn.inputStream.use { input ->
@@ -46,7 +98,12 @@ object DirectHttp {
         return text
     }
 
-    fun open(url: String, headers: Map<String, String>, body: String? = null): HttpURLConnection {
+    fun open(
+        url: String,
+        headers: Map<String, String>,
+        body: String? = null,
+        userAgent: String = UA,
+    ): HttpURLConnection {
         var current = url
         repeat(8) { hop ->
             val postFirst = body != null && hop == 0 && current == url
@@ -55,7 +112,7 @@ object DirectHttp {
                 connectTimeout = 20_000
                 readTimeout = 60_000
                 requestMethod = if (postFirst) "POST" else "GET"
-                setRequestProperty("User-Agent", UA)
+                setRequestProperty("User-Agent", userAgent)
                 headers.forEach { (key, value) -> setRequestProperty(key, value) }
                 if (postFirst) {
                     doOutput = true

@@ -28,7 +28,7 @@ export function AnalyzeScreen({
   onPlay: (item: LibraryItem) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { d, rtl, serverUrl, addItem, autoGallery } = useApp();
+  const { d, rtl, addItem, autoGallery } = useApp();
   const [media, setMedia] = useState<ProbeResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export function AnalyzeScreen({
     setLoading(true);
     setError('');
     try {
-      const result = await probeMedia(url, serverUrl);
+      const result = await probeMedia(url);
       setMedia(result);
       const preferred =
         result.formats.find((f) => !f.watermark && f.hasVideo) ||
@@ -72,7 +72,7 @@ export function AnalyzeScreen({
     setProgress(0.02);
     setPhase(d.downloading);
     try {
-      const item = await downloadWithProgress(media, selected, serverUrl, setProgress);
+      const item = await downloadWithProgress(media, selected, setProgress);
       if (autoGallery) {
         setPhase(d.savingGallery);
         try {
@@ -133,8 +133,7 @@ export function AnalyzeScreen({
             <View style={styles.coverShade} />
             <View style={styles.coverMeta}>
               <Type size={11} color={colors.gold} weight="bold">
-                {platformLabel(media.platform).toUpperCase()}
-                {media.source === 'client' ? ' · DIRECT' : ' · ENGINE'}
+                {platformLabel(media.platform).toUpperCase()} · ON DEVICE
               </Type>
             </View>
           </View>

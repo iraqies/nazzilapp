@@ -11,6 +11,7 @@ export type MediaFormat = {
   watermark: boolean;
   url?: string;
   needsMerge: boolean;
+  headers?: Record<string, string>;
 };
 
 export type ProbeResult = {

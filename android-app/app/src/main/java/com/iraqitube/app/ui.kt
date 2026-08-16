@@ -1,11 +1,23 @@
 package com.iraqitube.app
 
+import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,6 +68,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,12 +78,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -93,6 +108,20 @@ fun IraqiTubeTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
+private fun LocalizedApp(language: String, content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val locale = SettingsStore.localeFor(language)
+    val localized = remember(language, context) { context.withLocale(locale) }
+    CompositionLocalProvider(
+        LocalContext provides localized,
+        LocalConfiguration provides localized.resources.configuration,
+        LocalLayoutDirection provides if (locale.language == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr,
+    ) {
+        content()
+    }
+}
+
+@Composable
 fun IraqiTubeScreen(
     incomingUrl: String,
     onShare: (Uri, String) -> Unit,
@@ -101,10 +130,14 @@ fun IraqiTubeScreen(
     val context = LocalContext.current
     val app = context.applicationContext as IraqiTubeApp
     val store = remember { LibraryStore(context) }
+    val settings = remember { SettingsStore(context) }
     val scope = rememberCoroutineScope()
 
     var url by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf(0) }
+    var showSettings by remember { mutableStateOf(false) }
+    var watchClipboard by remember { mutableStateOf(settings.watchClipboard) }
+    var language by remember { mutableStateOf(settings.language) }
     var meta by remember { mutableStateOf<VideoMeta?>(null) }
     var selected by remember { mutableStateOf<QualityOption?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -140,7 +173,7 @@ fun IraqiTubeScreen(
     fun fetch(link: String = url) {
         val cleaned = LinkParser.extract(link)
         if (cleaned.isEmpty()) {
-            error = "Paste a link first."
+            error = context.getString(R.string.paste_first)
             return
         }
         url = cleaned
@@ -212,17 +245,23 @@ fun IraqiTubeScreen(
             kotlinx.coroutines.delay(250)
         }
         engine = app.engineReady
-        if (app.engineError != null) error = "Engine failed to start: ${app.engineError}"
+        if (app.engineError != null) {
+            error = context.getString(R.string.engine_failed, app.engineError)
+        }
     }
 
     LaunchedEffect(incomingUrl, engine) {
         if (!engine) return@LaunchedEffect
         val link = LinkParser.extract(incomingUrl)
         if (link.isBlank()) return@LaunchedEffect
+        settings.lastClipUrl = link
+        showSettings = false
+        tab = 0
         url = link
         fetch(link)
     }
 
+    LocalizedApp(language) {
     Column(
         Modifier
             .fillMaxSize()
@@ -236,10 +275,29 @@ fun IraqiTubeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         ) {
-            Header(engine)
+            Header(
+                engine = engine,
+                showSettings = showSettings,
+                onSettings = { showSettings = !showSettings },
+            )
             Spacer(Modifier.height(18.dp))
 
-            if (tab == 0) {
+            if (showSettings) {
+                SettingsBody(
+                    watchClipboard = watchClipboard,
+                    onWatchClipboard = {
+                        watchClipboard = it
+                        settings.watchClipboard = it
+                        ClipWatch.setEnabled(context, it)
+                    },
+                    language = language,
+                    onLanguage = {
+                        language = it
+                        settings.language = it
+                        (context as? Activity)?.recreate()
+                    },
+                )
+            } else if (tab == 0) {
                 HomeBody(
                     url = url,
                     onUrl = { url = it; error = "" },
@@ -277,7 +335,9 @@ fun IraqiTubeScreen(
             }
         }
 
-        TabBar(tab) { tab = it }
+        if (!showSettings) {
+            TabBar(tab) { tab = it }
+        }
     }
 
     saved?.let { item ->
@@ -293,28 +353,42 @@ fun IraqiTubeScreen(
             },
         )
     }
+    }
 }
 
 @Composable
-private fun Header(engine: Boolean) {
+private fun Header(engine: Boolean, showSettings: Boolean, onSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(Pink),
+                .background(Color(0xFF140C12)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Text("N", color = Pink, fontSize = 22.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(12.dp))
-        Text("IraqiTube", color = Cream, fontSize = 20.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
         Text(
-            if (engine) "Ready" else "Starting…",
+            if (showSettings) stringResource(R.string.settings) else "Nazzil",
+            color = Cream,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            if (engine) stringResource(R.string.ready) else stringResource(R.string.starting),
             color = if (engine) Green else Muted,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
         )
+        IconButton(onClick = onSettings) {
+            Icon(
+                if (showSettings) Icons.AutoMirrored.Outlined.ArrowBack else Icons.Outlined.Settings,
+                contentDescription = stringResource(if (showSettings) R.string.back else R.string.settings),
+                tint = Cream,
+            )
+        }
     }
 }
 
@@ -347,7 +421,7 @@ private fun HomeBody(
         value = url,
         onValueChange = onUrl,
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Paste or share a link", color = Muted) },
+        placeholder = { Text(stringResource(R.string.paste_or_share), color = Muted) },
         colors = fieldColors(),
         minLines = 2,
         shape = RoundedCornerShape(18.dp),
@@ -356,16 +430,16 @@ private fun HomeBody(
         TextButton(onClick = onPaste) {
             Icon(Icons.Outlined.ContentPaste, contentDescription = null, tint = Pink, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Paste", color = Pink, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.paste), color = Pink, fontWeight = FontWeight.Bold)
         }
         TextButton(onClick = onClear) {
             Icon(Icons.Outlined.Close, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Clear", color = Muted)
+            Text(stringResource(R.string.clear), color = Muted)
         }
     }
     PinkButton(
-        label = if (loading) "Loading…" else "Fetch",
+        label = if (loading) stringResource(R.string.loading) else stringResource(R.string.fetch),
         icon = Icons.Outlined.PlayArrow,
         enabled = engine && !loading && !downloading,
         loading = loading,
@@ -381,14 +455,12 @@ private fun HomeBody(
         Spacer(Modifier.height(20.dp))
         Box {
             if (video.thumbnail != null) {
-                AsyncImage(
-                    model = video.thumbnail,
-                    contentDescription = null,
+                RemoteThumb(
+                    url = video.thumbnail,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(190.dp)
                         .clip(RoundedCornerShape(20.dp)),
-                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Box(
@@ -425,14 +497,14 @@ private fun HomeBody(
         val audios = video.options.filter { it.kind == MediaKind.AUDIO }
 
         if (videos.isNotEmpty()) {
-            SectionLabel(Icons.Outlined.Videocam, "Video")
+            SectionLabel(Icons.Outlined.Videocam, stringResource(R.string.video))
             videos.forEach { option ->
                 OptionRow(option, option.id == selected?.id) { onSelect(option) }
             }
         }
         if (audios.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
-            SectionLabel(Icons.Outlined.Audiotrack, "Audio")
+            SectionLabel(Icons.Outlined.Audiotrack, stringResource(R.string.audio))
             audios.forEach { option ->
                 OptionRow(option, option.id == selected?.id) { onSelect(option) }
             }
@@ -440,7 +512,7 @@ private fun HomeBody(
 
         Spacer(Modifier.height(14.dp))
         PinkButton(
-            label = if (downloading) "Downloading…" else "Download",
+            label = if (downloading) stringResource(R.string.downloading) else stringResource(R.string.download),
             icon = Icons.Outlined.Download,
             enabled = !downloading,
             loading = downloading,
@@ -492,7 +564,7 @@ private fun OptionRow(option: QualityOption, active: Boolean, onClick: () -> Uni
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
         }
         Text(
-            option.label,
+            qualityLabel(option),
             color = Cream,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(start = 12.dp).weight(1f),
@@ -524,15 +596,15 @@ private fun DoneDialog(onClose: () -> Unit, onView: () -> Unit, onShare: () -> U
                     Icon(Icons.Outlined.Download, contentDescription = null, tint = Pink, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(12.dp))
-                Text("Downloaded", color = Cream, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.downloaded), color = Cream, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.weight(1f))
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Muted)
+                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.close), tint = Muted)
                 }
             }
             Spacer(Modifier.height(16.dp))
-            ActionTile(Icons.Outlined.PlayArrow, "Play", onView)
+            ActionTile(Icons.Outlined.PlayArrow, stringResource(R.string.play), onView)
             Spacer(Modifier.height(10.dp))
-            ActionTile(Icons.Outlined.Share, "Share", onShare)
+            ActionTile(Icons.Outlined.Share, stringResource(R.string.share), onShare)
         }
     }
 }
@@ -568,10 +640,10 @@ private fun LibraryBody(
     onShare: (SavedVideo) -> Unit,
     onDelete: (SavedVideo) -> Unit,
 ) {
-    Text("Download History", color = Cream, fontSize = 28.sp, fontWeight = FontWeight.Black)
+    Text(stringResource(R.string.download_history), color = Cream, fontSize = 28.sp, fontWeight = FontWeight.Black)
     Spacer(Modifier.height(16.dp))
     if (items.isEmpty()) {
-        Text("No downloads yet", color = Muted)
+        Text(stringResource(R.string.no_downloads), color = Muted)
         return
     }
     items.forEach { item ->
@@ -586,11 +658,9 @@ private fun LibraryBody(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (item.thumbnail != null) {
-                AsyncImage(
-                    model = item.thumbnail,
-                    contentDescription = null,
+                RemoteThumb(
+                    url = item.thumbnail,
                     modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Box(
@@ -605,16 +675,16 @@ private fun LibraryBody(
             }
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(item.title, color = Cream, fontWeight = FontWeight.Bold, maxLines = 2)
-                Text("${item.platform}  ·  ${item.quality}", color = Muted, fontSize = 12.sp)
+                Text("${item.platform}  ·  ${qualityName(item.quality)}", color = Muted, fontSize = 12.sp)
             }
         }
         Row(Modifier.padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallIconAction(Icons.Outlined.PlayArrow, "Play") { onView(item) }
-            SmallIconAction(Icons.Outlined.Share, "Share") { onShare(item) }
+            SmallIconAction(Icons.Outlined.PlayArrow, stringResource(R.string.play)) { onView(item) }
+            SmallIconAction(Icons.Outlined.Share, stringResource(R.string.share)) { onShare(item) }
             TextButton(onClick = { onDelete(item) }) {
                 Icon(Icons.Outlined.Delete, contentDescription = null, tint = Crimson, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Delete", color = Crimson)
+                Text(stringResource(R.string.delete), color = Crimson)
             }
         }
     }
@@ -671,7 +741,10 @@ private fun PinkButton(
 
 @Composable
 private fun TabBar(tab: Int, onChange: (Int) -> Unit) {
-    val items = listOf("Home" to Icons.Outlined.Home, "History" to Icons.Outlined.History)
+    val items = listOf(
+        stringResource(R.string.home) to Icons.Outlined.Home,
+        stringResource(R.string.history) to Icons.Outlined.History,
+    )
     Row(
         Modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -697,6 +770,170 @@ private fun TabBar(tab: Int, onChange: (Int) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun RemoteThumb(url: String, modifier: Modifier) {
+    val context = LocalContext.current
+    AsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(url)
+            .crossfade(true)
+            .addHeader("User-Agent", InstagramDownloader.BOT_UA)
+            .addHeader("Referer", "https://www.instagram7.com/")
+            .build(),
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+    )
+}
+
+@Composable
+private fun SettingsBody(
+    watchClipboard: Boolean,
+    onWatchClipboard: (Boolean) -> Unit,
+    language: String,
+    onLanguage: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    Text(stringResource(R.string.settings), color = Cream, fontSize = 28.sp, fontWeight = FontWeight.Black)
+    Spacer(Modifier.height(16.dp))
+    SettingCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(stringResource(R.string.watch_clipboard), color = Cream, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(stringResource(R.string.watch_clipboard_desc), color = Muted, fontSize = 13.sp)
+            }
+            Switch(
+                checked = watchClipboard,
+                onCheckedChange = onWatchClipboard,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Pink,
+                    uncheckedTrackColor = Surface2,
+                ),
+            )
+        }
+    }
+    Spacer(Modifier.height(14.dp))
+    Text(stringResource(R.string.language), color = Cream, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    LanguageRow(stringResource(R.string.language_system), language == SettingsStore.LANG_SYSTEM) {
+        onLanguage(SettingsStore.LANG_SYSTEM)
+    }
+    LanguageRow(stringResource(R.string.language_en), language == SettingsStore.LANG_EN) {
+        onLanguage(SettingsStore.LANG_EN)
+    }
+    LanguageRow(stringResource(R.string.language_ar), language == SettingsStore.LANG_AR) {
+        onLanguage(SettingsStore.LANG_AR)
+    }
+    Spacer(Modifier.height(28.dp))
+    Text(stringResource(R.string.credits), color = Cream, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    CreditRow(
+        icon = R.drawable.ic_telegram,
+        label = stringResource(R.string.credit_telegram),
+        handle = "t.me/alwayshammered",
+        url = "https://t.me/alwayshammered",
+        circleIcon = true,
+    )
+    CreditRow(
+        icon = R.drawable.ic_stalk,
+        label = stringResource(R.string.credit_stalk),
+        handle = "stalk.gg/x",
+        url = "https://stalk.gg/x",
+    )
+    Spacer(Modifier.height(16.dp))
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty().ifBlank { "1.0" }
+    }
+    Text(stringResource(R.string.version, versionName), color = Muted, fontSize = 13.sp)
+}
+
+@Composable
+private fun SettingCard(content: @Composable () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Surface)
+            .padding(16.dp),
+    ) { content() }
+}
+
+@Composable
+private fun LanguageRow(label: String, active: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (active) PinkSoft else Surface)
+            .border(1.dp, if (active) Pink else Line, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = Cream, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        if (active) {
+            Box(Modifier.size(10.dp).clip(CircleShape).background(Pink))
+        }
+    }
+}
+
+@Composable
+private fun CreditRow(
+    icon: Int,
+    label: String,
+    handle: String,
+    url: String,
+    circleIcon: Boolean = false,
+) {
+    val context = LocalContext.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Surface)
+            .clickable {
+                runCatching {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(icon),
+            contentDescription = label,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(if (circleIcon) CircleShape else RoundedCornerShape(10.dp)),
+            contentScale = if (circleIcon) ContentScale.Crop else ContentScale.Fit,
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, color = Cream, fontWeight = FontWeight.SemiBold)
+            Text(handle, color = Muted, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun qualityLabel(option: QualityOption) = qualityName(option.label)
+
+@Composable
+private fun qualityName(label: String): String = when (label) {
+    "HD" -> stringResource(R.string.quality_hd)
+    "SD" -> stringResource(R.string.quality_sd)
+    "Audio" -> stringResource(R.string.quality_audio)
+    else -> label
 }
 
 @Composable

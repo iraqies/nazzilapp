@@ -39,26 +39,71 @@
       "intentFilters": [
         {
           "action": "SEND",
-          "category": ["DEFAULT"],
-          "data": [{ "mimeType": "text/plain" }]
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
         },
         {
           "action": "VIEW",
           "autoVerify": false,
-          "category": ["DEFAULT", "BROWSABLE"],
+          "category": [
+            "DEFAULT",
+            "BROWSABLE"
+          ],
           "data": [
-            { "scheme": "https", "host": "youtube.com" },
-            { "scheme": "https", "host": "www.youtube.com" },
-            { "scheme": "https", "host": "m.youtube.com" },
-            { "scheme": "https", "host": "youtu.be" },
-            { "scheme": "https", "host": "www.tiktok.com" },
-            { "scheme": "https", "host": "vm.tiktok.com" },
-            { "scheme": "https", "host": "vt.tiktok.com" },
-            { "scheme": "https", "host": "www.instagram.com" },
-            { "scheme": "https", "host": "instagram.com" },
-            { "scheme": "https", "host": "www.facebook.com" },
-            { "scheme": "https", "host": "facebook.com" },
-            { "scheme": "https", "host": "fb.watch" }
+            {
+              "scheme": "https",
+              "host": "youtube.com"
+            },
+            {
+              "scheme": "https",
+              "host": "www.youtube.com"
+            },
+            {
+              "scheme": "https",
+              "host": "m.youtube.com"
+            },
+            {
+              "scheme": "https",
+              "host": "youtu.be"
+            },
+            {
+              "scheme": "https",
+              "host": "www.tiktok.com"
+            },
+            {
+              "scheme": "https",
+              "host": "vm.tiktok.com"
+            },
+            {
+              "scheme": "https",
+              "host": "vt.tiktok.com"
+            },
+            {
+              "scheme": "https",
+              "host": "www.instagram.com"
+            },
+            {
+              "scheme": "https",
+              "host": "instagram.com"
+            },
+            {
+              "scheme": "https",
+              "host": "www.facebook.com"
+            },
+            {
+              "scheme": "https",
+              "host": "facebook.com"
+            },
+            {
+              "scheme": "https",
+              "host": "fb.watch"
+            }
           ]
         }
       ]
@@ -78,7 +123,8 @@
         }
       ],
       "expo-video",
-      "expo-font"
+      "expo-font",
+      "expo-sharing"
     ]
   }
 }

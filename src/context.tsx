@@ -1,17 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Lang, LibraryItem } from './types';
 import { t, type Dict } from './i18n';
-import { defaultServerUrl, checkServer } from './lib/api';
-import {
-  loadAutoGallery,
-  loadLang,
-  loadLibrary,
-  loadServerUrl,
-  saveAutoGallery,
-  saveLang,
-  saveLibrary,
-  saveServerUrl,
-} from './lib/storage';
+import { loadAutoGallery, loadLang, loadLibrary, saveAutoGallery, saveLang, saveLibrary } from './lib/storage';
 
 type AppCtx = {
   ready: boolean;
@@ -22,10 +12,6 @@ type AppCtx = {
   library: LibraryItem[];
   addItem: (item: LibraryItem) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
-  serverUrl: string;
-  setServerUrl: (url: string) => void;
-  serverOk: boolean | null;
-  refreshServer: () => Promise<void>;
   autoGallery: boolean;
   setAutoGallery: (on: boolean) => void;
 };
@@ -36,35 +22,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [lang, setLangState] = useState<Lang>('en');
   const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [serverUrl, setServerUrlState] = useState(defaultServerUrl());
-  const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [autoGallery, setAutoGalleryState] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [savedLang, items, savedServer, gallery] = await Promise.all([
-        loadLang(),
-        loadLibrary(),
-        loadServerUrl(),
-        loadAutoGallery(),
-      ]);
+      const [savedLang, items, gallery] = await Promise.all([loadLang(), loadLibrary(), loadAutoGallery()]);
       setLangState(savedLang);
       setLibrary(items);
-      if (savedServer) setServerUrlState(savedServer);
       setAutoGalleryState(gallery);
       setReady(true);
     })();
   }, []);
-
-  const refreshServer = useCallback(async () => {
-    const ok = await checkServer(serverUrl);
-    setServerOk(ok);
-  }, [serverUrl]);
-
-  useEffect(() => {
-    if (!ready) return;
-    refreshServer();
-  }, [ready, refreshServer]);
 
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
@@ -87,11 +55,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setServerUrl = useCallback((url: string) => {
-    setServerUrlState(url);
-    saveServerUrl(url);
-  }, []);
-
   const setAutoGallery = useCallback((on: boolean) => {
     setAutoGalleryState(on);
     saveAutoGallery(on);
@@ -107,26 +70,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       library,
       addItem,
       removeItem,
-      serverUrl,
-      setServerUrl,
-      serverOk,
-      refreshServer,
       autoGallery,
       setAutoGallery,
     }),
-    [
-      ready,
-      lang,
-      setLang,
-      library,
-      addItem,
-      removeItem,
-      serverUrl,
-      serverOk,
-      refreshServer,
-      autoGallery,
-      setAutoGallery,
-    ],
+    [ready, lang, setLang, library, addItem, removeItem, autoGallery, setAutoGallery],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

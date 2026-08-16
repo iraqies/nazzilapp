@@ -2,7 +2,7 @@ import type { PlatformId } from '../types';
 
 const YT =
   /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?.*?v=|shorts\/|embed\/|live\/|clip\/)|youtu\.be\/)/i;
-const IG = /(?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:reel|reels|p|tv)\//i;
+const IG = /(?:https?:\/\/)?(?:www\.|m\.)?(?:instagram\.com|l\.instagram\.com)\//i;
 const TT =
   /(?:https?:\/\/)?(?:www\.|vm\.|vt\.|m\.)?tiktok\.com\//i;
 const FB =
@@ -42,6 +42,26 @@ export function extractTiktokId(url: string): string | null {
 export function extractInstagramCode(url: string): string | null {
   const m = url.match(/instagram\.com\/(?:reel|reels|p|tv)\/([A-Za-z0-9_-]+)/i);
   return m?.[1] ?? null;
+}
+
+export function extractFacebookId(url: string): string | null {
+  const patterns = [/\/reel\/(\d+)/i, /\/videos\/(\d+)/i, /[?&]v=(\d+)/, /\/watch\/(\d+)/];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m?.[1]) return m[1];
+  }
+  return null;
+}
+
+export function shortcodeToMediaId(shortcode: string): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let n = 0n;
+  for (const char of shortcode) {
+    const i = alphabet.indexOf(char);
+    if (i < 0) continue;
+    n = n * 64n + BigInt(i);
+  }
+  return n.toString();
 }
 
 export function formatDuration(seconds?: number): string {

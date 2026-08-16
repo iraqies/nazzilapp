@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GhostButton, Type } from '../components/ui';
+import { Type } from '../components/ui';
 import { useApp } from '../context';
-import { colors, fonts, radius } from '../theme';
+import { colors, radius } from '../theme';
 
 export function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { d, rtl, lang, setLang, serverUrl, setServerUrl, serverOk, refreshServer, autoGallery, setAutoGallery } =
-    useApp();
-  const [draft, setDraft] = useState(serverUrl);
+  const { d, rtl, lang, setLang, autoGallery, setAutoGallery } = useApp();
 
   return (
     <ScrollView
@@ -39,32 +37,13 @@ export function SettingsScreen() {
       <Type size={13} color={colors.muted} weight="semibold" rtl={rtl} style={styles.label}>
         {d.server}
       </Type>
-      <Type size={13} color={colors.dim} rtl={rtl} style={{ marginBottom: 10 }}>
-        {d.serverHint}
-      </Type>
-      <View style={[styles.status, serverOk ? styles.ok : styles.off]}>
-        <Type size={13} weight="semibold" color={serverOk ? colors.success : colors.muted} rtl={rtl}>
-          {serverOk ? d.serverOn : d.serverOff}
+      <View style={[styles.status, styles.ok]}>
+        <Type size={13} weight="semibold" color={colors.success} rtl={rtl}>
+          {d.engineReady}
         </Type>
-      </View>
-      <TextInput
-        value={draft}
-        onChangeText={setDraft}
-        onEndEditing={() => setServerUrl(draft.trim() || serverUrl)}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={[styles.field, { textAlign: rtl ? 'right' : 'left' }]}
-        placeholder={d.serverUrl}
-        placeholderTextColor={colors.dim}
-      />
-      <View style={{ marginTop: 10 }}>
-        <GhostButton
-          label={d.checkServer}
-          onPress={() => {
-            setServerUrl(draft.trim() || serverUrl);
-            refreshServer();
-          }}
-        />
+        <Type size={13} color={colors.dim} rtl={rtl} style={{ marginTop: 6 }}>
+          {d.serverHint}
+        </Type>
       </View>
 
       <View style={[styles.toggle, rtl && { flexDirection: 'row-reverse' }]}>
@@ -116,22 +95,10 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: colors.gold, borderColor: colors.gold },
   status: {
-    padding: 12,
+    padding: 14,
     borderRadius: radius.md,
-    marginBottom: 10,
   },
   ok: { backgroundColor: 'rgba(61,220,151,0.1)' },
-  off: { backgroundColor: colors.card },
-  field: {
-    height: 50,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    color: colors.cream,
-    paddingHorizontal: 14,
-    fontFamily: fonts.medium,
-  },
   toggle: {
     marginTop: 26,
     flexDirection: 'row',

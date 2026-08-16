@@ -107,6 +107,9 @@ object Downloader {
         val dest = File(folder, "$safe-${System.currentTimeMillis()}.$ext")
 
         val platform = platformOf(pageUrl)
+        if (option.directUrl != null && platform == "Instagram") {
+            return InstagramDownloader.download(option, dest, onProgress)
+        }
         if (option.directUrl != null && platform != "TikTok") {
             return SocialClient.download(option, dest, onProgress)
         }
@@ -152,8 +155,14 @@ object Downloader {
 
     private fun fetchInstagram(url: String): VideoMeta {
         try {
+            return InstagramDownloader.fetch(url)
+        } catch (error: Exception) {
+            Log.e("IraqiTube", "instagram downloader failed", error)
+        }
+        try {
             val meta = SocialClient.fetchInstagram(url)
-            return meta.copy(options = meta.options + audioChoice())
+            return if (meta.options.any { it.kind == MediaKind.AUDIO }) meta
+            else meta.copy(options = meta.options + audioChoice())
         } catch (error: Exception) {
             Log.e("IraqiTube", "instagram embed failed", error)
         }
@@ -351,6 +360,8 @@ object Downloader {
     private fun applyInstagram(request: YoutubeDLRequest) {
         request.addOption("--referer", "https://www.instagram.com/")
         request.addOption("--add-header", "Origin:https://www.instagram.com/")
+        request.addOption("--add-header", "X-IG-App-ID:936619743392459")
+        request.addOption("--extractor-args", "instagram:app_id=936619743392459")
         request.addOption(
             "--user-agent",
             "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",

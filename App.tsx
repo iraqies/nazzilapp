@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import { useFonts, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans';
 import { IBMPlexSansArabic_600SemiBold, IBMPlexSansArabic_700Bold } from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { AppProvider, useApp } from './src/context';
-import { TabBar, Type } from './src/components/ui';
+import { TabBar } from './src/components/ui';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { AnalyzeScreen } from './src/screens/AnalyzeScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
@@ -97,7 +97,7 @@ function Shell() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
@@ -105,8 +105,14 @@ export default function App() {
     IBMPlexSansArabic_600SemiBold,
     IBMPlexSansArabic_700Bold,
   });
+  const [fontWaitDone, setFontWaitDone] = useState(false);
 
-  if (!fontsLoaded) {
+  useEffect(() => {
+    const timer = setTimeout(() => setFontWaitDone(true), 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!fontsLoaded && !fontError && !fontWaitDone) {
     return (
       <View style={styles.boot}>
         <ActivityIndicator color={colors.gold} />

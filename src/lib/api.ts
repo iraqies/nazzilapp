@@ -1,37 +1,27 @@
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import type { MediaFormat, ProbeResult } from '../types';
 import { detectPlatform } from './platforms';
 import { probeClient } from './clientExtract';
 
-export function defaultServerUrl(): string {
-  const hostUri =
-    Constants.expoConfig?.hostUri ||
-    (Constants as { linkingUri?: string }).linkingUri ||
-    '';
+export function engineUrl(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    return `${protocol}//${window.location.hostname}:8787`;
+  }
+  const hostUri = Constants.expoConfig?.hostUri || '';
   const host = String(hostUri)
     .replace(/^\w+:\/\//, '')
     .split(':')[0]
     .split('/')[0];
-
-  if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== 'exp.host') {
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
     return `http://${host}:8787`;
-  }
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8787';
   }
   return 'http://127.0.0.1:8787';
 }
 
-export async function checkServer(serverUrl: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${serverUrl.replace(/\/$/, '')}/health`, {
-      signal: AbortSignal.timeout(4000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+export function streamUrl(pageUrl: string, formatId: string): string {
+  return `${engineUrl()}/api/stream?url=${encodeURIComponent(pageUrl)}&format_id=${encodeURIComponent(formatId)}`;
 }
 
 type ServerProbe = {
@@ -45,16 +35,16 @@ type ServerProbe = {
   formats: MediaFormat[];
 };
 
-export async function probeServer(url: string, serverUrl: string): Promise<ProbeResult> {
-  const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/probe`, {
+async function probeServer(url: string): Promise<ProbeResult> {
+  const res = await fetch(`${engineUrl()}/api/probe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
     signal: AbortSignal.timeout(45000),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Probe failed' }));
-    throw new Error(err.detail || err.message || 'Probe failed');
+    const err = await res.json().catch(() => ({ detail: 'Could not load this video' }));
+    throw new Error(err.detail || err.message || 'Could not load this video');
   }
   const data = (await res.json()) as ServerProbe;
   return {
@@ -70,20 +60,27 @@ export async function probeServer(url: string, serverUrl: string): Promise<Probe
   };
 }
 
-export function streamUrl(serverUrl: string, pageUrl: string, formatId: string): string {
-  const base = serverUrl.replace(/\/$/, '');
-  return `${base}/api/stream?url=${encodeURIComponent(pageUrl)}&format_id=${encodeURIComponent(formatId)}`;
+function friendlyError(error: unknown): Error {
+  const raw = error instanceof Error ? error.message : '';
+  if (/abort|timeout|network|failed to fetch|network request failed/i.test(raw)) {
+    return new Error('Could not reach the download engine. Keep IraqiTube running on the computer.');
+  }
+  if (raw && !/public/i.test(raw)) return error instanceof Error ? error : new Error(raw);
+  return new Error('Could not load this video. Tap Try again.');
 }
 
-export async function probeMedia(url: string, serverUrl: string): Promise<ProbeResult> {
+export async function probeMedia(url: string): Promise<ProbeResult> {
   const trimmed = url.trim();
   try {
-    return await probeServer(trimmed, serverUrl);
+    return await probeServer(trimmed);
   } catch (serverError) {
-    try {
-      return await probeClient(trimmed);
-    } catch {
-      throw serverError instanceof Error ? serverError : new Error('Could not read this link');
+    if (Platform.OS !== 'web') {
+      try {
+        return await probeClient(trimmed);
+      } catch {
+        throw friendlyError(serverError);
+      }
     }
+    throw friendlyError(serverError);
   }
 }

@@ -30,7 +30,7 @@ object GallerySaver {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)
                 put(MediaStore.MediaColumns.MIME_TYPE, mime)
                 put(MediaStore.MediaColumns.TITLE, title)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "$folder/IraqiTube")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "$folder/Nazzil")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val resolver = context.contentResolver
@@ -49,7 +49,7 @@ object GallerySaver {
             Environment.getExternalStoragePublicDirectory(
                 if (isAudio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES,
             ),
-            "IraqiTube",
+            "Nazzil",
         ).apply { mkdirs() }
         val dest = File(publicDir, name)
         file.copyTo(dest, overwrite = true)

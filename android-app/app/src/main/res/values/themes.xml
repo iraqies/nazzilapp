@@ -6,4 +6,17 @@
         <item name="android:windowBackground">#0C0810</item>
         <item name="colorPrimary">#FF4D8D</item>
     </style>
+
+    <style name="Theme.Nazzil.Catch" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+    </style>
 </resources>

@@ -40,6 +40,12 @@ yarn-error.*
 /ios
 /android
 
+# local APKs and device files — never publish these
+*.apk
+IraqiTube.apk
+android-app/.adb-device
+android-app/local.properties
+
 # engine
 .venv/
 server/.cache/
