@@ -35,7 +35,10 @@
     <string name="engine_failed">Engine failed to start: %1$s</string>
     <string name="no_gallery">No gallery app found</string>
     <string name="back">Back</string>
+    <string name="about_title">About</string>
+    <string name="about_body">Nazzil is an Android app that saves videos to your gallery. Paste a link, pick a quality, download.</string>
     <string name="credits">Credits</string>
+    <string name="credit_iraqies">iraqies</string>
     <string name="credit_telegram">Telegram</string>
     <string name="credit_stalk">stalk.gg</string>
     <string name="version">Version %1$s</string>

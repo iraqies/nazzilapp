@@ -35,7 +35,10 @@
     <string name="engine_failed">المحرّك ما اشتغل: %1$s</string>
     <string name="no_gallery">ما لكيت تطبيق للمعرض</string>
     <string name="back">رجوع</string>
+    <string name="about_title">عن التطبيق</string>
+    <string name="about_body">نزل تطبيق أندرويد يحفظ الفيديو بالمعرض. الصق الرابط، اختار الجودة، ونزّل.</string>
     <string name="credits">حقوق</string>
+    <string name="credit_iraqies">iraqies</string>
     <string name="credit_telegram">تيليغرام</string>
     <string name="credit_stalk">stalk.gg</string>
     <string name="version">الإصدار %1$s</string>

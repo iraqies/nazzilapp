@@ -25,8 +25,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -517,7 +515,6 @@ private fun Header(engine: Boolean, showSettings: Boolean, onSettings: () -> Uni
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeBody(
     url: String,
@@ -536,17 +533,6 @@ private fun HomeBody(
     onDownload: () -> Unit,
     progress: Float,
 ) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        PlatformChip("YouTube", Color(0xFFFF3B30))
-        PlatformChip("TikTok", Color(0xFF25F4EE))
-        PlatformChip("Instagram", Color(0xFFE1306C))
-        PlatformChip("Facebook", Color(0xFF1877F2))
-    }
-    Spacer(Modifier.height(16.dp))
-
     OutlinedTextField(
         value = url,
         onValueChange = onUrl,
@@ -616,17 +602,12 @@ private fun HomeBody(
                     .clip(RoundedCornerShape(20.dp))
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC0C0810)))),
             )
-            Text(
-                video.platform.uppercase(),
-                color = Pink,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
-            )
         }
         Spacer(Modifier.height(12.dp))
         Text(video.title, color = Cream, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(listOfNotNull(video.author, video.platform).joinToString("  ·  "), color = Muted, fontSize = 13.sp)
+        if (!video.author.isNullOrBlank()) {
+            Text(video.author, color = Muted, fontSize = 13.sp)
+        }
         Spacer(Modifier.height(16.dp))
 
         val videos = video.options.filter { it.kind == MediaKind.VIDEO }
@@ -898,7 +879,7 @@ private fun LibraryBody(
             }
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(item.title, color = Cream, fontWeight = FontWeight.Bold, maxLines = 2)
-                Text("${item.platform}  ·  ${qualityName(item.quality)}", color = Muted, fontSize = 12.sp)
+                Text(qualityName(item.quality), color = Muted, fontSize = 12.sp)
             }
         }
         Row(Modifier.padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -922,20 +903,6 @@ private fun SmallIconAction(icon: ImageVector, label: String, onClick: () -> Uni
     }
 }
 
-@Composable
-private fun PlatformChip(label: String, color: Color) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(Surface)
-            .border(1.dp, Line, RoundedCornerShape(20.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(7.dp).clip(CircleShape).background(color))
-        Text(label, color = Cream, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 6.dp))
-    }
-}
 
 @Composable
 private fun PinkButton(
@@ -1037,8 +1004,19 @@ private fun SettingsBody(
         onLanguage(SettingsStore.LANG_AR)
     }
     Spacer(Modifier.height(28.dp))
+    Text(stringResource(R.string.about_title), color = Cream, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    Text(stringResource(R.string.about_body), color = Muted, fontSize = 14.sp)
+    Spacer(Modifier.height(28.dp))
     Text(stringResource(R.string.credits), color = Cream, fontWeight = FontWeight.Bold)
     Spacer(Modifier.height(8.dp))
+    CreditRow(
+        icon = R.mipmap.ic_launcher,
+        label = stringResource(R.string.credit_iraqies),
+        handle = "github.com/iraqies",
+        url = "https://github.com/iraqies",
+        circleIcon = true,
+    )
     CreditRow(
         icon = R.drawable.ic_telegram,
         label = stringResource(R.string.credit_telegram),

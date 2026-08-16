@@ -105,6 +105,11 @@ object Downloader {
         } catch (error: Exception) {
             Log.e("Nazzil", "youtube api failed", error)
         }
+        try {
+            return CobaltClient.fetch(watch, "YouTube")
+        } catch (error: Exception) {
+            Log.e("Nazzil", "youtube cobalt failed", error)
+        }
         val clients = listOf(
             "tv,tv_simply,android_vr",
             "web_safari,tv_embedded,ios",
@@ -133,6 +138,11 @@ object Downloader {
         val errors = mutableListOf<String>()
         try {
             return TikTokClient.fetch(url)
+        } catch (error: Exception) {
+            error.message?.let { errors += it }
+        }
+        try {
+            return CobaltClient.fetch(url, "TikTok")
         } catch (error: Exception) {
             error.message?.let { errors += it }
         }
@@ -272,6 +282,11 @@ object Downloader {
         } catch (error: Exception) {
             Log.e("IraqiTube", "instagram embed failed", error)
         }
+        try {
+            return CobaltClient.fetch(url, "Instagram")
+        } catch (error: Exception) {
+            Log.e("IraqiTube", "instagram cobalt failed", error)
+        }
         return try {
             threeChoices(fromInfo(fetchSocial(url, ::applyInstagram), url))
         } catch (error: Exception) {
@@ -288,6 +303,11 @@ object Downloader {
             }
         } catch (error: Exception) {
             Log.e("IraqiTube", "facebook page failed", error)
+        }
+        try {
+            return CobaltClient.fetch(url, "Facebook")
+        } catch (error: Exception) {
+            Log.e("IraqiTube", "facebook cobalt failed", error)
         }
         return try {
             threeChoices(fromInfo(fetchSocial(url, ::applyFacebook), url))

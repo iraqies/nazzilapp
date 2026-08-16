@@ -70,11 +70,24 @@ object SocialClient {
 
     fun fetchFacebook(pageUrl: String): VideoMeta {
         val resolved = LinkParser.resolve(pageUrl)
-        val html = DirectHttp.get(
+        val encoded = java.net.URLEncoder.encode(resolved, "UTF-8")
+        val pages = listOf(
             resolved,
-            mapOf("Referer" to "https://www.facebook.com/"),
-        )
-        return parseHtml(html, resolved, "Facebook", System.currentTimeMillis().toString())
+            resolved.replace("www.facebook.com", "m.facebook.com").replace("web.facebook.com", "m.facebook.com"),
+            resolved.replace("www.facebook.com", "mbasic.facebook.com").replace("web.facebook.com", "mbasic.facebook.com"),
+            "https://www.facebook.com/plugins/video.php?href=$encoded",
+        ).distinct()
+        var last: Exception? = null
+        for (page in pages) {
+            try {
+                val html = DirectHttp.get(page, mapOf("Referer" to "https://www.facebook.com/"))
+                val meta = parseHtml(html, resolved, "Facebook", System.currentTimeMillis().toString())
+                if (meta.options.any { it.kind == MediaKind.VIDEO }) return meta
+            } catch (error: Exception) {
+                last = error
+            }
+        }
+        throw last ?: IllegalStateException("Could not load this Facebook link")
     }
 
     fun download(option: QualityOption, dest: File, onProgress: (Float) -> Unit): File {

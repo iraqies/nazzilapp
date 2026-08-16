@@ -37,6 +37,19 @@ object DirectHttp {
         return readBody(conn)
     }
 
+    fun postJson(url: String, body: String, extra: Map<String, String> = emptyMap(), userAgent: String = UA): String {
+        val conn = open(
+            url,
+            extra + mapOf(
+                "Accept" to "application/json",
+                "Content-Type" to "application/json",
+            ),
+            body,
+            userAgent,
+        )
+        return readBody(conn)
+    }
+
     fun locate(url: String, extra: Map<String, String> = emptyMap(), userAgent: String = UA): Located {
         var current = url
         repeat(8) { hop ->

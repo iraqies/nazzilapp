@@ -103,7 +103,7 @@ object InstagramDownloader {
     }
 
     private fun fromInstaFix(code: String, pageUrl: String): VideoMeta {
-        val hosts = listOf("www.instagram7.com", "instagram7.com")
+        val hosts = listOf("www.instagram7.com", "instagram7.com", "www.ddinstagram.com", "kkinstagram.com")
         var last: Exception? = null
         for (host in hosts) {
             try {
@@ -265,12 +265,18 @@ object InstagramDownloader {
     }
 
     private fun userAgentFor(url: String): String {
-        return if ("instagram7" in url || "toinstagram" in url || "ddinstagram" in url) BOT_UA else DirectHttp.UA
+        return if ("instagram7" in url || "toinstagram" in url || "ddinstagram" in url || "kkinstagram" in url) {
+            BOT_UA
+        } else {
+            DirectHttp.UA
+        }
     }
 
     private fun refererFor(url: String): String {
         return when {
             "instagram7" in url -> "https://www.instagram7.com/"
+            "ddinstagram" in url -> "https://www.ddinstagram.com/"
+            "kkinstagram" in url -> "https://kkinstagram.com/"
             "saveig" in url || "ig-13" in url -> "https://saveig.app/"
             else -> "https://www.instagram.com/"
         }
