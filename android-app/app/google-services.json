@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1021987991455",
+    "project_id": "nazzilapp",
+    "storage_bucket": "nazzilapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021987991455:android:9b5cd1c9ec14b84d1617aa",
+        "android_client_info": {
+          "package_name": "com.nazzil.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYfFeF4pqjZ0eVnTe4vIiooA6O3iyHJ4Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

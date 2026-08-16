@@ -79,12 +79,20 @@ object SocialClient {
 
     fun download(option: QualityOption, dest: File, onProgress: (Float) -> Unit): File {
         val url = option.directUrl ?: throw IllegalStateException("Missing download link")
+        val youtube = "googlevideo" in url || "youtube" in url || "ytimg" in url
         val referer = when {
             "instagram7" in url -> "https://www.instagram7.com/"
             "instagram" in url || "cdninstagram" in url || "fbcdn" in url -> "https://www.instagram.com/"
+            youtube -> "https://www.youtube.com/"
             else -> "https://www.facebook.com/"
         }
-        return DirectHttp.save(url, dest, referer, onProgress)
+        return DirectHttp.save(
+            url,
+            dest,
+            referer,
+            onProgress,
+            userAgent = if (youtube) NewPipeHttp.UA else DirectHttp.UA,
+        )
     }
 
     private fun parseJson(body: String, pageUrl: String, id: String): VideoMeta {

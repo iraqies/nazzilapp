@@ -6,12 +6,13 @@ import java.net.URL
 object LinkParser {
     private val urlRegex = Regex("""https?://[^\s<>"'\\]+""", RegexOption.IGNORE_CASE)
     private val looseUrl = Regex(
-        """(?:https?://)?(?:(?:www|m|vm|vt)\.)?(?:tiktok\.com|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|youtube\.com|youtu\.be)/[^\s<>"'\\]+""",
+        """(?:https?://)?(?:(?:www|m|vm|vt|v)\.)?(?:tiktok\.com|musical\.ly|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|music\.youtube\.com|youtube\.com|youtu\.be)/[^\s<>"'\\]+""",
         RegexOption.IGNORE_CASE,
     )
     private val shortHosts = setOf(
         "vm.tiktok.com",
         "vt.tiktok.com",
+        "v.tiktok.com",
         "fb.watch",
         "fb.me",
         "l.instagram.com",
@@ -47,7 +48,7 @@ object LinkParser {
     fun looksLikeUrl(value: String): Boolean {
         val text = value.lowercase()
         return text.startsWith("http://") || text.startsWith("https://") ||
-            "tiktok.com" in text || "instagram.com" in text || "instagr.am" in text ||
+            "tiktok.com" in text || "musical.ly" in text || "instagram.com" in text || "instagr.am" in text ||
             "facebook.com" in text || "fb.watch" in text || "fb.com" in text ||
             "youtu.be" in text || "youtube.com" in text
     }

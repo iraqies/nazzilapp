@@ -60,6 +60,7 @@ object Downloader {
             "TikTok" -> fetchTikTok(resolved)
             "Instagram" -> fetchInstagram(resolved)
             "Facebook" -> fetchFacebook(resolved)
+            "YouTube" -> fetchYouTube(resolved)
             else -> threeChoices(fromInfo(fetchDefault(resolved), resolved))
         }
     }
@@ -70,11 +71,52 @@ object Downloader {
             .filter { it.isNotBlank() && !it.startsWith("File \"") && !it.startsWith("Traceback") }
             .toList()
         val useful = lines.lastOrNull { it.contains("ERROR", ignoreCase = true) } ?: lines.lastOrNull()
-        return useful
+        val text = useful
             ?.replace(Regex("(?i)^ERROR:\\s*"), "")
-            ?.take(120)
-            ?.ifBlank { null }
-            ?: "Could not load this link"
+            .orEmpty()
+        val lower = text.lowercase()
+        val dump = lower.contains("[youtube]") ||
+            "yt-dlp" in lower ||
+            "player response" in lower ||
+            "failed to extract" in lower ||
+            "not a bot" in lower ||
+            "sign in" in lower ||
+            "cookies" in lower
+        return when {
+            dump -> "YouTube blocked this one. Try again."
+            else -> text.take(120).ifBlank { "Could not load this link" }
+        }
+    }
+
+    private fun fetchYouTube(url: String): VideoMeta {
+        val watch = YouTubeClient.watchUrl(url)
+        try {
+            return YouTubeClient.fetch(watch)
+        } catch (error: Exception) {
+            Log.e("Nazzil", "youtube api failed", error)
+        }
+        val clients = listOf(
+            "tv,tv_simply,android_vr",
+            "web_safari,tv_embedded,ios",
+            "android,ios,web_embedded",
+            "mweb,web,tv",
+        )
+        var last: Exception? = null
+        for (client in clients) {
+            try {
+                return threeChoices(fromInfo(fetchYouTubeYtdlp(watch, client), watch))
+            } catch (error: Exception) {
+                last = error
+            }
+        }
+        throw IllegalStateException(shortMessage(last ?: IllegalStateException("YouTube blocked this one. Try again.")))
+    }
+
+    private fun fetchYouTubeYtdlp(url: String, clients: String): VideoInfo {
+        val request = YoutubeDLRequest(url)
+        applyCommon(request)
+        applyYouTube(request, clients)
+        return YoutubeDL.getInstance().getInfo(request)
     }
 
     private fun fetchTikTok(url: String): VideoMeta {
@@ -100,13 +142,30 @@ object Downloader {
         option: QualityOption,
         title: String,
         onProgress: (Float) -> Unit,
+        thumbnail: String? = null,
+        author: String? = null,
     ): File {
         val folder = File(context.getExternalFilesDir(null), "videos").apply { mkdirs() }
         val safe = title.replace(Regex("[\\\\/:*?\"<>|]"), "").take(60).ifBlank { "iraqi-tube" }
         val ext = option.ext.ifBlank { "mp4" }
         val dest = File(folder, "$safe-${System.currentTimeMillis()}.$ext")
 
+        val file = downloadFile(pageUrl, option, dest, onProgress)
+        if (option.kind != MediaKind.AUDIO) return file
+        onProgress(0.94f)
+        return AudioCover.apply(context, file, thumbnail, title, author, pageUrl)
+    }
+
+    private fun downloadFile(
+        pageUrl: String,
+        option: QualityOption,
+        dest: File,
+        onProgress: (Float) -> Unit,
+    ): File {
         val platform = platformOf(pageUrl)
+        if (platform == "YouTube") {
+            return downloadYouTube(pageUrl, option, dest, onProgress)
+        }
         if (option.directUrl != null && platform == "Instagram") {
             return InstagramDownloader.download(option, dest, onProgress)
         }
@@ -132,6 +191,43 @@ object Downloader {
         } catch (error: Exception) {
             if ("+" in option.id || "*" in option.id) {
                 runYtdlp(pageUrl, "b", dest, platform, onProgress)
+            } else {
+                throw error
+            }
+        }
+    }
+
+    private fun downloadYouTube(
+        pageUrl: String,
+        option: QualityOption,
+        dest: File,
+        onProgress: (Float) -> Unit,
+    ): File {
+        val watch = YouTubeClient.watchUrl(pageUrl)
+        if (option.directUrl != null) {
+            try {
+                return SocialClient.download(option, dest, onProgress)
+            } catch (error: Exception) {
+                Log.e("Nazzil", "youtube direct download failed", error)
+            }
+        }
+        try {
+            val fresh = YouTubeClient.fetch(watch)
+            val match = fresh.options.firstOrNull {
+                it.kind == option.kind && it.directUrl != null &&
+                    (it.label == option.label || it.id == option.id)
+            } ?: fresh.options.firstOrNull { it.kind == option.kind && it.directUrl != null }
+            if (match != null) {
+                return SocialClient.download(match, dest, onProgress)
+            }
+        } catch (error: Exception) {
+            Log.e("Nazzil", "youtube refresh failed", error)
+        }
+        return try {
+            runYtdlp(watch, option.id, dest, "YouTube", onProgress)
+        } catch (error: Exception) {
+            if ("+" in option.id || "*" in option.id) {
+                runYtdlp(watch, "b", dest, "YouTube", onProgress)
             } else {
                 throw error
             }
@@ -314,6 +410,7 @@ object Downloader {
             "TikTok" -> applyTikTok(request, tiktokHosts.first())
             "Instagram" -> applyInstagram(request)
             "Facebook" -> applyFacebook(request)
+            "YouTube" -> applyYouTube(request, "tv,tv_embedded,ios,android")
         }
         request.addOption("-f", format)
         request.addOption("-o", template.absolutePath)
@@ -345,6 +442,15 @@ object Downloader {
     private fun applyCommon(request: YoutubeDLRequest) {
         request.addOption("--no-playlist")
         request.addOption("--no-warnings")
+        request.addOption(
+            "--user-agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        )
+    }
+
+    private fun applyYouTube(request: YoutubeDLRequest, clients: String) {
+        request.addOption("--extractor-args", "youtube:player_client=$clients;player_skip=webpage")
+        request.addOption("--referer", "https://www.youtube.com/")
         request.addOption(
             "--user-agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",

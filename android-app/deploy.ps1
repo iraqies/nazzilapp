@@ -44,5 +44,5 @@ Write-Host "Building and installing..."
 & .\gradlew.bat installDebug --quiet
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-& $adb shell am start -n com.iraqitube.app/.MainActivity
+& $adb shell am start -n com.nazzil.app/com.iraqitube.app.MainActivity
 Write-Host "App updated on the phone."

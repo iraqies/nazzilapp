@@ -12,11 +12,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.ui.res.stringResource
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +25,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,12 +66,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,7 +88,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -124,6 +133,10 @@ private fun LocalizedApp(language: String, content: @Composable () -> Unit) {
 @Composable
 fun IraqiTubeScreen(
     incomingUrl: String,
+    focusDownload: Boolean = false,
+    doneId: String = "",
+    onFocusHandled: () -> Unit = {},
+    onDoneHandled: () -> Unit = {},
     onShare: (Uri, String) -> Unit,
     onView: (Uri, String) -> Unit,
 ) {
@@ -135,8 +148,7 @@ fun IraqiTubeScreen(
 
     var url by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf(0) }
-    var showSettings by remember { mutableStateOf(false) }
-    var watchClipboard by remember { mutableStateOf(settings.watchClipboard) }
+    var showSettings by remember { mutableStateOf(settings.consumeStayInSettings()) }
     var language by remember { mutableStateOf(settings.language) }
     var meta by remember { mutableStateOf<VideoMeta?>(null) }
     var selected by remember { mutableStateOf<QualityOption?>(null) }
@@ -147,10 +159,31 @@ fun IraqiTubeScreen(
     var library by remember { mutableStateOf(store.all()) }
     var engine by remember { mutableStateOf(app.engineReady) }
     var saved by remember { mutableStateOf<SavedVideo?>(null) }
+    var siteVersion by remember { mutableStateOf<UpdateChecker.Remote?>(null) }
+    var showUpdate by remember { mutableStateOf(false) }
+    var updateBusy by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableFloatStateOf(0f) }
+    var updateError by remember { mutableStateOf("") }
+    var pendingApk by remember { mutableStateOf<File?>(null) }
+    var fetchGen by remember { mutableIntStateOf(0) }
 
     val storagePermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
+    val installPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        pendingApk?.let { file -> runCatching { UpdateChecker.install(context, file) } }
+    }
+    val notifyPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
+    val dlBusy by DownloadBus.busy.collectAsState()
+    val dlProgress by DownloadBus.progress.collectAsState()
+    val dlError by DownloadBus.error.collectAsState()
+    val dlSaved by DownloadBus.saved.collectAsState()
+    val dlTitle by DownloadBus.title.collectAsState()
 
     fun mediaOf(item: SavedVideo): Pair<Uri, String> {
         val file = File(item.path)
@@ -182,16 +215,22 @@ fun IraqiTubeScreen(
         loading = true
         meta = null
         tab = 0
+        val gen = fetchGen + 1
+        fetchGen = gen
         scope.launch {
             try {
                 val result = withContext(Dispatchers.IO) { Downloader.fetch(cleaned) }
+                if (gen != fetchGen) return@launch
+                error = ""
                 meta = result
                 selected = result.options.firstOrNull { it.kind == MediaKind.VIDEO }
                     ?: result.options.firstOrNull()
             } catch (e: Exception) {
+                if (gen != fetchGen) return@launch
+                meta = null
                 error = Downloader.shortMessage(e)
             } finally {
-                loading = false
+                if (gen == fetchGen) loading = false
             }
         }
     }
@@ -199,44 +238,51 @@ fun IraqiTubeScreen(
     fun download() {
         val current = meta ?: return
         val option = selected ?: return
+        if (dlBusy) return
         if (Build.VERSION.SDK_INT < 29) {
             storagePermission.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
-        downloading = true
-        progress = 0.02f
+        if (Build.VERSION.SDK_INT >= 33) {
+            notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
         error = ""
         saved = null
+        showSettings = false
+        tab = 0
+        DownloadService.start(context, current, option)
+    }
+
+    fun applyUpdate(remote: UpdateChecker.Remote) {
+        updateBusy = true
+        updateError = ""
+        updateProgress = 0.02f
         scope.launch {
             try {
-                val file = withContext(Dispatchers.IO) {
-                    Downloader.download(context, current.webpageUrl, option, current.title) {
-                        progress = it.coerceAtMost(0.9f)
-                    }
+                val apk = withContext(Dispatchers.IO) {
+                    UpdateChecker.download(context, remote) { updateProgress = it }
                 }
-                progress = 0.92f
-                val gallery = withContext(Dispatchers.IO) {
-                    GallerySaver.save(context, file, current.title)
+                pendingApk = apk
+                if (UpdateChecker.needsInstallPermission(context)) {
+                    installPermission.launch(UpdateChecker.installPermissionIntent(context))
+                } else {
+                    UpdateChecker.install(context, apk)
                 }
-                val item = SavedVideo(
-                    id = "${current.id}-${file.name}",
-                    title = current.title,
-                    author = current.author,
-                    platform = current.platform,
-                    path = file.absolutePath,
-                    galleryUri = gallery.toString(),
-                    quality = option.label,
-                    createdAt = System.currentTimeMillis(),
-                    thumbnail = current.thumbnail,
-                )
-                store.add(item)
-                library = store.all()
-                saved = item
-                progress = 1f
+                showUpdate = false
             } catch (e: Exception) {
-                error = Downloader.shortMessage(e)
+                updateError = Downloader.shortMessage(e)
             } finally {
-                downloading = false
+                updateBusy = false
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val remote = withContext(Dispatchers.IO) {
+            runCatching { UpdateChecker.fetch() }.getOrNull()
+        }
+        siteVersion = remote
+        if (remote != null && UpdateChecker.isNewer(remote.version, UpdateChecker.current(context))) {
+            showUpdate = true
         }
     }
 
@@ -254,11 +300,45 @@ fun IraqiTubeScreen(
         if (!engine) return@LaunchedEffect
         val link = LinkParser.extract(incomingUrl)
         if (link.isBlank()) return@LaunchedEffect
-        settings.lastClipUrl = link
         showSettings = false
         tab = 0
         url = link
         fetch(link)
+    }
+
+    LaunchedEffect(dlBusy, dlProgress) {
+        downloading = dlBusy
+        if (dlBusy) progress = dlProgress
+    }
+    LaunchedEffect(dlError) {
+        if (dlError.isNotBlank()) error = dlError
+    }
+    LaunchedEffect(dlSaved?.id) {
+        val item = dlSaved ?: return@LaunchedEffect
+        library = store.all()
+        saved = item
+    }
+    LaunchedEffect(focusDownload) {
+        if (!focusDownload) return@LaunchedEffect
+        showSettings = false
+        tab = 0
+        onFocusHandled()
+    }
+    LaunchedEffect(doneId) {
+        if (doneId.isBlank()) return@LaunchedEffect
+        showSettings = false
+        tab = 0
+        saved = store.all().firstOrNull { it.id == doneId } ?: dlSaved
+        onDoneHandled()
+    }
+
+    fun goHome() {
+        showSettings = false
+        tab = 0
+    }
+
+    BackHandler(enabled = showSettings || tab != 0) {
+        goHome()
     }
 
     LocalizedApp(language) {
@@ -269,74 +349,117 @@ fun IraqiTubeScreen(
             .navigationBarsPadding()
             .imePadding(),
     ) {
-        Column(
+        Header(
+            engine = engine,
+            showSettings = showSettings,
+            onSettings = {
+                if (showSettings) goHome() else showSettings = true
+            },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+        )
+        val page = when {
+            showSettings -> "settings"
+            tab == 0 -> "home"
+            else -> "history"
+        }
+        Box(
             Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .fillMaxWidth(),
         ) {
-            Header(
-                engine = engine,
-                showSettings = showSettings,
-                onSettings = { showSettings = !showSettings },
-            )
-            Spacer(Modifier.height(18.dp))
-
-            if (showSettings) {
-                SettingsBody(
-                    watchClipboard = watchClipboard,
-                    onWatchClipboard = {
-                        watchClipboard = it
-                        settings.watchClipboard = it
-                        ClipWatch.setEnabled(context, it)
-                    },
-                    language = language,
-                    onLanguage = {
-                        language = it
-                        settings.language = it
-                        (context as? Activity)?.recreate()
-                    },
-                )
-            } else if (tab == 0) {
-                HomeBody(
-                    url = url,
-                    onUrl = { url = it; error = "" },
-                    onPaste = {
-                        val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
-                        val link = LinkParser.extract(clip)
-                        if (link.isNotBlank()) {
-                            url = link
-                            fetch(link)
-                        }
-                    },
-                    onClear = { url = ""; meta = null; saved = null; error = "" },
-                    onFetch = { fetch() },
-                    engine = engine,
-                    loading = loading,
-                    downloading = downloading,
-                    error = error,
-                    meta = meta,
-                    selected = selected,
-                    onSelect = { selected = it },
-                    onDownload = { download() },
-                    progress = progress,
-                )
-            } else {
-                LibraryBody(
-                    items = library,
-                    onView = { viewItem(it) },
-                    onShare = { shareItem(it) },
-                    onDelete = {
-                        store.remove(it.id)
-                        library = store.all()
-                    },
-                )
+            key(page) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 16.dp),
+            ) {
+                when (page) {
+                    "settings" -> SettingsBody(
+                        language = language,
+                        onLanguage = {
+                            settings.stayInSettings = true
+                            language = it
+                            settings.language = it
+                            (context as? Activity)?.recreate()
+                        },
+                        siteVersion = siteVersion,
+                        updateBusy = updateBusy,
+                        updateProgress = updateProgress,
+                        updateError = updateError,
+                        onCheckUpdate = {
+                            scope.launch {
+                                updateError = ""
+                                val remote = withContext(Dispatchers.IO) {
+                                    runCatching { UpdateChecker.fetch() }.getOrElse {
+                                        updateError = context.getString(R.string.update_failed)
+                                        null
+                                    }
+                                }
+                                siteVersion = remote
+                                if (remote != null && UpdateChecker.isNewer(remote.version, UpdateChecker.current(context))) {
+                                    showUpdate = true
+                                }
+                            }
+                        },
+                        onUpdate = { siteVersion?.let { applyUpdate(it) } },
+                    )
+                    "home" -> HomeBody(
+                        url = url,
+                        onUrl = { url = it; error = "" },
+                        onPaste = {
+                            val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                .primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
+                            val link = LinkParser.extract(clip)
+                            if (link.isNotBlank()) {
+                                url = link
+                                fetch(link)
+                            }
+                        },
+                        onClear = { url = ""; meta = null; saved = null; error = "" },
+                        onFetch = { fetch() },
+                        engine = engine,
+                        loading = loading,
+                        downloading = downloading,
+                        downloadTitle = dlTitle,
+                        error = error,
+                        meta = meta,
+                        selected = selected,
+                        onSelect = { selected = it },
+                        onDownload = { download() },
+                        progress = progress,
+                    )
+                    else -> LibraryBody(
+                        items = library,
+                        onView = { viewItem(it) },
+                        onShare = { shareItem(it) },
+                        onDelete = {
+                            store.remove(it.id)
+                            library = store.all()
+                        },
+                    )
+                }
+            }
             }
         }
 
         if (!showSettings) {
             TabBar(tab) { tab = it }
+        }
+    }
+
+    if (showUpdate) {
+        siteVersion?.let { remote ->
+            UpdateDialog(
+                remote = remote,
+                local = UpdateChecker.current(context),
+                busy = updateBusy,
+                progress = updateProgress,
+                error = updateError,
+                onLater = { showUpdate = false },
+                onUpdate = { applyUpdate(remote) },
+            )
         }
     }
 
@@ -357,8 +480,8 @@ fun IraqiTubeScreen(
 }
 
 @Composable
-private fun Header(engine: Boolean, showSettings: Boolean, onSettings: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun Header(engine: Boolean, showSettings: Boolean, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
                 .size(40.dp)
@@ -370,10 +493,11 @@ private fun Header(engine: Boolean, showSettings: Boolean, onSettings: () -> Uni
         }
         Spacer(Modifier.width(12.dp))
         Text(
-            if (showSettings) stringResource(R.string.settings) else "Nazzil",
+            if (showSettings) stringResource(R.string.settings) else stringResource(R.string.app_name),
             color = Cream,
             fontSize = 20.sp,
             fontWeight = FontWeight.Black,
+            maxLines = 1,
             modifier = Modifier.weight(1f),
         )
         Text(
@@ -392,6 +516,7 @@ private fun Header(engine: Boolean, showSettings: Boolean, onSettings: () -> Uni
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeBody(
     url: String,
@@ -402,6 +527,7 @@ private fun HomeBody(
     engine: Boolean,
     loading: Boolean,
     downloading: Boolean,
+    downloadTitle: String = "",
     error: String,
     meta: VideoMeta?,
     selected: QualityOption?,
@@ -409,7 +535,10 @@ private fun HomeBody(
     onDownload: () -> Unit,
     progress: Float,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         PlatformChip("YouTube", Color(0xFFFF3B30))
         PlatformChip("TikTok", Color(0xFF25F4EE))
         PlatformChip("Instagram", Color(0xFFE1306C))
@@ -447,8 +576,13 @@ private fun HomeBody(
     )
 
     if (error.isNotBlank()) {
-        Spacer(Modifier.height(12.dp))
-        Text(error, color = Crimson, fontSize = 13.sp)
+        Text(
+            error,
+            color = Crimson,
+            fontSize = 13.sp,
+            maxLines = 3,
+            modifier = Modifier.padding(top = 12.dp).fillMaxWidth(),
+        )
     }
 
     meta?.let { video ->
@@ -519,16 +653,30 @@ private fun HomeBody(
             onClick = onDownload,
         )
         if (downloading) {
-            Spacer(Modifier.height(10.dp))
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
-                color = Pink,
-                trackColor = Surface,
-            )
-            Text("${(progress * 100).toInt()}%", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            DownloadBar(progress)
         }
     }
+
+    if (downloading && meta == null) {
+        Spacer(Modifier.height(20.dp))
+        if (downloadTitle.isNotBlank()) {
+            Text(downloadTitle, color = Cream, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+        }
+        DownloadBar(progress)
+    }
+}
+
+@Composable
+private fun DownloadBar(progress: Float) {
+    Spacer(Modifier.height(10.dp))
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+        color = Pink,
+        trackColor = Surface,
+    )
+    Text("${(progress * 100).toInt()}%", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
 }
 
 @Composable
@@ -543,13 +691,16 @@ private fun SectionLabel(icon: ImageVector, label: String) {
 @Composable
 private fun OptionRow(option: QualityOption, active: Boolean, onClick: () -> Unit) {
     val icon = if (option.kind == MediaKind.AUDIO) Icons.Outlined.Audiotrack else Icons.Outlined.Videocam
+    val bg by animateColorAsState(if (active) PinkSoft else Surface, tween(220), label = "opt-bg")
+    val stroke by animateColorAsState(if (active) Pink else Line, tween(220), label = "opt-line")
+    val badge by animateColorAsState(if (active) Pink else Surface2, tween(220), label = "opt-badge")
     Row(
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (active) PinkSoft else Surface)
-            .border(1.dp, if (active) Pink else Line, RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(1.dp, stroke, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -558,7 +709,7 @@ private fun OptionRow(option: QualityOption, active: Boolean, onClick: () -> Uni
             Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(if (active) Pink else Surface2),
+                .background(badge),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -577,14 +728,31 @@ private fun OptionRow(option: QualityOption, active: Boolean, onClick: () -> Uni
 
 @Composable
 private fun DoneDialog(onClose: () -> Unit, onView: () -> Unit, onShare: () -> Unit) {
-    Dialog(onDismissRequest = onClose) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .background(Surface)
-                .padding(20.dp),
-        ) {
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+            window?.setLayout(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            window?.setDimAmount(0.55f)
+        }
+        Box(Modifier.fillMaxSize()) {
+            ConfettiBurst(active = true)
+            Column(
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Surface)
+                    .clickable(enabled = false) {}
+                    .padding(20.dp),
+            ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
@@ -605,6 +773,59 @@ private fun DoneDialog(onClose: () -> Unit, onView: () -> Unit, onShare: () -> U
             ActionTile(Icons.Outlined.PlayArrow, stringResource(R.string.play), onView)
             Spacer(Modifier.height(10.dp))
             ActionTile(Icons.Outlined.Share, stringResource(R.string.share), onShare)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateDialog(
+    remote: UpdateChecker.Remote,
+    local: String,
+    busy: Boolean,
+    progress: Float,
+    error: String,
+    onLater: () -> Unit,
+    onUpdate: () -> Unit,
+) {
+    Dialog(onDismissRequest = { if (!busy) onLater() }) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(Surface)
+                .padding(20.dp),
+        ) {
+            Text(stringResource(R.string.update_available, remote.version), color = Cream, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.update_body, local, remote.version), color = Muted, fontSize = 14.sp)
+            if (error.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(error, color = Crimson, fontSize = 13.sp)
+            }
+            if (busy) {
+                Spacer(Modifier.height(14.dp))
+                Text(stringResource(R.string.update_downloading), color = Muted, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                    color = Pink,
+                    trackColor = Surface2,
+                )
+            } else {
+                Spacer(Modifier.height(16.dp))
+                PinkButton(
+                    label = stringResource(R.string.update_now),
+                    icon = Icons.Outlined.Download,
+                    enabled = true,
+                    loading = false,
+                    onClick = onUpdate,
+                )
+                TextButton(onClick = onLater, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.update_later), color = Muted)
+                }
+            }
         }
     }
 }
@@ -754,19 +975,21 @@ private fun TabBar(tab: Int, onChange: (Int) -> Unit) {
     ) {
         items.forEachIndexed { index, (label, icon) ->
             val active = tab == index
+            val bg by animateColorAsState(if (active) Pink else Color.Transparent, tween(220), label = "tab-bg")
+            val tint by animateColorAsState(if (active) Color.White else Muted, tween(220), label = "tab-tint")
             Row(
                 Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(if (active) Pink else Color.Transparent)
+                    .background(bg)
                     .clickable { onChange(index) }
                     .padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(icon, contentDescription = null, tint = if (active) Color.White else Muted, modifier = Modifier.size(16.dp))
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(label, color = if (active) Color.White else Muted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(label, color = tint, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
     }
@@ -790,33 +1013,16 @@ private fun RemoteThumb(url: String, modifier: Modifier) {
 
 @Composable
 private fun SettingsBody(
-    watchClipboard: Boolean,
-    onWatchClipboard: (Boolean) -> Unit,
     language: String,
     onLanguage: (String) -> Unit,
+    siteVersion: UpdateChecker.Remote?,
+    updateBusy: Boolean,
+    updateProgress: Float,
+    updateError: String,
+    onCheckUpdate: () -> Unit,
+    onUpdate: () -> Unit,
 ) {
     val context = LocalContext.current
-    Text(stringResource(R.string.settings), color = Cream, fontSize = 28.sp, fontWeight = FontWeight.Black)
-    Spacer(Modifier.height(16.dp))
-    SettingCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(stringResource(R.string.watch_clipboard), color = Cream, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                Text(stringResource(R.string.watch_clipboard_desc), color = Muted, fontSize = 13.sp)
-            }
-            Switch(
-                checked = watchClipboard,
-                onCheckedChange = onWatchClipboard,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Pink,
-                    uncheckedTrackColor = Surface2,
-                ),
-            )
-        }
-    }
-    Spacer(Modifier.height(14.dp))
     Text(stringResource(R.string.language), color = Cream, fontWeight = FontWeight.Bold)
     Spacer(Modifier.height(8.dp))
     LanguageRow(stringResource(R.string.language_system), language == SettingsStore.LANG_SYSTEM) {
@@ -834,8 +1040,8 @@ private fun SettingsBody(
     CreditRow(
         icon = R.drawable.ic_telegram,
         label = stringResource(R.string.credit_telegram),
-        handle = "t.me/alwayshammered",
-        url = "https://t.me/alwayshammered",
+        handle = "t.me/auratistic",
+        url = "https://t.me/auratistic",
         circleIcon = true,
     )
     CreditRow(
@@ -845,34 +1051,56 @@ private fun SettingsBody(
         url = "https://stalk.gg/x",
     )
     Spacer(Modifier.height(16.dp))
-    val versionName = remember {
-        runCatching {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        }.getOrNull().orEmpty().ifBlank { "1.0" }
-    }
+    val versionName = remember { UpdateChecker.current(context) }
     Text(stringResource(R.string.version, versionName), color = Muted, fontSize = 13.sp)
-}
-
-@Composable
-private fun SettingCard(content: @Composable () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Surface)
-            .padding(16.dp),
-    ) { content() }
+    val remote = siteVersion
+    when {
+        updateBusy -> {
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.update_downloading), color = Muted, fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { updateProgress },
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(99.dp)),
+                color = Pink,
+                trackColor = Surface2,
+            )
+        }
+        updateError.isNotBlank() -> {
+            Spacer(Modifier.height(8.dp))
+            Text(updateError, color = Crimson, fontSize = 13.sp)
+        }
+        remote != null && UpdateChecker.isNewer(remote.version, versionName) -> {
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.update_available, remote.version), color = Pink, fontSize = 13.sp)
+            TextButton(onClick = onUpdate) {
+                Text(stringResource(R.string.update_now), color = Pink, fontWeight = FontWeight.Bold)
+            }
+        }
+        remote != null -> {
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.update_current), color = Muted, fontSize = 13.sp)
+        }
+        else -> {
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onCheckUpdate) {
+                Text(stringResource(R.string.update_check), color = Pink, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
 
 @Composable
 private fun LanguageRow(label: String, active: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (active) PinkSoft else Surface, tween(220), label = "lang-bg")
+    val stroke by animateColorAsState(if (active) Pink else Line, tween(220), label = "lang-line")
     Row(
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (active) PinkSoft else Surface)
-            .border(1.dp, if (active) Pink else Line, RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(1.dp, stroke, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,

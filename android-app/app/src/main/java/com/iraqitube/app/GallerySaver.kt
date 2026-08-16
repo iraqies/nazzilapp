@@ -9,7 +9,7 @@ import android.provider.MediaStore
 import java.io.File
 
 object GallerySaver {
-    fun save(context: Context, file: File, title: String): Uri {
+    fun save(context: Context, file: File, title: String, author: String? = null): Uri {
         val isAudio = file.extension.lowercase() in setOf("m4a", "mp3", "aac", "opus")
         val mime = when (file.extension.lowercase()) {
             "m4a", "aac" -> "audio/mp4"
@@ -30,6 +30,11 @@ object GallerySaver {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)
                 put(MediaStore.MediaColumns.MIME_TYPE, mime)
                 put(MediaStore.MediaColumns.TITLE, title)
+                if (isAudio) {
+                    put(MediaStore.Audio.Media.ARTIST, author?.ifBlank { null } ?: "Nazzil")
+                    put(MediaStore.Audio.Media.ALBUM, title)
+                    put(MediaStore.Audio.Media.IS_MUSIC, 1)
+                }
                 put(MediaStore.MediaColumns.RELATIVE_PATH, "$folder/Nazzil")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }

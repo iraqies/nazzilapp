@@ -11,12 +11,6 @@ import java.util.Locale
 class SettingsStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    var watchClipboard: Boolean
-        get() = prefs.getBoolean(KEY_WATCH, false)
-        set(value) {
-            prefs.edit().putBoolean(KEY_WATCH, value).apply()
-        }
-
     var language: String
         get() = prefs.getString(KEY_LANG, LANG_SYSTEM) ?: LANG_SYSTEM
         set(value) {
@@ -24,11 +18,17 @@ class SettingsStore(context: Context) {
             applyLocale()
         }
 
-    var lastClipUrl: String
-        get() = prefs.getString(KEY_LAST_CLIP, "").orEmpty()
+    var stayInSettings: Boolean
+        get() = prefs.getBoolean(KEY_STAY_SETTINGS, false)
         set(value) {
-            prefs.edit().putString(KEY_LAST_CLIP, value).apply()
+            prefs.edit().putBoolean(KEY_STAY_SETTINGS, value).apply()
         }
+
+    fun consumeStayInSettings(): Boolean {
+        val open = stayInSettings
+        if (open) stayInSettings = false
+        return open
+    }
 
     fun applyLocale() {
         val locales = when (language) {
@@ -44,9 +44,8 @@ class SettingsStore(context: Context) {
         const val LANG_EN = "en"
         const val LANG_AR = "ar"
         private const val PREFS = "nazzil"
-        private const val KEY_WATCH = "watch_clipboard"
         private const val KEY_LANG = "language"
-        private const val KEY_LAST_CLIP = "last_clip_url"
+        private const val KEY_STAY_SETTINGS = "stay_in_settings"
 
         fun languageOf(context: Context): String {
             return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

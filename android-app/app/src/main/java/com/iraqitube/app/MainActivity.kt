@@ -17,6 +17,8 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
     private var incomingUrl by mutableStateOf("")
+    private var focusDownload by mutableStateOf(false)
+    private var doneId by mutableStateOf("")
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(SettingsStore.wrap(newBase))
@@ -26,12 +28,15 @@ class MainActivity : ComponentActivity() {
         SettingsStore(this).applyLocale()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        incomingUrl = readIncoming(intent)
-        ClipWatch.sync(this)
+        readIntent(intent)
         setContent {
             IraqiTubeTheme {
                 IraqiTubeScreen(
                     incomingUrl = incomingUrl,
+                    focusDownload = focusDownload,
+                    doneId = doneId,
+                    onFocusHandled = { focusDownload = false },
+                    onDoneHandled = { doneId = "" },
                     onShare = { uri, mime -> share(uri, mime) },
                     onView = { uri, mime -> view(uri, mime) },
                 )
@@ -39,22 +44,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        ClipWatch.appInFront = true
-        OverlayPrompt.hide(this)
-        ClipWatch.sync(this)
-    }
-
-    override fun onPause() {
-        ClipWatch.appInFront = false
-        super.onPause()
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        readIntent(intent)
+    }
+
+    private fun readIntent(intent: Intent?) {
         incomingUrl = readIncoming(intent)
+        if (intent?.action == DownloadNotifier.ACTION_OPEN) {
+            focusDownload = intent.getBooleanExtra(DownloadNotifier.EXTRA_FOCUS, false)
+            doneId = intent.getStringExtra(DownloadNotifier.EXTRA_DONE_ID).orEmpty()
+        }
     }
 
     private fun readIncoming(intent: Intent?): String {

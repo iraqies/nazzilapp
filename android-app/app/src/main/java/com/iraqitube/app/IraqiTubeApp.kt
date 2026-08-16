@@ -2,6 +2,7 @@ package com.iraqitube.app
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -21,16 +22,17 @@ class IraqiTubeApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Analytics.start(this)
         SettingsStore(this).applyLocale()
-        if (SettingsStore(this).watchClipboard) {
-            runCatching { ClipWatch.setEnabled(this, true) }
+        runCatching {
+            stopService(Intent().setClassName(this, "com.iraqitube.app.ClipWatchService"))
         }
         Thread {
             try {
                 YoutubeDL.getInstance().init(this)
                 FFmpeg.getInstance().init(this)
                 try {
-                    YoutubeDL.getInstance().updateYoutubeDL(this, YoutubeDL.UpdateChannel.STABLE)
+                    YoutubeDL.getInstance().updateYoutubeDL(this, YoutubeDL.UpdateChannel.NIGHTLY)
                 } catch (updateError: Exception) {
                     Log.w(TAG, "yt-dlp update skipped", updateError)
                 }
