@@ -1,8 +1,6 @@
 package com.iraqitube.app
 
 import android.util.Log
-import com.yausername.youtubedl_android.YoutubeDL
-import com.yausername.youtubedl_android.YoutubeDLRequest
 import java.io.File
 import java.net.URL
 import java.net.URLEncoder
@@ -162,23 +160,7 @@ object InstagramDownloader {
     }
 
     private fun extractAudio(url: String, dest: File, onProgress: (Float) -> Unit): File {
-        val template = File(dest.parentFile, dest.nameWithoutExtension + ".%(ext)s")
-        return try {
-            val request = YoutubeDLRequest(url)
-            request.addOption("-x")
-            request.addOption("--audio-format", "m4a")
-            request.addOption("--no-playlist")
-            request.addOption("-o", template.absolutePath)
-            YoutubeDL.getInstance().execute(request) { progress, _, _ ->
-                onProgress((progress / 100f).coerceIn(0f, 1f))
-            }
-            dest.parentFile?.listFiles()?.firstOrNull { it.absolutePath.startsWith(dest.absolutePath.removeSuffix(".${dest.extension}")) }
-                ?: dest.parentFile?.listFiles()?.maxByOrNull { it.lastModified() }
-                ?: throw IllegalStateException("Audio file was not found")
-        } catch (error: Exception) {
-            Log.w(TAG, "instagram audio extract failed, saving video", error)
-            DirectHttp.save(url, dest, refererFor(url), onProgress, userAgentFor(url))
-        }
+        return DirectHttp.save(url, dest, refererFor(url), onProgress, userAgentFor(url))
     }
 
     private fun meta(id: String, pageUrl: String, found: Found): VideoMeta {

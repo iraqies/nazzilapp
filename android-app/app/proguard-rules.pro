@@ -1,2 +1,2 @@
-# keep yt-dlp wrapper
--keep class com.yausername.** { *; }
+-keep class org.schabi.newpipe.** { *; }
+-keep class org.mozilla.javascript.** { *; }

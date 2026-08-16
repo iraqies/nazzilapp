@@ -13,10 +13,10 @@ android {
         applicationId = "com.nazzil.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.1"
+        versionCode = 4
+        versionName = "1.2"
         ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            abiFilters += "arm64-v8a"
         }
     }
 
@@ -40,18 +40,9 @@ android {
     buildFeatures {
         compose = true
     }
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
 }
 
 dependencies {
-    val ytdl = "0.17.4"
-    implementation("io.github.junkfood02.youtubedl-android:library:$ytdl")
-    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:$ytdl")
-
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-compose:1.9.3")
