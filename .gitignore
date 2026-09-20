@@ -40,6 +40,15 @@ yarn-error.*
 /ios
 /android
 
+# Flutter app (nested)
+flutter/build/
+flutter/.dart_tool/
+flutter/.idea/
+flutter/.flutter-plugins-dependencies
+**/key.properties
+**/*.jks
+**/*.keystore
+
 # local APKs and device files — never publish these
 *.apk
 IraqiTube.apk

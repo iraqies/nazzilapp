@@ -1,0 +1,73 @@
+name: iOS sideload IPA
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate Flutter app
+        id: app
+        run: |
+          if [[ -f pubspec.yaml ]]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [[ -f flutter/pubspec.yaml ]]; then
+            echo "dir=flutter" >> "$GITHUB_OUTPUT"
+          elif [[ -f Nazzil/flutter/pubspec.yaml ]]; then
+            echo "dir=Nazzil/flutter" >> "$GITHUB_OUTPUT"
+          else
+            echo "pubspec.yaml not found" >&2
+            exit 1
+          fi
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: ${{ steps.app.outputs.dir }}
+        run: flutter pub get
+
+      - name: Configure iOS (no codesign)
+        working-directory: ${{ steps.app.outputs.dir }}
+        run: flutter build ios --config-only --release --no-codesign
+
+      - name: Build unsigned Runner.app
+        working-directory: ${{ steps.app.outputs.dir }}
+        run: |
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios/sideload-derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build
+
+      - name: Wrap unsigned IPA
+        working-directory: ${{ steps.app.outputs.dir }}
+        run: bash tool/pack_ipa.sh
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: nazzil-ios-sideload
+          path: ${{ steps.app.outputs.dir }}/build/ios/sideload/Nazzil.ipa
+          if-no-files-found: error
+          retention-days: 14
