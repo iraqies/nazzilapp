@@ -411,6 +411,8 @@ class MediaDownloader {
     for (final url in urls) {
       try {
         final dest = File(p.join(folder.path, 'cover-${media.id}.jpg'));
+        // What an earlier try left here is not the start of this picture.
+        if (dest.existsSync()) dest.deleteSync();
         final file = await net.save(
           url,
           dest,
