@@ -29,6 +29,7 @@ class LibraryScreen extends StatelessWidget {
     final items = controller.visibleLibrary;
     final platforms = controller.libraryPlatforms;
     return CustomScrollView(
+      key: const PageStorageKey('library'),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),

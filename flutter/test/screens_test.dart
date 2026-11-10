@@ -666,6 +666,31 @@ void main() {
     await tester.pump(const Duration(seconds: 11));
   });
 
+  testWidgets('tabs: each keeps its place on the page while the other is open', (tester) async {
+    final controller = await boot(
+      tester,
+      library: [for (var i = 0; i < 12; i++) entry('k$i', PlatformId.reddit, MediaKind.video, onDisk: true)],
+    );
+    double offset() => tester
+        .state<ScrollableState>(
+          find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
+        )
+        .position
+        .pixels;
+    controller.goTab(1);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    final place = offset();
+    expect(place, greaterThan(0));
+    controller.goTab(0);
+    await tester.pumpAndSettle();
+    expect(offset(), 0, reason: 'Home has its own place');
+    controller.goTab(1);
+    await tester.pumpAndSettle();
+    expect(offset(), place);
+  });
+
   test('a title reads in the direction of its first letter', () {
     expect(directionOf('Classic Cheesecake Recipe'), TextDirection.ltr);
     expect(directionOf('طريقة عمل الكيك'), TextDirection.rtl);

@@ -23,6 +23,8 @@ class HomeScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     return CustomScrollView(
+      // The key keeps the place on the page while the other tab is open.
+      key: const PageStorageKey('home'),
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
