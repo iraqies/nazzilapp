@@ -40,7 +40,10 @@ class MediaDownloader {
     void Function()? onConvert,
     List<String> resumePaths = const [],
     int completedPhotos = 0,
+    int? generation,
   }) async {
+    // Read before the first wait, so a stop pressed at any point of the job is seen.
+    final gen = generation ?? net.generation;
     final folder = Directory(
       p.join((await getApplicationSupportDirectory()).path, 'media'),
     );
@@ -74,6 +77,7 @@ class MediaDownloader {
             urls[i],
             dest,
             referer: extractor.refererFor(urls[i]),
+            generation: gen,
             onProgress: (value) {
               final slice = 1 / urls.length;
               onProgress((i * slice) + (value * slice * 0.9));
@@ -103,7 +107,7 @@ class MediaDownloader {
     }
 
     if (option.kind == MediaKind.video && option.photoUrls.isNotEmpty) {
-      return _downloadSlideshow(option, folder, base, onProgress, onConvert);
+      return _downloadSlideshow(option, folder, base, onProgress, onConvert, gen);
     }
 
     final url = option.directUrl;
@@ -112,7 +116,7 @@ class MediaDownloader {
     }
     final audioUrl = option.audioUrl;
     if (audioUrl != null && audioUrl.isNotEmpty) {
-      return _downloadJoined(url, audioUrl, folder, base, onProgress, onConvert, resumePaths);
+      return _downloadJoined(url, audioUrl, folder, base, onProgress, onConvert, resumePaths, gen);
     }
     final isAudio = option.kind == MediaKind.audio;
     final song = LyricsClient.splitNames(media.title, media.author);
@@ -130,6 +134,7 @@ class MediaDownloader {
         url,
         dest,
         referer: extractor.refererFor(url),
+        generation: gen,
         onProgress: (value) => onProgress(value * 0.88),
       );
     } on PausedException {
@@ -148,6 +153,7 @@ class MediaDownloader {
         file = await _tagAudio(file, media, song);
       }
       onProgress(0.95);
+      _stopIfCancelled(gen);
       if (!await gallery.ensureAccess(images: option.kind != MediaKind.video)) {
         throw StateError('Gallery permission is needed to save.');
       }
@@ -174,12 +180,25 @@ class MediaDownloader {
     void Function(double progress) onProgress,
     void Function()? onConvert,
     List<String> resumePaths,
+    int gen,
   ) async {
     final video = resumePaths.isNotEmpty ? File(resumePaths[0]) : _unique(folder, '$base-video', 'mp4');
     final audio = resumePaths.length > 1 ? File(resumePaths[1]) : _unique(folder, '$base-audio', 'm4a');
     try {
-      await net.save(videoUrl, video, referer: extractor.refererFor(videoUrl), onProgress: (v) => onProgress(v * 0.75));
-      await net.save(audioUrl, audio, referer: extractor.refererFor(audioUrl), onProgress: (v) => onProgress(0.75 + v * 0.13));
+      await net.save(
+        videoUrl,
+        video,
+        referer: extractor.refererFor(videoUrl),
+        generation: gen,
+        onProgress: (v) => onProgress(v * 0.75),
+      );
+      await net.save(
+        audioUrl,
+        audio,
+        referer: extractor.refererFor(audioUrl),
+        generation: gen,
+        onProgress: (v) => onProgress(0.75 + v * 0.13),
+      );
     } on PausedException {
       throw PausedException(paths: [video.path, audio.path]);
     } on CancelledException {
@@ -195,8 +214,14 @@ class MediaDownloader {
       _deleteAll([video, audio]);
     }
     onProgress(0.95);
-    if (!await gallery.ensureAccess(images: false)) {
-      throw StateError('Gallery permission is needed to save.');
+    try {
+      _stopIfCancelled(gen);
+      if (!await gallery.ensureAccess(images: false)) {
+        throw StateError('Gallery permission is needed to save.');
+      }
+    } on CancelledException {
+      _deleteAll([file]);
+      rethrow;
     }
     await gallery.saveFile(file, image: false);
     onProgress(1);
@@ -211,6 +236,7 @@ class MediaDownloader {
     String base,
     void Function(double progress) onProgress,
     void Function()? onConvert,
+    int gen,
   ) async {
     final work = Directory(p.join(folder.path, '.slides-${DateTime.now().microsecondsSinceEpoch}'));
     await work.create(recursive: true);
@@ -222,6 +248,7 @@ class MediaDownloader {
           urls[i],
           File(p.join(work.path, 'photo-${i + 1}.${_extOf(urls[i], fallback: 'jpg')}')),
           referer: extractor.refererFor(urls[i]),
+          generation: gen,
           onProgress: (v) => onProgress(((i + v) / urls.length) * 0.6),
         ));
         if (!isVideoFile(file)) images.add(file);
@@ -235,6 +262,7 @@ class MediaDownloader {
             audioUrl,
             File(p.join(work.path, 'sound')),
             referer: extractor.refererFor(audioUrl),
+            generation: gen,
             onProgress: (v) => onProgress(0.6 + v * 0.1),
           );
         } on PausedException {
@@ -249,8 +277,14 @@ class MediaDownloader {
       onConvert?.call();
       final video = await converter.slideshow(images, sound, _unique(folder, base, 'mp4'));
       onProgress(0.95);
-      if (!await gallery.ensureAccess(images: false)) {
-        throw StateError('Gallery permission is needed to save.');
+      try {
+        _stopIfCancelled(gen);
+        if (!await gallery.ensureAccess(images: false)) {
+          throw StateError('Gallery permission is needed to save.');
+        }
+      } on CancelledException {
+        _deleteAll([video]);
+        rethrow;
       }
       await gallery.saveFile(video, image: false);
       onProgress(1);
@@ -281,6 +315,12 @@ class MediaDownloader {
         entry.deleteSync(recursive: true);
       } catch (_) {}
     }
+  }
+
+  /// Converting cannot be broken off, so a cancel pressed during it is acted
+  /// on here, before the file goes to the gallery or to Downloads.
+  void _stopIfCancelled(int gen) {
+    if (net.cancelledSince(gen)) throw CancelledException();
   }
 
   void _deleteAll(Iterable<File> files) {

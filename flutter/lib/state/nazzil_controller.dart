@@ -23,17 +23,24 @@ import '../l10n/strings.dart';
 import '../models/media.dart';
 
 class NazzilController extends ChangeNotifier {
-  NazzilController() {
+  /// Tests pass their own [extractor] and [downloader]; the app passes neither.
+  NazzilController({MediaExtractor? extractor, MediaDownloader? downloader})
+      : extractor = extractor ?? MediaExtractor(),
+        _givenDownloader = downloader {
     _init();
   }
 
-  final extractor = MediaExtractor();
-  late final downloadNet = NetClient();
-  late final downloader = MediaDownloader(
-    extractor: extractor,
-    gallery: GalleryService(),
-    net: downloadNet,
-  );
+  final MediaExtractor extractor;
+  final MediaDownloader? _givenDownloader;
+  late final downloader = _givenDownloader ??
+      MediaDownloader(
+        extractor: extractor,
+        gallery: GalleryService(),
+        net: NetClient(),
+      );
+
+  /// The one client Pause and Cancel act on.
+  late final downloadNet = downloader.net;
   final libraryStore = LibraryStore();
   final settingsStore = SettingsStore();
   final updates = UpdateChecker();
@@ -476,11 +483,15 @@ class NazzilController extends ChangeNotifier {
       return;
     }
     activeJobId = job.id;
+    // Pause and Cancel move this on; reading it first lets every later step notice.
+    final stopMark = downloadNet.generation;
     downloading = true;
     converting = false;
     progress = 0.02;
     failure = Failure.none;
-    await _patch(job.id, job.copyWith(status: LibraryItem.statusDownloading));
+    // Kept in step with the library, so a later copy of it does not put "queued" back.
+    job = job.copyWith(status: LibraryItem.statusDownloading);
+    await _patch(job.id, job);
     await DownloadHost.start(title: job.title, percent: 2);
     var lastPercent = -1;
     var lastSent = DateTime.fromMillisecondsSinceEpoch(0);
@@ -489,6 +500,7 @@ class NazzilController extends ChangeNotifier {
           option: job.option!,
           resumePaths: job.paths,
           completedPhotos: job.photoCount,
+          generation: stopMark,
           onConvert: () {
             converting = true;
             notifyListeners();
@@ -509,6 +521,12 @@ class NazzilController extends ChangeNotifier {
     try {
       if (job.paths.isNotEmpty || DateTime.now().difference(job.createdAt) > linkLifetime) {
         job = await _withFreshLinks(job);
+        try {
+          downloadNet.throwIfStopped(stopMark);
+        } on PausedException {
+          // Nothing moved while the links were looked up, so what was on disk still stands.
+          throw PausedException(paths: job.paths, completed: job.photoCount);
+        }
       }
       DownloadResult result;
       try {
@@ -591,6 +609,9 @@ class NazzilController extends ChangeNotifier {
     } catch (_) {
       return job;
     }
+    // Cancelled or deleted while the links were looked up: leave the entry as it now is.
+    final now = _byId(job.id);
+    if (now == null || now.status == LibraryItem.statusCancelled) return job;
     final fresh = media.options.where((o) => o.id == old.id).firstOrNull ??
         media.options.where((o) => o.label == old.label && o.kind == old.kind).firstOrNull;
     if (fresh == null) return job;

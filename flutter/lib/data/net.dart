@@ -44,6 +44,12 @@ class NetClient {
     throw CancelledException();
   }
 
+  /// Throws if cancel or pause was called after [gen] was read from [generation].
+  void throwIfStopped(int gen) => _throwIfStopped(gen);
+
+  /// True if cancel, and not pause, was the last one called after [gen] was read.
+  bool cancelledSince(int gen) => gen != _gen && !_pause;
+
   Future<String> get(
     String url, {
     Map<String, String> headers = const {},
@@ -74,16 +80,19 @@ class NetClient {
     return _readBody(response);
   }
 
+  /// [generation] is what a job read from [generation] when it began, so a
+  /// stop pressed between two of its files, or before the first, still lands.
   Future<File> save(
     String url,
     File dest, {
     required String referer,
     String userAgent = NetHints.mobileUa,
     void Function(double progress)? onProgress,
+    int? generation,
   }) async {
     Object? last;
     for (var attempt = 0; attempt < 4; attempt++) {
-      final gen = _gen;
+      final gen = generation ?? _gen;
       try {
         return await _saveOnce(
           url,
