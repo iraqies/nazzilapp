@@ -39,6 +39,12 @@ void main() {
     final small = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4', encoder: 'h264_mediacodec', width: 720);
     expect(small.firstWhere((a) => a.contains('concat=')), contains('pad=720:1280'));
     expect(small, containsAllInOrder(['-b:v', '5M']));
+    final raw = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4.h264', encoder: 'h264_mediacodec');
+    expect(raw, containsAllInOrder(['-f', 'h264', 'o.mp4.h264']));
+    expect(raw, isNot(contains('+faststart')));
+    final wrapped = FfmpegArgs.wrapH264(video: 'o.mp4.h264', audio: 'sound', output: 'o.mp4', seconds: 12);
+    expect(wrapped, containsAllInOrder(['-framerate', '30', '-i', 'o.mp4.h264', '-stream_loop', '-1', '-i', 'sound']));
+    expect(wrapped, containsAllInOrder(['-map', '1:a:0', '-c:a', 'aac', '-c:v', 'copy', '-t', '12']));
     final silent = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4', encoder: 'mpeg4');
     expect(silent, isNot(contains('-stream_loop')));
     expect(silent, containsAllInOrder(['-q:v', '2']));

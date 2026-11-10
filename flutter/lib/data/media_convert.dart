@@ -22,35 +22,54 @@ class MediaConverter {
   /// built into every ffmpeg. AAC sound plays everywhere, a copy is the
   /// fallback.
   Future<File> slideshow(List<File> images, File? audio, File output) async {
-    final attempts = <(String, int)>[
-      if (Platform.isAndroid) ...[('h264_mediacodec', 1080), ('h264_mediacodec', 720)],
-      if (Platform.isIOS || Platform.isMacOS) ...[('h264_videotoolbox', 1080), ('h264_videotoolbox', 720)],
-      ('mpeg4', 1080),
-    ];
-    for (final (encoder, width) in attempts) {
-      for (final audioCodec in audio == null ? const ['aac'] : const ['aac', 'copy']) {
-        try {
-          return await _run(
-            FfmpegArgs.slideshow(
-              images: [for (final image in images) image.path],
-              audio: audio?.path,
-              output: output.path,
-              encoder: encoder,
-              audioCodec: audioCodec,
-              width: width,
-            ),
-            output,
-            'Could not make the video.',
-            needsVideo: true,
-          );
-        } on _NoPicture {
-          break;
-        } on StateError {
-          continue;
+    const failure = 'Could not make the video.';
+    final paths = [for (final image in images) image.path];
+    final seconds = images.length * FfmpegArgs.slideSeconds(images.length);
+    final sounds = audio == null ? const ['aac'] : const ['aac', 'copy'];
+    final hardware = Platform.isAndroid
+        ? 'h264_mediacodec'
+        : (Platform.isIOS || Platform.isMacOS)
+            ? 'h264_videotoolbox'
+            : null;
+    if (hardware != null) {
+      final raw = File('${output.path}.h264');
+      try {
+        for (final width in const [1080, 720]) {
+          try {
+            await _run(FfmpegArgs.slideshow(images: paths, output: raw.path, encoder: hardware, width: width), raw, failure);
+          } on StateError {
+            continue;
+          }
+          for (final sound in sounds) {
+            try {
+              return await _run(
+                FfmpegArgs.wrapH264(video: raw.path, audio: audio?.path, output: output.path, seconds: seconds, audioCodec: sound),
+                output,
+                failure,
+                needsVideo: true,
+              );
+            } on StateError {
+              continue;
+            }
+          }
         }
+      } finally {
+        if (raw.existsSync()) raw.deleteSync();
       }
     }
-    throw StateError('Could not make the video.');
+    for (final sound in sounds) {
+      try {
+        return await _run(
+          FfmpegArgs.slideshow(images: paths, audio: audio?.path, output: output.path, encoder: 'mpeg4', audioCodec: sound),
+          output,
+          failure,
+          needsVideo: true,
+        );
+      } on StateError {
+        continue;
+      }
+    }
+    throw StateError(failure);
   }
 
   Future<File> _run(List<String> args, File output, String failure, {bool needsVideo = false}) async {
@@ -65,7 +84,7 @@ class MediaConverter {
     debugPrint('ffmpeg ${ok ? 'wrote no video' : 'failed ($code)'}: '
         '${logs.length > 3000 ? logs.substring(logs.length - 3000) : logs}');
     if (output.existsSync()) output.deleteSync();
-    throw ok ? _NoPicture(failure) : StateError(failure);
+    throw StateError(failure);
   }
 
   static Future<bool> _hasVideo(File file) async {
@@ -77,9 +96,4 @@ class MediaConverter {
       return false;
     }
   }
-}
-
-/// The encoder ran but delivered no frames; another sound codec will not help.
-class _NoPicture extends StateError {
-  _NoPicture(super.message);
 }

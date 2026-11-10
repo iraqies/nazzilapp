@@ -91,12 +91,42 @@ class FfmpegArgs {
       'yuv420p',
       '-t',
       '${images.length * seconds}',
-      '-movflags',
-      '+faststart',
+      if (output.endsWith('.h264')) ...['-f', 'h264'] else ...['-movflags', '+faststart'],
       output,
     ]);
     return args;
   }
+
+  /// MediaCodec can leave the first IDR frame unmarked, and players then
+  /// skip ahead to the next key frame. Raw H.264 carries no such marks: the
+  /// parser finds the key frames itself when it goes into the MP4.
+  static List<String> wrapH264({
+    required String video,
+    String? audio,
+    required String output,
+    required int seconds,
+    String audioCodec = 'aac',
+  }) =>
+      [
+        '-y',
+        '-hide_banner',
+        '-nostdin',
+        '-framerate',
+        '30',
+        '-i',
+        video,
+        if (audio != null) ...['-stream_loop', '-1', '-i', audio],
+        '-map',
+        '0:v:0',
+        if (audio != null) ...['-map', '1:a:0', '-c:a', audioCodec],
+        '-c:v',
+        'copy',
+        '-t',
+        '$seconds',
+        '-movflags',
+        '+faststart',
+        output,
+      ];
 
   static bool isMp3(File file) {
     try {
