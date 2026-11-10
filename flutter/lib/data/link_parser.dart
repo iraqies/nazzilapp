@@ -6,7 +6,7 @@ import 'net.dart';
 class LinkParser {
   static final _url = RegExp(r'''https?://[^\s<>"'\\]+''', caseSensitive: false);
   static final _loose = RegExp(
-    r'''(?<![\w.-])(?:https?://)?(?:(?:www|m|vm|vt|v|old|new|mobile)\.)?(?:tiktok\.com|musical\.ly|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|music\.youtube\.com|youtube\.com|youtu\.be|x\.com|twitter\.com|reddit\.com|redd\.it)/[^\s<>"'\\]+''',
+    r'''(?<![\w.-])(?:https?://)?(?:(?:www|m|vm|vt|v|old|new|mobile)\.)?(?:tiktok\.com|musical\.ly|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|music\.youtube\.com|youtube\.com|youtu\.be|x\.com|twitter\.com|reddit\.com|redd\.it|pin\.it|(?:[a-z]{2}\.)?pinterest\.(?:com(?:\.[a-z]{2})?|co\.[a-z]{2}|[a-z]{2}))/[^\s<>"'\\]+''',
     caseSensitive: false,
   );
   static const _shortHosts = {
@@ -22,6 +22,7 @@ class LinkParser {
     't.co',
     'redd.it',
     'v.redd.it',
+    'pin.it',
   };
 
   static String extract(String text) {
@@ -68,10 +69,16 @@ class LinkParser {
         text.contains('twitter.com/') ||
         text.contains('reddit.com/') ||
         text.contains('redd.it/') ||
+        text.contains('pinterest.') ||
+        text.contains('pin.it/') ||
         text.contains('youtube.com');
   }
 
   static PlatformId platformOf(String url) {
+    final name = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+    if (_isReddit(name)) return PlatformId.reddit;
+    if (_isX(name)) return PlatformId.x;
+    if (_isPinterest(name)) return PlatformId.pinterest;
     final host = url.toLowerCase();
     if (host.contains('youtu')) return PlatformId.youtube;
     if (host.contains('tiktok') || host.contains('musical.ly')) {
@@ -83,9 +90,6 @@ class LinkParser {
     if (host.contains('facebook') || host.contains('fb.watch') || host.contains('fb.com')) {
       return PlatformId.facebook;
     }
-    final name = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
-    if (_isReddit(name)) return PlatformId.reddit;
-    if (_isX(name)) return PlatformId.x;
     return PlatformId.unknown;
   }
 
@@ -96,6 +100,14 @@ class LinkParser {
     final bare = host.startsWith('www.') ? host.substring(4) : host;
     return const {'x.com', 'twitter.com', 'mobile.twitter.com', 'mobile.x.com', 't.co', 'fxtwitter.com', 'vxtwitter.com', 'fixupx.com', 'fixvx.com'}
         .contains(bare);
+  }
+
+  static bool _isPinterest(String host) =>
+      host == 'pin.it' || RegExp(r'(^|\.)pinterest\.(com(\.[a-z]{2})?|co\.[a-z]{2}|[a-z]{2})$').hasMatch(host);
+
+  static String? pinId(String url) {
+    if (!_isPinterest(Uri.tryParse(url.trim())?.host.toLowerCase() ?? '')) return null;
+    return RegExp(r'/pin/(?:[^/?#]*-)?(\d{6,})(?=[/?#]|$)').firstMatch(url)?.group(1);
   }
 
   static String? tweetId(String url) {
@@ -132,16 +144,18 @@ class LinkParser {
   }
 
   static String identityKey(String url, [String? id]) {
+    final tweet = tweetId(url);
+    if (tweet != null) return 'x:$tweet';
+    final post = redditId(url);
+    if (post != null) return 'rd:$post';
+    final pin = pinId(url);
+    if (pin != null) return 'pin:$pin';
     final yt = youtubeId(url);
     if (yt != null) return 'yt:$yt';
     final tt = tiktokId(url);
     if (tt != null) return 'tt:$tt';
     final ig = instagramCode(url);
     if (ig != null) return 'ig:$ig';
-    final tweet = tweetId(url);
-    if (tweet != null) return 'x:$tweet';
-    final post = redditId(url);
-    if (post != null) return 'rd:$post';
     final fb = RegExp(r'(?:videos|reel)/(\d+)|[?&]v=(\d+)').firstMatch(url);
     final fbId = fb?.group(1) ?? fb?.group(2);
     if (fbId != null) return 'fb:$fbId';
@@ -153,6 +167,7 @@ class LinkParser {
         PlatformId.facebook => 'fb',
         PlatformId.reddit => 'rd',
         PlatformId.x => 'x',
+        PlatformId.pinterest => 'pin',
         PlatformId.unknown => 'id',
       };
       return '$prefix:$id';

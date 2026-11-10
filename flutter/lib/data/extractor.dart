@@ -1,6 +1,7 @@
 import '../models/media.dart';
 import 'clients/facebook_client.dart';
 import 'clients/instagram_client.dart';
+import 'clients/pinterest_client.dart';
 import 'clients/reddit_client.dart';
 import 'clients/tiktok_client.dart';
 import 'clients/x_client.dart';
@@ -17,6 +18,7 @@ class MediaExtractor {
   late final _facebook = FacebookClient(net);
   late final _reddit = RedditClient(net);
   late final _x = XClient(net);
+  late final _pinterest = PinterestClient(net);
   final _youtube = YouTubeClient();
 
   Future<MediaInfo> fetch(String rawUrl) async {
@@ -31,6 +33,7 @@ class MediaExtractor {
       PlatformId.facebook => _facebook.fetch(resolved),
       PlatformId.reddit => _reddit.fetch(resolved),
       PlatformId.x => _x.fetch(resolved),
+      PlatformId.pinterest => _pinterest.fetch(resolved),
       PlatformId.unknown => throw StateError('Unsupported link'),
     };
   }
@@ -46,6 +49,7 @@ class MediaExtractor {
       return 'https://www.youtube.com/';
     }
     if (host.contains('redd.it') || host.contains('reddit')) return 'https://www.reddit.com/';
+    if (host.contains('pinimg.com') || host.contains('pinterest')) return 'https://www.pinterest.com/';
     if (host.contains('twimg.com') || host.contains('x.com') || host.contains('twitter')) return 'https://x.com/';
     return 'https://www.facebook.com/';
   }
@@ -71,5 +75,5 @@ String friendlyError(Object error) {
   if (cleaned.startsWith('http') && cleaned.contains('://')) {
     return 'Could not download this. Try again.';
   }
-  return cleaned.length > 140 ? '${cleaned.substring(0, 140)}…' : (cleaned.isEmpty ? 'Could not load this link' : cleaned);
+  return cleaned.length > 140 ? '${clipUtf16(cleaned, 140)}…' : (cleaned.isEmpty ? 'Could not load this link' : cleaned);
 }

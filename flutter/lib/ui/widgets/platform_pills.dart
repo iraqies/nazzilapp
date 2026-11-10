@@ -10,6 +10,7 @@ class PlatformPills extends StatelessWidget {
     ('Facebook', Color(0xFF4B8BFF)),
     ('Reddit', Color(0xFFFF4500)),
     ('X', Color(0xFF8E8E93)),
+    ('Pinterest', Color(0xFFE60023)),
   ];
 
   @override
