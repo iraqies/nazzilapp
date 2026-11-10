@@ -70,7 +70,11 @@ class MediaDownloader {
       }
       for (var i = start; i < urls.length; i++) {
         final ext = _extOf(urls[i], fallback: 'jpg');
-        final dest = i < files.length ? files[i] : File(p.join(folder.path, '$base-${i + 1}.$ext'));
+        // A name of its own: a file already there is another download's, and
+        // saving onto it would be taken for the rest of that file.
+        final dest = i < files.length
+            ? files[i]
+            : _unique(folder, urls.length == 1 ? base : '$base-${i + 1}', ext);
         dest.parent.createSync(recursive: true);
         try {
           final file = _matchExtension(await net.save(
@@ -445,9 +449,9 @@ class MediaDownloader {
   File _matchExtension(File file) {
     final ext = sniffExtension(file);
     if (ext == null || p.extension(file.path).toLowerCase() == '.$ext') return file;
-    final target = File(p.setExtension(file.path, '.$ext'));
+    // Never onto a file that is already there: that one is another download's.
+    final target = _unique(file.parent, p.basenameWithoutExtension(file.path), ext);
     try {
-      if (target.existsSync()) target.deleteSync();
       return file.renameSync(target.path);
     } catch (_) {
       return file;

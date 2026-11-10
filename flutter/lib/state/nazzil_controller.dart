@@ -428,14 +428,7 @@ class NazzilController extends ChangeNotifier {
     if (item.id == activeJobId) {
       downloadNet.cancel();
     }
-    for (final path in item.paths) {
-      final file = File(path);
-      if (file.existsSync()) {
-        try {
-          await file.delete();
-        } catch (_) {}
-      }
-    }
+    await _deleteFiles(item);
     library = [
       for (final entry in library)
         entry.id == item.id
@@ -646,9 +639,11 @@ class NazzilController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> remove(LibraryItem item) async {
-    if (item.active) await cancelJob(item);
+  /// Deletes the files of [item]. Older versions could give two entries one
+  /// file, and such a file stays for as long as another entry points to it.
+  Future<void> _deleteFiles(LibraryItem item) async {
     for (final path in item.paths) {
+      if (library.any((other) => other.id != item.id && other.paths.contains(path))) continue;
       final file = File(path);
       if (file.existsSync()) {
         try {
@@ -656,6 +651,11 @@ class NazzilController extends ChangeNotifier {
         } catch (_) {}
       }
     }
+  }
+
+  Future<void> remove(LibraryItem item) async {
+    if (item.active) await cancelJob(item);
+    await _deleteFiles(item);
     library = library.where((e) => e.id != item.id).toList();
     await libraryStore.save(library);
     notifyListeners();
