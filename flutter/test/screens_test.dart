@@ -426,9 +426,11 @@ void main() {
 
   testWidgets('library sheet: Open file says so when nothing opens it, and Linux gets no Share', (tester) async {
     await boot(tester, library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true)]);
+    // As on a real Linux desktop: the launch call claims success either way,
+    // and only the question beforehand tells whether an app exists.
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/url_launcher'),
-      (call) async => false,
+      (call) async => call.method != 'canLaunch',
     );
     await tester.tap(find.text('Library').last);
     await tester.pumpAndSettle();
@@ -468,8 +470,8 @@ void main() {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/url_launcher'),
       (call) async {
-        asked.add('${(call.arguments as Map)['url']}');
-        return false;
+        asked.add('${call.method} ${(call.arguments as Map)['url']}');
+        return call.method != 'canLaunch';
       },
     );
     final item = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true);
@@ -483,7 +485,7 @@ void main() {
     expect(find.textContaining('Nothing on this computer could open it'), findsNothing);
     await tester.tap(find.byTooltip('Play'));
     await tester.pumpAndSettle();
-    expect(asked.single, endsWith('/clip.mp4'));
+    expect(asked.single, allOf(startsWith('canLaunch '), endsWith('/clip.mp4')));
     expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
   });
 

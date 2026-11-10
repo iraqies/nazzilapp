@@ -70,7 +70,10 @@ class DownloadHost {
         await _ch.invokeMethod<void>('openFile', {'path': path});
         return true;
       }
-      return await launchUrl(Uri.file(path));
+      final file = Uri.file(path);
+      // GTK reports a launch as started even with no app for the file, so Linux asks first.
+      if (Platform.isLinux && !await canLaunchUrl(file)) return false;
+      return await launchUrl(file);
     } catch (_) {
       return false;
     }
