@@ -307,6 +307,20 @@ class _ExternalVideoState extends State<_ExternalVideo> {
             tooltip: widget.s.play,
             iconSize: 88,
             color: onPhoto ? Colors.white : scheme.primary,
+            // Round like its icon, so hover, press and the focus ring follow the edge.
+            style: ButtonStyle(
+              shape: WidgetStateProperty.resolveWith(
+                (states) => CircleBorder(
+                  side: states.contains(WidgetState.focused)
+                      ? BorderSide(
+                          color: onPhoto ? Colors.white : scheme.onSurface,
+                          width: 2,
+                          strokeAlign: BorderSide.strokeAlignOutside,
+                        )
+                      : BorderSide.none,
+                ),
+              ),
+            ),
             icon: const Icon(Icons.play_circle),
             onPressed: _open,
           ),
