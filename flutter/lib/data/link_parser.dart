@@ -5,7 +5,7 @@ import '../models/media.dart';
 class LinkParser {
   static final _url = RegExp(r'''https?://[^\s<>"'\\]+''', caseSensitive: false);
   static final _loose = RegExp(
-    r'''(?:https?://)?(?:(?:www|m|vm|vt|v)\.)?(?:tiktok\.com|musical\.ly|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|music\.youtube\.com|youtube\.com|youtu\.be)/[^\s<>"'\\]+''',
+    r'''(?<![\w.-])(?:https?://)?(?:(?:www|m|vm|vt|v|old|new|mobile)\.)?(?:tiktok\.com|musical\.ly|instagram\.com|instagr\.am|facebook\.com|fb\.watch|fb\.com|music\.youtube\.com|youtube\.com|youtu\.be|x\.com|twitter\.com|reddit\.com|redd\.it)/[^\s<>"'\\]+''',
     caseSensitive: false,
   );
   static const _shortHosts = {
@@ -18,6 +18,9 @@ class LinkParser {
     'instagr.am',
     'ig.me',
     'youtu.be',
+    't.co',
+    'redd.it',
+    'v.redd.it',
   };
 
   static String extract(String text) {
@@ -40,12 +43,15 @@ class LinkParser {
     final url = extract(text);
     if (url.isEmpty) return text.trim();
     final host = Uri.tryParse(url)?.host.toLowerCase().replaceFirst('www.', '') ?? '';
+    final reddit = _isReddit(host);
     final needs = _shortHosts.contains(host) ||
         url.toLowerCase().contains('/share/') ||
+        (reddit && url.contains('/s/')) ||
         host.startsWith('lm.facebook') ||
         host == 'm.facebook.com';
     if (!needs) return url;
-    return await follow(url) ?? url;
+    // Reddit turns away unknown clients but serves link-preview bots.
+    return await follow(url, userAgent: reddit ? NetHints.botUa : NetHints.mobileUa) ?? url;
   }
 
   static bool looksLikeUrl(String value) {
@@ -57,6 +63,10 @@ class LinkParser {
         text.contains('facebook.com') ||
         text.contains('fb.watch') ||
         text.contains('youtu.be') ||
+        text.contains('x.com/') ||
+        text.contains('twitter.com/') ||
+        text.contains('reddit.com/') ||
+        text.contains('redd.it/') ||
         text.contains('youtube.com');
   }
 
@@ -72,7 +82,30 @@ class LinkParser {
     if (host.contains('facebook') || host.contains('fb.watch') || host.contains('fb.com')) {
       return PlatformId.facebook;
     }
+    final name = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+    if (_isReddit(name)) return PlatformId.reddit;
+    if (_isX(name)) return PlatformId.x;
     return PlatformId.unknown;
+  }
+
+  static bool _isReddit(String host) =>
+      host == 'reddit.com' || host.endsWith('.reddit.com') || host == 'redd.it' || host.endsWith('.redd.it');
+
+  static bool _isX(String host) {
+    final bare = host.startsWith('www.') ? host.substring(4) : host;
+    return const {'x.com', 'twitter.com', 'mobile.twitter.com', 'mobile.x.com', 't.co', 'fxtwitter.com', 'vxtwitter.com', 'fixupx.com', 'fixvx.com'}
+        .contains(bare);
+  }
+
+  static String? tweetId(String url) {
+    if (!_isX(Uri.tryParse(url.trim())?.host.toLowerCase() ?? '')) return null;
+    return RegExp(r'/status(?:es)?/(\d+)').firstMatch(url)?.group(1);
+  }
+
+  static String? redditId(String url) {
+    if (!_isReddit(Uri.tryParse(url.trim())?.host.toLowerCase() ?? '')) return null;
+    return RegExp(r'/comments/([a-z0-9]+)', caseSensitive: false).firstMatch(url)?.group(1)?.toLowerCase() ??
+        RegExp(r'^https?://(?:www\.)?redd\.it/([a-z0-9]+)', caseSensitive: false).firstMatch(url)?.group(1)?.toLowerCase();
   }
 
   static bool isSupported(String url) => platformOf(url) != PlatformId.unknown;
@@ -104,6 +137,10 @@ class LinkParser {
     if (tt != null) return 'tt:$tt';
     final ig = instagramCode(url);
     if (ig != null) return 'ig:$ig';
+    final tweet = tweetId(url);
+    if (tweet != null) return 'x:$tweet';
+    final post = redditId(url);
+    if (post != null) return 'rd:$post';
     final fb = RegExp(r'(?:videos|reel)/(\d+)|[?&]v=(\d+)').firstMatch(url);
     final fbId = fb?.group(1) ?? fb?.group(2);
     if (fbId != null) return 'fb:$fbId';
@@ -113,6 +150,8 @@ class LinkParser {
         PlatformId.tiktok => 'tt',
         PlatformId.instagram => 'ig',
         PlatformId.facebook => 'fb',
+        PlatformId.reddit => 'rd',
+        PlatformId.x => 'x',
         PlatformId.unknown => 'id',
       };
       return '$prefix:$id';
@@ -129,14 +168,14 @@ class LinkParser {
     return cleaned.length > 60 ? cleaned.substring(0, 60) : cleaned;
   }
 
-  static Future<String?> follow(String start) async {
+  static Future<String?> follow(String start, {String userAgent = NetHints.mobileUa}) async {
     var current = start;
     final client = HttpClient();
     try {
       for (var i = 0; i < 8; i++) {
         final request = await client.getUrl(Uri.parse(current));
         request.followRedirects = false;
-        request.headers.set(HttpHeaders.userAgentHeader, NetHints.mobileUa);
+        request.headers.set(HttpHeaders.userAgentHeader, userAgent);
         final response = await request.close();
         await response.drain<void>();
         if (response.statusCode < 300 || response.statusCode >= 400) {

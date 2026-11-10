@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 class PlatformPills extends StatelessWidget {
   const PlatformPills({super.key});
 
@@ -9,6 +8,8 @@ class PlatformPills extends StatelessWidget {
     ('TikTok', Color(0xFFFF4D8D)),
     ('Instagram', Color(0xFFE1306C)),
     ('Facebook', Color(0xFF4B8BFF)),
+    ('Reddit', Color(0xFFFF4500)),
+    ('X', Color(0xFF8E8E93)),
   ];
 
   @override

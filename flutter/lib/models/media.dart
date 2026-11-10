@@ -1,4 +1,4 @@
-enum PlatformId { youtube, tiktok, instagram, facebook, unknown }
+enum PlatformId { youtube, tiktok, instagram, facebook, reddit, x, unknown }
 
 enum MediaKind { video, audio, photo }
 

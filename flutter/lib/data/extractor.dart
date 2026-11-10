@@ -1,7 +1,9 @@
 import '../models/media.dart';
 import 'clients/facebook_client.dart';
 import 'clients/instagram_client.dart';
+import 'clients/reddit_client.dart';
 import 'clients/tiktok_client.dart';
+import 'clients/x_client.dart';
 import 'clients/youtube_client.dart';
 import 'link_parser.dart';
 import 'net.dart';
@@ -13,6 +15,8 @@ class MediaExtractor {
   late final _tiktok = TikTokClient(net);
   late final _instagram = InstagramClient(net);
   late final _facebook = FacebookClient(net);
+  late final _reddit = RedditClient(net);
+  late final _x = XClient(net);
   final _youtube = YouTubeClient();
 
   Future<MediaInfo> fetch(String rawUrl) async {
@@ -25,6 +29,8 @@ class MediaExtractor {
       PlatformId.youtube => _youtube.fetch(resolved),
       PlatformId.instagram => _instagram.fetch(resolved),
       PlatformId.facebook => _facebook.fetch(resolved),
+      PlatformId.reddit => _reddit.fetch(resolved),
+      PlatformId.x => _x.fetch(resolved),
       PlatformId.unknown => throw StateError('Unsupported link'),
     };
   }
@@ -39,6 +45,8 @@ class MediaExtractor {
     if (host.contains('youtu') || host.contains('googlevideo')) {
       return 'https://www.youtube.com/';
     }
+    if (host.contains('redd.it') || host.contains('reddit')) return 'https://www.reddit.com/';
+    if (host.contains('twimg.com') || host.contains('x.com') || host.contains('twitter')) return 'https://x.com/';
     return 'https://www.facebook.com/';
   }
 }

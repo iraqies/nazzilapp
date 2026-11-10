@@ -16,7 +16,7 @@ class S {
           ? _t('Videos, TikTok photos, Instagram carousels. Straight into Downloads.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالتنزيلات.')
           : _t('Videos, TikTok photos, Instagram carousels. Straight into your gallery.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالمعرض.');
   String get pasteHint =>
-      _t('Paste or share a YouTube, TikTok, Instagram or Facebook link', 'الصق رابط يوتيوب أو تيك توك أو إنستغرام أو فيسبوك');
+      _t('Paste or share a YouTube, TikTok, Instagram, Facebook, Reddit or X link', 'الصق رابط يوتيوب أو تيك توك أو إنستغرام أو فيسبوك أو ريديت أو X');
   String get paste => _t('Paste', 'لصّق');
   String get clear => _t('Clear', 'امسح');
   String get fetch => _t('Fetch', 'جيب');
@@ -117,12 +117,16 @@ class S {
   String get tiktok => _t('TikTok', 'تيك توك');
   String get instagram => _t('Instagram', 'إنستغرام');
   String get facebook => _t('Facebook', 'فيسبوك');
+  String get reddit => _t('Reddit', 'ريديت');
+  String get x => 'X';
 
   String platformName(PlatformId platform) => switch (platform) {
         PlatformId.youtube => youtube,
         PlatformId.tiktok => tiktok,
         PlatformId.instagram => instagram,
         PlatformId.facebook => facebook,
+        PlatformId.reddit => reddit,
+        PlatformId.x => x,
         PlatformId.unknown => '',
       };
 
