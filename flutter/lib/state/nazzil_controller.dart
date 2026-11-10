@@ -420,9 +420,9 @@ class NazzilController extends ChangeNotifier {
     }
   }
 
-  Future<void> _runJob(LibraryItem job) async {
-    final option = job.option;
-    if (option == null) {
+  Future<void> _runJob(LibraryItem queued) async {
+    var job = queued;
+    if (job.option == null) {
       await _patch(job.id, job.copyWith(status: LibraryItem.statusFailed, error: 'Could not download this. Try again.'));
       return;
     }
@@ -432,19 +432,38 @@ class NazzilController extends ChangeNotifier {
     error = '';
     await _patch(job.id, job.copyWith(status: LibraryItem.statusDownloading));
     await DownloadHost.start(title: job.title, percent: 2);
+    var lastPercent = -1;
+    var lastSent = DateTime.fromMillisecondsSinceEpoch(0);
+    Future<DownloadResult> attempt() => downloader.download(
+          media: job.media,
+          option: job.option!,
+          resumePaths: job.paths,
+          completedPhotos: job.photoCount,
+          onProgress: (value) {
+            progress = value;
+            final percent = (value * 100).round().clamp(1, 99);
+            final now = DateTime.now();
+            // Android drops notification updates beyond about 5 a second.
+            if (percent != lastPercent && now.difference(lastSent) >= const Duration(seconds: 1)) {
+              lastPercent = percent;
+              lastSent = now;
+              unawaited(DownloadHost.progress(job.title, percent));
+            }
+            notifyListeners();
+          },
+        );
     try {
-      final result = await downloader.download(
-        media: job.media,
-        option: option,
-        resumePaths: job.paths,
-        completedPhotos: job.photoCount,
-        onProgress: (value) {
-          progress = value;
-          final percent = (value * 100).round().clamp(1, 99);
-          unawaited(DownloadHost.progress(job.title, percent));
-          notifyListeners();
-        },
-      );
+      if (job.paths.isNotEmpty || DateTime.now().difference(job.createdAt) > linkLifetime) {
+        job = await _withFreshLinks(job);
+      }
+      DownloadResult result;
+      try {
+        result = await attempt();
+      } on HttpException catch (e) {
+        if (!_looksExpired(e)) rethrow;
+        job = await _withFreshLinks(job);
+        result = await attempt();
+      }
       final current = _byId(job.id);
       if (current == null ||
           current.status == LibraryItem.statusCancelled ||
@@ -499,6 +518,44 @@ class NazzilController extends ChangeNotifier {
         await DownloadHost.failed(message.isEmpty ? s.downloadFailed : message);
       }
     }
+  }
+
+  /// Signed CDN links (YouTube, TikTok, Instagram) stop working after a few
+  /// hours; well before that is a safe point to ask for new ones.
+  static const linkLifetime = Duration(minutes: 20);
+
+  static bool _looksExpired(HttpException e) {
+    final text = e.message.toLowerCase();
+    return text.contains('blocked') || text.contains('gone') || text.contains('403') || text.contains('410');
+  }
+
+  Future<LibraryItem> _withFreshLinks(LibraryItem job) async {
+    final old = job.option!;
+    final MediaInfo media;
+    try {
+      media = await extractor.fetch(job.sourceUrl);
+    } catch (_) {
+      return job;
+    }
+    final fresh = media.options.where((o) => o.id == old.id).firstOrNull ??
+        media.options.where((o) => o.label == old.label && o.kind == old.kind).firstOrNull;
+    if (fresh == null) return job;
+    // A different stream would not continue the bytes already on disk.
+    final keepPartial = fresh.id == old.id;
+    if (!keepPartial) {
+      for (final path in job.paths) {
+        try {
+          File(path).deleteSync();
+        } catch (_) {}
+      }
+    }
+    final updated = job.copyWith(
+      option: fresh,
+      paths: keepPartial ? job.paths : const [],
+      photoCount: keepPartial ? job.photoCount : 0,
+    );
+    await _patch(job.id, updated);
+    return updated;
   }
 
   LibraryItem? _byId(String id) {
