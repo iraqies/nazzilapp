@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../data/downloader.dart';
 import '../../models/media.dart';
 import '../../theme/nazzil_theme.dart';
 
@@ -66,6 +67,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
             itemCount: paths.length,
             onPageChanged: (i) => setState(() => _index = i),
             itemBuilder: (context, i) {
+              if (isVideoFile(File(paths[i]))) {
+                return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index);
+              }
               return InteractiveViewer(
                 child: Image.file(File(paths[i]), fit: BoxFit.contain),
               );
@@ -114,6 +118,61 @@ class _ViewerScreenState extends State<ViewerScreen> {
               VideoPlayer(player),
               if (!player.value.isPlaying)
                 const Icon(Icons.play_circle, size: 72, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumVideo extends StatefulWidget {
+  const _AlbumVideo({super.key, required this.path, required this.active});
+  final String path;
+  final bool active;
+
+  @override
+  State<_AlbumVideo> createState() => _AlbumVideoState();
+}
+
+class _AlbumVideoState extends State<_AlbumVideo> {
+  late final VideoPlayerController _player = VideoPlayerController.file(File(widget.path));
+
+  @override
+  void initState() {
+    super.initState();
+    _player.initialize().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _AlbumVideo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.active && _player.value.isPlaying) _player.pause();
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_player.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator(color: NazzilColors.lilac));
+    }
+    return GestureDetector(
+      onTap: () => setState(() => _player.value.isPlaying ? _player.pause() : _player.play()),
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: _player.value.aspectRatio,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              VideoPlayer(_player),
+              if (!_player.value.isPlaying) const Icon(Icons.play_circle, size: 72, color: Colors.white),
             ],
           ),
         ),

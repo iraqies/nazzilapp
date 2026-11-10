@@ -267,11 +267,41 @@ class NetClient {
 
 String decodeEscaped(String value) {
   return value
-      .replaceAll(r'\u0026', '&')
-      .replaceAll(r'\u003d', '=')
+      .replaceAllMapped(
+        RegExp(r'\\u([0-9a-fA-F]{4})'),
+        (m) => String.fromCharCode(int.parse(m.group(1)!, radix: 16)),
+      )
       .replaceAll(r'\/', '/')
       .replaceAll(r'\"', '"')
       .replaceAll('&amp;', '&');
+}
+
+String decodeHtmlEntities(String value) {
+  const named = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", 'nbsp': ' '};
+  return value.replaceAllMapped(RegExp(r'&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);'), (m) {
+    final body = m.group(1)!;
+    final code = body.startsWith('#x') || body.startsWith('#X')
+        ? int.tryParse(body.substring(2), radix: 16)
+        : body.startsWith('#')
+            ? int.tryParse(body.substring(1))
+            : null;
+    if (code != null) return code > 0 && code <= 0x10FFFF ? String.fromCharCode(code) : m.group(0)!;
+    return named[body] ?? m.group(0)!;
+  });
+}
+
+/// A display title from a caption: first line, entities decoded, trailing
+/// hashtags dropped, cut at a word boundary.
+String cleanTitle(String raw, {required String fallback, int max = 100}) {
+  final lines = decodeHtmlEntities(raw).split(RegExp(r'[\r\n]+')).map((l) => l.trim()).where((l) => l.isNotEmpty);
+  var text = lines.isEmpty ? '' : lines.first.replaceAll(RegExp(r'\s+'), ' ');
+  final withoutTags = text.replaceAll(RegExp(r'(\s*#[^\s#]+)+\s*$'), '').trim();
+  if (withoutTags.isNotEmpty) text = withoutTags;
+  if (text.isEmpty) return fallback;
+  if (text.length <= max) return text;
+  final cut = text.substring(0, max);
+  final space = cut.lastIndexOf(' ');
+  return '${(space > max ~/ 2 ? cut.substring(0, space) : cut).trimRight()}…';
 }
 
 String? firstGroup(String text, List<RegExp> patterns) {
@@ -284,10 +314,13 @@ String? firstGroup(String text, List<RegExp> patterns) {
 }
 
 String? og(String html, String prop) {
-  return firstGroup(html, [
-    RegExp('property=["\']og:$prop["\'][^>]*content=["\']([^"\']+)', caseSensitive: false),
-    RegExp('content=["\']([^"\']+)["\'][^>]*property=["\']og:$prop["\']', caseSensitive: false),
+  final value = firstGroup(html, [
+    RegExp('property=["\']og:$prop["\'][^>]*?content="([^"]+)"', caseSensitive: false),
+    RegExp('property=["\']og:$prop["\'][^>]*?content=\'([^\']+)\'', caseSensitive: false),
+    RegExp('content="([^"]+)"[^>]*?property=["\']og:$prop["\']', caseSensitive: false),
+    RegExp('content=\'([^\']+)\'[^>]*?property=["\']og:$prop["\']', caseSensitive: false),
   ]);
+  return value == null ? null : decodeHtmlEntities(value);
 }
 
 List<String> uniqueUrls(Iterable<String?> urls) {

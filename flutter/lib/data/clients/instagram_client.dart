@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import '../../models/media.dart';
 import '../link_parser.dart';
 import '../net.dart';
@@ -10,7 +8,14 @@ class InstagramClient {
   InstagramClient(this.net);
   final NetClient net;
 
-  static const _appId = '936619743392459';
+  static const _pageHeaders = {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Site': 'none',
+    'Upgrade-Insecure-Requests': '1',
+  };
 
   Future<MediaInfo> fetch(String pageUrl) async {
     final resolved = await LinkParser.resolve(pageUrl);
@@ -19,12 +24,13 @@ class InstagramClient {
     final canonical = 'https://www.instagram.com/p/$code/';
     Object? last;
     for (final attempt in <Future<MediaInfo> Function()>[
-      () => _fromOfficial(code, canonical),
+      () => _fromPage(code, canonical),
       () => _fromEmbed(code, canonical),
-      () => _fromSaveIg(canonical, code),
     ]) {
       try {
         return await attempt();
+      } on CancelledException {
+        rethrow;
       } catch (error) {
         last = error;
       }
@@ -32,227 +38,202 @@ class InstagramClient {
     throw last ?? StateError('Could not load this Instagram link');
   }
 
-  Future<MediaInfo> _fromOfficial(String code, String pageUrl) async {
-    for (final ua in [NetHints.facebookUa, NetHints.botUa, NetHints.desktopUa]) {
-      for (final kind in ['p', 'reel']) {
-        try {
-          final html = await net.get(
-            'https://www.instagram.com/$kind/$code/',
-            headers: {'Accept': 'text/html', 'X-IG-App-ID': _appId},
-            userAgent: ua,
-          );
-          final videos = _mp4s(html);
-          final photos = uniqueUrls([..._sidecar(html), ..._images(html)]);
-          if (videos.isEmpty && photos.isEmpty) continue;
-          return _meta(
-            code,
-            pageUrl,
-            videos: videos,
-            photos: photos,
-            title: og(html, 'title'),
-            thumb: og(html, 'image'),
-          );
-        } catch (_) {}
-      }
+  Future<MediaInfo> _fromPage(String code, String pageUrl) async {
+    final html = await net.get(
+      'https://www.instagram.com/p/$code/',
+      headers: _pageHeaders,
+      userAgent: NetHints.desktopUa,
+    );
+    final product = productFromHtml(html);
+    if (product == null) {
+      throw StateError('Instagram did not share this post. It may be private, or Instagram wants a login right now.');
     }
-    throw StateError('Instagram page had no media');
+    return fromProduct(product, code: code, pageUrl: pageUrl);
   }
 
   Future<MediaInfo> _fromEmbed(String code, String pageUrl) async {
     final html = await net.get(
       'https://www.instagram.com/p/$code/embed/captioned/',
+      headers: {..._pageHeaders, 'Sec-Fetch-Dest': 'iframe'},
       userAgent: NetHints.desktopUa,
     );
-    final videos = _mp4s(html);
-    final photos = uniqueUrls([..._sidecar(html), ..._images(html)]);
-    if (videos.isEmpty && photos.isEmpty) {
-      throw StateError('Instagram embed had no media');
-    }
-    return _meta(
-      code,
-      pageUrl,
-      videos: videos,
-      photos: photos,
-      title: og(html, 'title'),
-      thumb: og(html, 'image'),
-    );
+    final node = shortcodeMediaFromEmbed(html);
+    if (node == null) throw StateError('Instagram embed had no media');
+    return fromShortcodeMedia(node, code: code, pageUrl: pageUrl);
   }
 
-  Future<MediaInfo> _fromSaveIg(String pageUrl, String code) async {
-    final encoded = Uri.encodeQueryComponent(pageUrl);
-    final body = await net.post(
-      'https://saveig.app/api/ajaxSearch',
-      'q=$encoded&t=media&lang=en',
-      headers: {
-        'Origin': 'https://saveig.app',
-        'Referer': 'https://saveig.app/en/instagram-video-downloader',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-    );
-    String html = body;
+  /// The logged-out post page carries the post as Relay JSON inside
+  /// `<script data-sjs>` blocks, under `xig_polaris_media`.
+  static Map<String, dynamic>? productFromHtml(String html) {
+    final scripts = RegExp(r'<script\b[^>]*\bdata-sjs\b[^>]*>(\{.+?\})</script>');
+    for (final match in scripts.allMatches(html)) {
+      final raw = match.group(1)!;
+      if (!raw.contains('xig_polaris_media')) continue;
+      Object? decoded;
+      try {
+        decoded = jsonDecode(raw);
+      } catch (_) {
+        continue;
+      }
+      final media = _findKey(decoded, 'xig_polaris_media');
+      if (media is! Map) continue;
+      var product = media['if_not_gated_logged_out'];
+      if (product is List && product.isNotEmpty) product = product.first;
+      if (product is Map) return Map<String, dynamic>.from(product);
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? shortcodeMediaFromEmbed(String html) {
+    final match = RegExp(r'"contextJSON":"((?:[^"\\]|\\.)*)"').firstMatch(html);
+    if (match == null) return null;
     try {
-      final json = jsonDecode(body);
-      if (json is Map && json['data'] is String) html = json['data'] as String;
-    } catch (_) {}
-    final videos = uniqueUrls(
-      RegExp(r'''href=["'](https?://[^"']+)["']''', caseSensitive: false)
-          .allMatches(html)
-          .map((m) => m.group(1))
-          .where((u) => u != null && u.toLowerCase().contains('.mp4')),
-    );
-    final photos = _images(html);
-    if (videos.isEmpty && photos.isEmpty) {
-      throw StateError('SaveIG had no media');
+      final context = jsonDecode(jsonDecode('"${match.group(1)}"') as String);
+      final node = _findKey(context, 'shortcode_media');
+      return node is Map ? Map<String, dynamic>.from(node) : null;
+    } catch (_) {
+      return null;
     }
-    return _meta(code, pageUrl, videos: videos, photos: photos, title: null, thumb: og(html, 'image'));
   }
 
-  MediaInfo _meta(
-    String id,
-    String pageUrl, {
-    required List<String> videos,
-    required List<String> photos,
-    String? title,
-    String? thumb,
+  static Object? _findKey(Object? value, String key) {
+    if (value is Map) {
+      if (value.containsKey(key) && value[key] != null) return value[key];
+      for (final child in value.values) {
+        final found = _findKey(child, key);
+        if (found != null) return found;
+      }
+    } else if (value is List) {
+      for (final child in value) {
+        final found = _findKey(child, key);
+        if (found != null) return found;
+      }
+    }
+    return null;
+  }
+
+  static MediaInfo fromProduct(
+    Map<String, dynamic> product, {
+    required String code,
+    required String pageUrl,
   }) {
+    final user = product['user'] is Map ? product['user'] as Map : const {};
+    final username = user['username']?.toString();
+    final caption = product['caption'] is Map ? (product['caption'] as Map)['text']?.toString() : null;
+    final carousel = (product['carousel_media'] as List?)?.whereType<Map>().toList() ?? const [];
+    final items = <_Item?>[
+      if (carousel.isNotEmpty)
+        for (final entry in carousel) _itemFromProduct(entry)
+      else
+        _itemFromProduct(product),
+    ].whereType<_Item>().toList();
+    final duration = (product['video_duration'] as num?)?.round();
+    return _build(
+      code: code,
+      pageUrl: pageUrl,
+      items: items,
+      caption: caption,
+      username: username,
+      duration: duration,
+    );
+  }
+
+  static MediaInfo fromShortcodeMedia(
+    Map<String, dynamic> node, {
+    required String code,
+    required String pageUrl,
+  }) {
+    final children = ((node['edge_sidecar_to_children'] as Map?)?['edges'] as List?)
+            ?.whereType<Map>()
+            .map((edge) => edge['node'])
+            .whereType<Map>()
+            .toList() ??
+        const [];
+    final items = <_Item?>[
+      if (children.isNotEmpty)
+        for (final child in children) _itemFromNode(child)
+      else
+        _itemFromNode(node),
+    ].whereType<_Item>().toList();
+    final captionEdges = ((node['edge_media_to_caption'] as Map?)?['edges'] as List?) ?? const [];
+    final caption = captionEdges.isEmpty ? null : ((captionEdges.first as Map?)?['node'] as Map?)?['text']?.toString();
+    final owner = node['owner'] is Map ? node['owner'] as Map : const {};
+    return _build(
+      code: code,
+      pageUrl: pageUrl,
+      items: items,
+      caption: caption,
+      username: owner['username']?.toString(),
+      duration: (node['video_duration'] as num?)?.round(),
+    );
+  }
+
+  static _Item? _itemFromProduct(Map entry) {
+    final candidates = ((entry['image_versions2'] as Map?)?['candidates'] as List?)?.whereType<Map>().toList() ?? <Map>[];
+    candidates.sort((a, b) => ((b['width'] as num?) ?? 0).compareTo((a['width'] as num?) ?? 0));
+    final image = candidates.isEmpty ? null : candidates.first['url']?.toString();
+    final versions = (entry['video_versions'] as List?)?.whereType<Map>().toList() ?? const [];
+    final videos = uniqueUrls(versions.map((v) => v['url']?.toString()));
+    if (videos.isEmpty && (image == null || image.isEmpty)) return null;
+    return _Item(image: image, videos: videos);
+  }
+
+  static _Item? _itemFromNode(Map node) {
+    final image = node['display_url']?.toString() ?? node['display_src']?.toString();
+    final video = node['video_url']?.toString();
+    final isVideo = node['is_video'] == true || node['__typename'] == 'GraphVideo';
+    if (isVideo && (video == null || video.isEmpty)) return null;
+    if (video == null && (image == null || image.isEmpty)) return null;
+    return _Item(image: image, videos: uniqueUrls([video]));
+  }
+
+  static MediaInfo _build({
+    required String code,
+    required String pageUrl,
+    required List<_Item> items,
+    String? caption,
+    String? username,
+    int? duration,
+  }) {
+    if (items.isEmpty) throw StateError('This Instagram post has nothing to download.');
+    final title = cleanTitle(caption ?? '', fallback: username == null ? 'Instagram' : 'Instagram post by @$username');
+    final thumb = items.first.image;
     final options = <QualityOption>[];
-    final album = photos.length > 1;
-    if (album || (photos.isNotEmpty && videos.isEmpty)) {
+    var photos = <String>[];
+    if (items.length == 1 && items.first.videos.isNotEmpty) {
+      final videos = items.first.videos;
+      options.add(QualityOption(id: 'ig-hd', label: 'HD', ext: 'mp4', kind: MediaKind.video, directUrl: videos.first));
+      if (videos.length > 1 && videos.last != videos.first) {
+        options.add(QualityOption(id: 'ig-sd', label: 'SD', ext: 'mp4', kind: MediaKind.video, directUrl: videos.last));
+      }
+      options.add(QualityOption(id: 'ig-audio', label: 'Audio', ext: 'm4a', kind: MediaKind.audio, directUrl: videos.last));
+    } else {
+      photos = [for (final item in items) item.image ?? item.videos.first];
+      final hasVideo = items.any((item) => item.videos.isNotEmpty);
       options.add(QualityOption(
         id: 'ig-photos',
-        label: 'Photos',
+        label: hasVideo ? 'Album' : 'Photos',
         ext: 'jpg',
         kind: MediaKind.photo,
-        photoUrls: photos,
+        photoUrls: [for (final item in items) item.videos.isNotEmpty ? item.videos.first : item.image!],
       ));
     }
-    if (videos.isNotEmpty && !album) {
-      options.add(QualityOption(
-        id: 'ig-hd',
-        label: 'HD',
-        ext: 'mp4',
-        kind: MediaKind.video,
-        directUrl: videos.first,
-      ));
-      if (videos.length > 1 && videos.last != videos.first) {
-        options.add(QualityOption(
-          id: 'ig-sd',
-          label: 'SD',
-          ext: 'mp4',
-          kind: MediaKind.video,
-          directUrl: videos.last,
-        ));
-      }
-      options.add(QualityOption(
-        id: 'ig-audio',
-        label: 'Audio',
-        ext: 'm4a',
-        kind: MediaKind.audio,
-        directUrl: videos.first,
-      ));
-    }
-    final parsed = _instagramTitle(title);
     return MediaInfo(
-      id: id,
-      title: parsed.$1,
-      author: parsed.$2,
-      thumbnail: thumb ?? (photos.isNotEmpty ? photos.first : null),
+      id: code,
+      title: title,
+      author: username,
+      thumbnail: thumb,
+      duration: duration,
       webpageUrl: pageUrl,
       platform: PlatformId.instagram,
       options: options,
-      photos: album || videos.isEmpty ? photos : const [],
-    );
-  }
-
-  List<String> _mp4s(String html) {
-    final unescaped = decodeEscaped(html);
-    return uniqueUrls(
-      RegExp(r'https://[^\s"<>\\]+?\.mp4[^\s"<>\\]*')
-          .allMatches(unescaped)
-          .map((m) => m.group(0))
-          .where((u) =>
-              u != null &&
-              (u.contains('cdninstagram') || u.contains('fbcdn') || u.contains('.mp4'))),
-    );
-  }
-
-  List<String> _images(String html) {
-    final unescaped = decodeEscaped(html);
-    return uniqueUrls(
-      [
-        og(unescaped, 'image'),
-        ...RegExp(r'https://[^\s"<>\\]+?(?:scontent|cdninstagram)[^\s"<>\\]+')
-            .allMatches(unescaped)
-            .map((m) => m.group(0)),
-      ].where((u) {
-        if (u == null) return false;
-        final v = u.toLowerCase();
-        return !v.contains('.mp4') && _looksLikePostImage(v);
-      }),
-    ).take(30).toList();
-  }
-
-  List<String> _sidecar(String html) {
-    final unescaped = decodeEscaped(html);
-    return uniqueUrls(
-      [
-        ...RegExp(r'"display_url"\s*:\s*"(https:[^"]+)"').allMatches(unescaped).map((m) => m.group(1)),
-        ...RegExp(r'"display_src"\s*:\s*"(https:[^"]+)"').allMatches(unescaped).map((m) => m.group(1)),
-        ...RegExp(r'"carousel_media"\s*:\s*\[(.*?)\]', dotAll: true).allMatches(unescaped).expand(
-              (m) => RegExp(r'https://[^"\\]+').allMatches(m.group(1)!).map((u) => u.group(0)),
-            ),
-        ...RegExp(r'"edge_sidecar_to_children".{0,8000}?"display_url":"(https:[^"]+)"', dotAll: true)
-            .allMatches(unescaped)
-            .map((m) => m.group(1)),
-      ].where((u) {
-        if (u == null) return false;
-        final v = decodeEscaped(u).toLowerCase();
-        return !v.contains('.mp4') && _looksLikePostImage(v);
-      }),
-    );
-  }
-
-  bool _looksLikePostImage(String url) {
-    if (url.contains('s150x150') ||
-        url.contains('s320x320') ||
-        url.contains('s50x50') ||
-        url.contains('/profile') ||
-        url.contains('profile_pic')) {
-      return false;
-    }
-    return url.contains('scontent') ||
-        url.contains('cdninstagram') ||
-        url.contains('.jpg') ||
-        url.contains('.jpeg') ||
-        url.contains('.webp') ||
-        url.contains('.png');
-  }
-
-  (String, String?) _instagramTitle(String? raw) {
-    var text = (raw ?? '')
-        .replaceAll(RegExp(r'\s*[•·]\s*Instagram.*$', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\(@[A-Za-z0-9._]+\)\s*'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    final author = RegExp(r'@([A-Za-z0-9._]+)').firstMatch(raw ?? '')?.group(1);
-    if (text.isEmpty) text = 'Instagram';
-    return (text, author);
-  }
-
-  @visibleForTesting
-  MediaInfo metaFrom({
-    required List<String> videos,
-    required List<String> photos,
-    String? title,
-    String? thumb,
-  }) {
-    return _meta(
-      'testid',
-      'https://www.instagram.com/p/testid/',
-      videos: videos,
       photos: photos,
-      title: title,
-      thumb: thumb,
     );
   }
+}
+
+class _Item {
+  const _Item({required this.image, required this.videos});
+  final String? image;
+  final List<String> videos;
 }

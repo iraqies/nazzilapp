@@ -95,6 +95,7 @@ class _Result extends StatelessWidget {
   Widget build(BuildContext context) {
     final photos = controller.selected?.kind == MediaKind.photo ||
         (media.isPhotoAlbum && controller.selected?.kind != MediaKind.audio);
+    final mixed = media.options.any((o) => o.label == 'Album');
     final job = controller.jobForCurrent();
     final scheme = Theme.of(context).colorScheme;
     return DecoratedBox(
@@ -133,7 +134,7 @@ class _Result extends StatelessWidget {
                 ),
                 if (photos)
                   _Badge(
-                    label: s.photosN(media.photos.length),
+                    label: mixed ? s.itemsN(media.photos.length) : s.photosN(media.photos.length),
                     color: NazzilColors.lilac,
                   ),
               ],
@@ -160,7 +161,7 @@ class _Result extends StatelessWidget {
                       : job?.status == LibraryItem.statusQueued
                           ? s.queued
                           : photos
-                              ? s.savePhotos
+                              ? (mixed ? s.saveAll : s.savePhotos)
                               : s.download,
               icon: job?.status == LibraryItem.statusPaused
                   ? Icons.play_arrow_rounded
@@ -198,7 +199,7 @@ class _Result extends StatelessWidget {
                     onPressed: job?.active == true
                         ? null
                         : () => controller.download(onlyPhoto: controller.photoIndex),
-                  child: Text(s.savePhoto),
+                  child: Text(mixed ? s.saveThis : s.savePhoto),
                 ),
               ),
             ],

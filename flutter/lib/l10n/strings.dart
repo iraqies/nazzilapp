@@ -25,7 +25,10 @@ class S {
   String get download => _t('Download', 'نزّل');
   String get savePhotos => _t('Save photos', 'حفظ الصور');
   String get savePhoto => _t('Save this photo', 'حفظ هذي الصورة');
+  String get saveAll => _t('Save all', 'حفظ الكل');
+  String get saveThis => _t('Save this one', 'حفظ هذا');
   String get photos => _t('Photos', 'صور');
+  String get album => _t('Album', 'ألبوم');
   String get photoCount => _t('photos', 'صور');
   String get video => _t('Video', 'فيديو');
   String get audio => _t('Audio', 'صوت');
@@ -106,6 +109,8 @@ class S {
       };
 
   String photosN(int n) => isAr ? '$n صور' : (n == 1 ? '1 photo' : '$n photos');
+
+  String itemsN(int n) => isAr ? '$n عناصر' : (n == 1 ? '1 item' : '$n items');
 
   String waitingN(int n) => isAr ? '$n بالانتظار' : (n == 1 ? '1 waiting' : '$n waiting');
 

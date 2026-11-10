@@ -302,7 +302,11 @@ class NazzilController extends ChangeNotifier {
             label: 'Photo',
             ext: 'jpg',
             kind: MediaKind.photo,
-            photoUrls: [current.photos[onlyPhoto]],
+            photoUrls: [
+              option.kind == MediaKind.photo && onlyPhoto < option.photoUrls.length
+                  ? option.photoUrls[onlyPhoto]
+                  : current.photos[onlyPhoto],
+            ],
           );
     final item = LibraryItem(
       id: 'q-$key-$quality',

@@ -24,6 +24,7 @@ class QualitySwitch extends StatelessWidget {
       'SD' => s.sd,
       'Audio' => s.audio,
       'Photos' => s.photos,
+      'Album' => s.album,
       _ => option.label,
     };
   }

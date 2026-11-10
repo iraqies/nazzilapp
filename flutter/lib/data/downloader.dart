@@ -64,7 +64,7 @@ class MediaDownloader {
         final dest = i < files.length ? files[i] : File(p.join(folder.path, '$base-${i + 1}.$ext'));
         dest.parent.createSync(recursive: true);
         try {
-          final file = await net.save(
+          final file = _matchExtension(await net.save(
             urls[i],
             dest,
             referer: extractor.refererFor(urls[i]),
@@ -72,8 +72,8 @@ class MediaDownloader {
               final slice = 1 / urls.length;
               onProgress((i * slice) + (value * slice * 0.9));
             },
-          );
-          await gallery.saveFile(file, image: true);
+          ));
+          await gallery.saveFile(file, image: !isVideoFile(file));
           if (i < files.length) {
             files[i] = file;
           } else {
@@ -237,9 +237,48 @@ class MediaDownloader {
 
   String _extOf(String url, {required String fallback}) {
     final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
-    for (final ext in ['jpg', 'jpeg', 'png', 'webp', 'heic']) {
+    for (final ext in ['jpg', 'jpeg', 'png', 'webp', 'heic', 'mp4']) {
       if (path.endsWith('.$ext') || path.contains('.$ext?')) return ext == 'jpeg' ? 'jpg' : ext;
     }
     return fallback;
+  }
+
+  /// Album items can be photos or videos; trust the bytes over the URL.
+  File _matchExtension(File file) {
+    final ext = sniffExtension(file);
+    if (ext == null || p.extension(file.path).toLowerCase() == '.$ext') return file;
+    final target = File(p.setExtension(file.path, '.$ext'));
+    try {
+      if (target.existsSync()) target.deleteSync();
+      return file.renameSync(target.path);
+    } catch (_) {
+      return file;
+    }
+  }
+}
+
+bool isVideoFile(File file) => sniffExtension(file) == 'mp4' || p.extension(file.path).toLowerCase() == '.mp4';
+
+String? sniffExtension(File file) {
+  try {
+    final raf = file.openSync();
+    final head = raf.readSync(12);
+    raf.closeSync();
+    if (head.length < 12) return null;
+    final box = String.fromCharCodes(head.sublist(4, 8));
+    if (box == 'ftyp') {
+      final brand = String.fromCharCodes(head.sublist(8, 12));
+      if (const {'heic', 'heix', 'mif1', 'msf1', 'avif'}.contains(brand)) return brand == 'avif' ? 'avif' : 'heic';
+      if (brand.startsWith('M4A')) return 'm4a';
+      return 'mp4';
+    }
+    if (head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF) return 'jpg';
+    if (head[0] == 0x89 && head[1] == 0x50 && head[2] == 0x4E && head[3] == 0x47) return 'png';
+    if (String.fromCharCodes(head.sublist(0, 4)) == 'RIFF' && String.fromCharCodes(head.sublist(8, 12)) == 'WEBP') {
+      return 'webp';
+    }
+    return null;
+  } catch (_) {
+    return null;
   }
 }
