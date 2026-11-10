@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_audio/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
+import 'package:flutter/foundation.dart';
 
 import 'ffmpeg_args.dart';
 
@@ -37,6 +39,7 @@ class MediaConverter {
             ),
             output,
             'Could not make the video.',
+            needsVideo: true,
           );
         } on StateError {
           continue;
@@ -46,14 +49,28 @@ class MediaConverter {
     throw StateError('Could not make the video.');
   }
 
-  Future<File> _run(List<String> args, File output, String failure) async {
+  Future<File> _run(List<String> args, File output, String failure, {bool needsVideo = false}) async {
     if (output.existsSync()) output.deleteSync();
     final session = await FFmpegKit.executeWithArguments(args);
     final code = await session.getReturnCode();
-    if (ReturnCode.isSuccess(code) && output.existsSync() && output.lengthSync() > 1024) {
-      return output;
-    }
+    final ok = ReturnCode.isSuccess(code) && output.existsSync() && output.lengthSync() > 1024;
+    // A hardware encoder that never delivers a frame still exits 0, leaving
+    // an MP4 with only the sound in it.
+    if (ok && (!needsVideo || await _hasVideo(output))) return output;
+    final logs = await session.getAllLogsAsString() ?? '';
+    debugPrint('ffmpeg ${ok ? 'wrote no video' : 'failed ($code)'}: '
+        '${logs.length > 3000 ? logs.substring(logs.length - 3000) : logs}');
     if (output.existsSync()) output.deleteSync();
     throw StateError(failure);
+  }
+
+  Future<bool> _hasVideo(File file) async {
+    try {
+      final session = await FFprobeKit.getMediaInformation(file.path);
+      final streams = session.getMediaInformation()?.getStreams() ?? const [];
+      return streams.any((s) => s.getType() == 'video');
+    } catch (_) {
+      return false;
+    }
   }
 }
