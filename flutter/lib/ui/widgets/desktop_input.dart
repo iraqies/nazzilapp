@@ -58,6 +58,7 @@ class _DesktopInputState extends State<DesktopInput> {
   Widget build(BuildContext context) {
     if (!Platforms.desktop) return widget.child;
     final mac = Platform.isMacOS;
+    final scheme = Theme.of(context).colorScheme;
     return CallbackShortcuts(
       bindings: {
         SingleActivator(LogicalKeyboardKey.keyV, control: !mac, meta: mac): _paste,
@@ -77,12 +78,12 @@ class _DesktopInputState extends State<DesktopInput> {
                     child: Container(
                       margin: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: NazzilColors.rose.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: NazzilColors.rose, width: 2),
+                        color: scheme.surface.withValues(alpha: 0.86),
+                        borderRadius: BorderRadius.circular(NazzilRadius.card),
+                        border: Border.all(color: scheme.primary, width: 2),
                       ),
                       child: Center(
-                        child: Icon(Icons.link_rounded, size: 72, color: NazzilColors.rose),
+                        child: Icon(Icons.link_rounded, size: 72, color: scheme.primary),
                       ),
                     ),
                   ),

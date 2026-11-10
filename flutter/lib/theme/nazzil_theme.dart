@@ -1,201 +1,257 @@
 import 'package:flutter/material.dart';
 
-/// A colour theme: [primary] carries buttons and highlights, [accent] the
-/// secondary actions, and every tinted surface is mixed from them.
+/// One brand colour: [fill] sits under ink text, while [onDark] and [onLight]
+/// are the same hue tuned to pass 4.5:1 as text on each theme's surfaces.
 class NazzilPalette {
-  const NazzilPalette(this.id, this.primary, this.deep, this.accent);
+  const NazzilPalette(this.id, this.fill, this.onDark, this.onLight);
   final String id;
-  final Color primary;
-  final Color deep;
-  final Color accent;
+  final Color fill;
+  final Color onDark;
+  final Color onLight;
 
-  static const rose = NazzilPalette('rose', Color(0xFFFF4D8D), Color(0xFFE0186A), Color(0xFFB8A4FF));
-  static const ocean = NazzilPalette('ocean', Color(0xFF2F7BFF), Color(0xFF1659D6), Color(0xFF7DE3D4));
-  static const emerald = NazzilPalette('emerald', Color(0xFF12B886), Color(0xFF0B8F67), Color(0xFFC3E86B));
-  static const sunset = NazzilPalette('sunset', Color(0xFFFF7139), Color(0xFFE2521A), Color(0xFFFFC05C));
-  static const grape = NazzilPalette('grape', Color(0xFF8B5CF6), Color(0xFF6D3BE0), Color(0xFFFF9EDB));
+  static const rose = NazzilPalette('rose', Color(0xFFFF4D8D), Color(0xFFFF4D8D), Color(0xFFCF004A));
+  static const ocean = NazzilPalette('ocean', Color(0xFF2F7BFF), Color(0xFF4388FF), Color(0xFF0059F3));
+  static const emerald = NazzilPalette('emerald', Color(0xFF12B886), Color(0xFF12B886), Color(0xFF0B7555));
+  static const sunset = NazzilPalette('sunset', Color(0xFFFF7139), Color(0xFFFF7139), Color(0xFFC03600));
+  static const grape = NazzilPalette('grape', Color(0xFF8B5CF6), Color(0xFF9A72F7), Color(0xFF753DF4));
   static const all = [rose, ocean, emerald, sunset, grape];
 
   static NazzilPalette byId(String id) => all.firstWhere((p) => p.id == id, orElse: () => rose);
-
-  Color tint(Color base, double amount) => Color.alphaBlend(primary.withValues(alpha: amount), base);
-  Color accentTint(Color base, double amount) => Color.alphaBlend(accent.withValues(alpha: amount), base);
 }
 
-class NazzilColors {
-  static NazzilPalette palette = NazzilPalette.rose;
+abstract final class NazzilColors {
+  static const ink = Color(0xFF0B0B0C);
+  static const paper = Color(0xFFF5F3F0);
 
-  static Color get rose => palette.primary;
-  static Color get roseDeep => palette.deep;
-  static Color get lilac => palette.accent;
-  static Color get paper => palette.tint(const Color(0xFFF6F5F6), 0.05);
-  static const cream = Color(0xFFF6F0EA);
-  static const ink = Color(0xFF08060C);
-  static const ink2 = Color(0xFF161018);
-  static const mint = Color(0xFF3DDC97);
+  /// Scrim behind text that sits on a photo: white on it stays above 4.5:1
+  /// even over a white image.
+  static const photoScrim = Color(0xB8000000);
+}
+
+/// Pill is kept for the main button alone, so it reads as the one thing to press.
+abstract final class NazzilRadius {
+  static const small = 6.0;
+  static const control = 10.0;
+  static const card = 16.0;
+}
+
+/// Every animation asks here first, so the system reduce-motion setting
+/// switches all of them off in one place.
+abstract final class NazzilMotion {
+  static const quick = Duration(milliseconds: 180);
+
+  static bool reduced(BuildContext context) => MediaQuery.disableAnimationsOf(context);
+
+  static Duration of(BuildContext context, [Duration duration = quick]) =>
+      reduced(context) ? Duration.zero : duration;
+
+  static AnimationStyle? style(BuildContext context) => reduced(context) ? AnimationStyle.noAnimation : null;
+
+  static Route<T> route<T>(BuildContext context, WidgetBuilder builder) {
+    if (!reduced(context)) return MaterialPageRoute<T>(builder: builder);
+    return PageRouteBuilder<T>(
+      pageBuilder: (context, _, _) => builder(context),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
 }
 
 class NazzilTheme {
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  static ThemeData light(NazzilPalette palette, {required bool arabic}) =>
+      _build(Brightness.light, palette, arabic: arabic);
+  static ThemeData dark(NazzilPalette palette, {required bool arabic}) =>
+      _build(Brightness.dark, palette, arabic: arabic);
 
-  static ThemeData _build(Brightness brightness) {
+  static ThemeData _build(Brightness brightness, NazzilPalette palette, {required bool arabic}) {
     final dark = brightness == Brightness.dark;
-    final p = NazzilColors.palette;
+    final text = dark ? const Color(0xFFF4F1EC) : const Color(0xFF141215);
+    final muted = dark ? const Color(0xFFA9A5A0) : const Color(0xFF625D58);
+    final page = dark ? NazzilColors.ink : NazzilColors.paper;
+    final surface = dark ? const Color(0xFF161618) : Colors.white;
+    final raised = dark ? const Color(0xFF222225) : const Color(0xFFECE9E4);
+    final tone = dark ? palette.onDark : palette.onLight;
     final scheme = ColorScheme(
       brightness: brightness,
-      primary: NazzilColors.rose,
-      onPrimary: Colors.white,
-      primaryContainer: dark ? p.tint(NazzilColors.ink, 0.22) : p.tint(Colors.white, 0.22),
-      onPrimaryContainer: dark ? NazzilColors.cream : p.tint(NazzilColors.ink, 0.22),
-      secondary: NazzilColors.lilac,
-      onSecondary: NazzilColors.ink,
-      secondaryContainer: dark ? p.accentTint(NazzilColors.ink, 0.18) : p.accentTint(Colors.white, 0.3),
-      onSecondaryContainer: dark ? NazzilColors.cream : p.accentTint(NazzilColors.ink, 0.18),
-      tertiary: NazzilColors.mint,
-      onTertiary: NazzilColors.ink,
-      error: const Color(0xFFE23D4A),
-      onError: Colors.white,
-      surface: dark ? NazzilColors.ink : NazzilColors.paper,
-      onSurface: dark ? NazzilColors.cream : const Color(0xFF1A1320),
-      onSurfaceVariant: dark ? const Color(0xFFB5A8B4) : const Color(0xFF7A6B76),
-      outline: dark ? const Color(0x33FFFFFF) : const Color(0x221A1320),
-      outlineVariant: dark ? const Color(0x22FFFFFF) : const Color(0x141A1320),
-      surfaceContainerLowest: dark ? const Color(0xFF05040A) : Colors.white,
-      surfaceContainerLow: dark ? NazzilColors.ink2 : Colors.white,
-      surfaceContainer: dark ? const Color(0xFF1C1522) : p.tint(const Color(0xFFEBE8EB), 0.05),
-      surfaceContainerHigh: dark ? const Color(0xFF241C2A) : p.tint(const Color(0xFFE2DFE2), 0.06),
-      surfaceContainerHighest: dark ? const Color(0xFF2C2334) : p.tint(const Color(0xFFD9D6D9), 0.07),
+      primary: tone,
+      onPrimary: dark ? NazzilColors.ink : Colors.white,
+      primaryContainer: palette.fill,
+      onPrimaryContainer: NazzilColors.ink,
+      secondary: tone,
+      onSecondary: dark ? NazzilColors.ink : Colors.white,
+      secondaryContainer: raised,
+      onSecondaryContainer: text,
+      tertiary: tone,
+      onTertiary: dark ? NazzilColors.ink : Colors.white,
+      error: dark ? const Color(0xFFFF7A85) : const Color(0xFFB3202C),
+      onError: dark ? NazzilColors.ink : Colors.white,
+      surface: page,
+      onSurface: text,
+      onSurfaceVariant: muted,
+      // Control edges need 3:1 against the surface next to them.
+      outline: dark ? const Color(0xFF737379) : const Color(0xFF85807B),
+      outlineVariant: dark ? const Color(0xFF2C2C30) : const Color(0xFFDDD9D3),
+      surfaceTint: Colors.transparent,
+      surfaceContainerLowest: page,
+      surfaceContainerLow: surface,
+      surfaceContainer: surface,
+      surfaceContainerHigh: raised,
+      surfaceContainerHighest: raised,
+      inverseSurface: text,
+      onInverseSurface: page,
     );
 
-    TextStyle outfit({
-      double size = 16,
-      FontWeight weight = FontWeight.w500,
-      double height = 1.25,
+    TextStyle style({
+      required double size,
+      FontWeight weight = FontWeight.w400,
+      double height = 1.3,
       Color? color,
+      double spacing = 0,
     }) {
+      if (arabic) {
+        final w = weight.value.clamp(400, 700);
+        return TextStyle(
+          fontFamily: 'NotoNaskhArabic',
+          fontFamilyFallback: const ['Outfit'],
+          fontSize: size,
+          fontWeight: FontWeight.values[(w ~/ 100) - 1],
+          fontVariations: [FontVariation('wght', w.toDouble())],
+          height: height + 0.2,
+          color: color ?? text,
+        );
+      }
       return TextStyle(
         fontFamily: 'Outfit',
         fontFamilyFallback: const ['NotoNaskhArabic'],
         fontSize: size,
         fontWeight: weight,
-        height: height,
-        color: color ?? scheme.onSurface,
         fontVariations: [FontVariation('wght', weight.value.toDouble())],
-      );
-    }
-
-    TextStyle arabic({
-      double size = 16,
-      FontWeight weight = FontWeight.w600,
-      double height = 1.45,
-      Color? color,
-    }) {
-      return TextStyle(
-        fontFamily: 'NotoNaskhArabic',
-        fontFamilyFallback: const ['Outfit'],
-        fontSize: size,
-        fontWeight: weight,
         height: height,
-        color: color ?? scheme.onSurface,
+        letterSpacing: spacing,
+        color: color ?? text,
       );
     }
 
-    final text = TextTheme(
-      displaySmall: outfit(size: 44, weight: FontWeight.w800, height: 0.95),
-      headlineMedium: outfit(size: 28, weight: FontWeight.w800, height: 1.1),
-      titleLarge: outfit(size: 22, weight: FontWeight.w700),
-      titleMedium: outfit(size: 17, weight: FontWeight.w600),
-      bodyLarge: arabic(size: 17, height: 1.55),
-      bodyMedium: arabic(size: 15, height: 1.5),
-      bodySmall: outfit(size: 13, color: scheme.onSurfaceVariant),
-      labelLarge: outfit(size: 15, weight: FontWeight.w700),
-      labelMedium: outfit(size: 12, weight: FontWeight.w600, color: scheme.onSurfaceVariant),
+    final type = TextTheme(
+      displaySmall: style(size: arabic ? 34 : 40, weight: FontWeight.w800, height: 1, spacing: -1),
+      headlineMedium: style(size: 26, weight: FontWeight.w800, height: 1.12, spacing: -0.4),
+      titleLarge: style(size: 20, weight: FontWeight.w700, height: 1.2),
+      titleMedium: style(size: 16, weight: FontWeight.w600, height: 1.25),
+      bodyLarge: style(size: 16, height: 1.45),
+      bodyMedium: style(size: 15, height: 1.45),
+      bodySmall: style(size: 13, weight: FontWeight.w500, color: muted),
+      labelLarge: style(size: 15, weight: FontWeight.w700, height: 1.2),
+      labelMedium: style(size: 13, weight: FontWeight.w600, height: 1.2, color: muted),
     );
+
+    BorderSide? focusRing(Set<WidgetState> states) => states.contains(WidgetState.focused)
+        ? BorderSide(color: text, width: 2, strokeAlign: BorderSide.strokeAlignOutside)
+        : null;
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
-      textTheme: text,
-      scaffoldBackgroundColor: scheme.surface,
-      splashFactory: InkSparkle.splashFactory,
+      textTheme: type,
+      scaffoldBackgroundColor: page,
+      splashFactory: InkRipple.splashFactory,
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: scheme.onSurface,
-        titleTextStyle: text.titleLarge,
+        backgroundColor: page,
+        foregroundColor: text,
+        titleTextStyle: type.titleLarge,
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: scheme.surfaceContainerLow,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: BorderSide(color: scheme.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: BorderSide(color: scheme.outline),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(22),
-          borderSide: BorderSide(color: NazzilColors.rose, width: 1.4),
-        ),
-        hintStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        filled: false,
+        border: InputBorder.none,
+        hintStyle: type.bodyMedium?.copyWith(color: muted),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: NazzilColors.rose,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-          textStyle: text.labelLarge,
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? raised : palette.fill,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.ink,
+          ),
+          iconColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.ink,
+          ),
+          overlayColor: WidgetStatePropertyAll(NazzilColors.ink.withValues(alpha: 0.12)),
+          elevation: const WidgetStatePropertyAll(0),
+          minimumSize: const WidgetStatePropertyAll(Size(64, 52)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 22)),
+          shape: WidgetStateProperty.resolveWith(
+            (states) => StadiumBorder(side: focusRing(states) ?? BorderSide.none),
+          ),
+          textStyle: WidgetStatePropertyAll(type.labelLarge),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? muted : tone,
+          ),
+          iconColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? muted : tone,
+          ),
+          minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
+          shape: WidgetStateProperty.resolveWith(
+            (states) => RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(NazzilRadius.control),
+              side: focusRing(states) ?? BorderSide.none,
+            ),
+          ),
+          textStyle: WidgetStatePropertyAll(type.labelLarge),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStatePropertyAll(text),
+          minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+          shape: WidgetStateProperty.resolveWith(
+            (states) => RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(NazzilRadius.control),
+              side: focusRing(states) ?? BorderSide.none,
+            ),
+          ),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
-        contentTextStyle: text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: scheme.surfaceContainerLow.withValues(alpha: 0.82),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: scheme.outline.withValues(alpha: 0.7)),
-        ),
-        margin: EdgeInsets.zero,
+        contentTextStyle: type.bodyMedium?.copyWith(color: scheme.onInverseSurface),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.control)),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: surface,
+        elevation: 0,
+        titleTextStyle: type.titleLarge,
+        contentTextStyle: type.bodyMedium?.copyWith(color: muted),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.card)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: surface,
+        elevation: 0,
+        dragHandleColor: scheme.outline,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(NazzilRadius.card)),
         ),
       ),
-      dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant,
-        space: 1,
+      listTileTheme: ListTileThemeData(
+        iconColor: text,
+        textColor: text,
+        titleTextStyle: type.titleMedium,
+        subtitleTextStyle: type.bodySmall,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.control)),
       ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: tone,
+        linearTrackColor: scheme.outlineVariant,
+      ),
+      dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
     );
   }
-}
-
-TextStyle displayStyle(BuildContext context, {double size = 40}) {
-  final rtl = Directionality.of(context) == TextDirection.rtl;
-  return TextStyle(
-    fontFamily: rtl ? 'NotoNaskhArabic' : 'Outfit',
-    fontFamilyFallback: const ['Outfit', 'NotoNaskhArabic'],
-    fontSize: size,
-    fontWeight: FontWeight.w800,
-    height: rtl ? 1.25 : 0.95,
-    letterSpacing: rtl ? 0 : -1.2,
-    color: Theme.of(context).colorScheme.onSurface,
-  );
 }

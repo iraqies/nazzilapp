@@ -37,11 +37,15 @@ class _PhotoFilmState extends State<PhotoFilm> {
     if (widget.index != oldWidget.index &&
         _pages.hasClients &&
         _pages.page?.round() != widget.index) {
-      _pages.animateToPage(
-        widget.index,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-      );
+      if (NazzilMotion.reduced(context)) {
+        _pages.jumpToPage(widget.index);
+      } else {
+        _pages.animateToPage(
+          widget.index,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
     }
   }
 
@@ -53,7 +57,9 @@ class _PhotoFilmState extends State<PhotoFilm> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final glide = NazzilMotion.of(context, const Duration(milliseconds: 280));
     return Column(
       children: [
         SizedBox(
@@ -65,50 +71,34 @@ class _PhotoFilmState extends State<PhotoFilm> {
             itemBuilder: (context, i) {
               final active = i == widget.index;
               return AnimatedScale(
-                duration: const Duration(milliseconds: 280),
+                duration: glide,
                 curve: Curves.easeOutCubic,
                 scale: active ? 1 : 0.9,
                 child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 280),
+                  duration: glide,
                   opacity: active ? 1 : 0.55,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: NazzilColors.lilac.withValues(alpha: active ? 0.28 : 0),
-                            blurRadius: 28,
-                            offset: const Offset(0, 14),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(NazzilRadius.card),
+                      child: ColoredBox(
+                        color: scheme.surfaceContainerHigh,
+                        child: CachedNetworkImage(
+                          imageUrl: widget.urls[i],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          placeholder: (_, _) => const Center(child: CircularProgressIndicator()),
+                          errorWidget: (_, _, _) => Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                widget.s.photoFailed,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(28),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            ColoredBox(color: scheme.surfaceContainer),
-                            CachedNetworkImage(
-                              imageUrl: widget.urls[i],
-                              fit: BoxFit.cover,
-                              placeholder: (_, _) => Center(
-                                child: CircularProgressIndicator(color: NazzilColors.lilac),
-                              ),
-                              errorWidget: (_, _, _) =>
-                                  Icon(Icons.photo_outlined, color: NazzilColors.lilac),
-                            ),
-                            const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [Colors.transparent, Color(0x66000000)],
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ),
@@ -118,20 +108,10 @@ class _PhotoFilmState extends State<PhotoFilm> {
             },
           ),
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: NazzilColors.lilac.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '${widget.index + 1}  ${widget.s.ofWord}  ${widget.urls.length}',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: NazzilColors.lilac,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
+        const SizedBox(height: 12),
+        Text(
+          '${widget.index + 1} ${widget.s.ofWord} ${widget.urls.length}',
+          style: theme.textTheme.labelMedium,
         ),
       ],
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'l10n/strings.dart';
 import 'models/media.dart';
 import 'state/nazzil_controller.dart';
 import 'theme/nazzil_theme.dart';
@@ -12,7 +11,8 @@ import 'ui/screens/settings_screen.dart';
 import 'ui/screens/viewer_screen.dart';
 import 'ui/widgets/desktop_input.dart';
 import 'ui/widgets/done_sheet.dart';
-import 'ui/widgets/glow_backdrop.dart';
+import 'ui/widgets/mark.dart';
+import 'ui/widgets/tappable.dart';
 
 class NazzilApp extends StatelessWidget {
   const NazzilApp({super.key, required this.controller});
@@ -24,11 +24,12 @@ class NazzilApp extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final s = controller.s;
+        final palette = NazzilPalette.byId(controller.settings.palette);
         return MaterialApp(
           title: s.appName,
           debugShowCheckedModeBanner: false,
-          theme: NazzilTheme.light(),
-          darkTheme: NazzilTheme.dark(),
+          theme: NazzilTheme.light(palette, arabic: s.isAr),
+          darkTheme: NazzilTheme.dark(palette, arabic: s.isAr),
           themeMode: controller.themeMode,
           locale: controller.locale,
           supportedLocales: const [Locale('en'), Locale('ar')],
@@ -59,6 +60,9 @@ class NazzilShell extends StatefulWidget {
 }
 
 class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
+  /// From this width up the link box and the library sit side by side.
+  static const _wide = 960.0;
+
   bool _settings = false;
   String? _presentedDoneId;
   String? _presentedDupId;
@@ -84,6 +88,13 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
     }
   }
 
+  void _view(LibraryItem item) {
+    Navigator.push(
+      context,
+      NazzilMotion.route<void>(context, (_) => ViewerScreen(controller: widget.controller, item: item)),
+    );
+  }
+
   void _onController() {
     if (widget.controller.doneItem == null) _presentedDoneId = null;
     if (widget.controller.duplicate == null) _presentedDupId = null;
@@ -96,21 +107,22 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
         final s = widget.controller.s;
         showDialog<void>(
           context: context,
-          builder: (context) => DoneSheet(
+          animationStyle: NazzilMotion.style(context),
+          builder: (dialog) => DoneSheet(
             s: s,
             photos: done.kind == MediaKind.photo,
             onView: () {
-              Navigator.pop(context);
+              Navigator.pop(dialog);
               widget.controller.dismissSheets();
-              Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ViewerScreen(item: done)));
+              _view(done);
             },
             onShare: () {
-              Navigator.pop(context);
+              Navigator.pop(dialog);
               widget.controller.shareItem(done);
               widget.controller.dismissSheets();
             },
             onClose: () {
-              Navigator.pop(context);
+              Navigator.pop(dialog);
               widget.controller.dismissSheets();
             },
           ),
@@ -127,22 +139,23 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
       final s = widget.controller.s;
       showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
+        animationStyle: NazzilMotion.style(context),
+        builder: (dialog) => AlertDialog(
           title: Text(s.alreadyHave),
           content: Text(s.alreadyHaveBody),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialog);
                 widget.controller.dismissSheets();
               },
               child: Text(s.close),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialog);
                 widget.controller.dismissSheets();
-                Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ViewerScreen(item: dup)));
+                _view(dup);
               },
               child: Text(dup.kind == MediaKind.photo ? s.view : s.play),
             ),
@@ -155,95 +168,117 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final s = controller.s;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: Theme.of(context).brightness == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: GlowBackdrop(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            child: DesktopInput(
-              controller: controller,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(22, 6, 10, 6),
-                        child: Row(
-                          children: [
-                            const Mark(),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _settings ? s.settings : s.appName,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
-                            Text(
-                              controller.downloading
-                                  ? (controller.queuedCount > 0
-                                        ? '${s.downloading} · ${s.waitingN(controller.queuedCount)}'
-                                        : s.downloading)
-                                  : controller.library.any((e) => e.paused)
-                                  ? s.paused
-                                  : controller.loading
-                                  ? s.fetching
-                                  : s.ready,
-                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                color:
-                                    controller.downloading ||
-                                        controller.loading ||
-                                        controller.library.any((e) => e.paused)
-                                    ? NazzilColors.rose
-                                    : NazzilColors.mint,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => setState(() => _settings = !_settings),
-                              icon: Icon(_settings ? Icons.arrow_back_rounded : Icons.settings_outlined),
-                            ),
-                          ],
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        body: SafeArea(
+          child: DesktopInput(
+            controller: controller,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= _wide;
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
+                    child: Column(
+                      children: [
+                        _header(context),
+                        Expanded(
+                          child: _settings
+                              ? SettingsScreen(controller: controller)
+                              : wide
+                                  ? Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(width: 460, child: HomeScreen(controller: controller)),
+                                        const VerticalDivider(),
+                                        Expanded(
+                                          child: LibraryScreen(controller: controller, showAddLink: false),
+                                        ),
+                                      ],
+                                    )
+                                  : controller.tab == 0
+                                      ? HomeScreen(controller: controller)
+                                      : LibraryScreen(controller: controller),
                         ),
-                      ),
-                      Expanded(
-                        child: _settings
-                            ? SettingsScreen(controller: controller)
-                            : controller.tab == 0
-                            ? HomeScreen(controller: controller)
-                            : LibraryScreen(controller: controller),
-                      ),
-                      if (!_settings) _Tabs(controller: controller, s: s),
-                    ],
+                        if (!_settings && !wide) _Tabs(controller: controller),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _header(BuildContext context) {
+    final controller = widget.controller;
+    final s = controller.s;
+    final theme = Theme.of(context);
+    final working = controller.downloading || controller.loading || controller.library.any((e) => e.paused);
+    final status = controller.downloading
+        ? (controller.queuedCount > 0 ? '${s.downloading} · ${s.waitingN(controller.queuedCount)}' : s.downloading)
+        : controller.library.any((e) => e.paused)
+            ? s.paused
+            : controller.loading
+                ? s.fetching
+                : s.ready;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(22, 6, 10, 6),
+      child: Row(
+        children: [
+          const Mark(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_settings ? s.settings : s.appName, style: theme.textTheme.titleLarge),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    status,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: working ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: _settings ? s.back : s.settings,
+            onPressed: () => setState(() => _settings = !_settings),
+            icon: Icon(_settings ? Icons.arrow_back_rounded : Icons.settings_outlined),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Tabs extends StatelessWidget {
-  const _Tabs({required this.controller, required this.s});
+  const _Tabs({required this.controller});
   final NazzilController controller;
-  final S s;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final s = controller.s;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final items = [(s.home, Icons.home_outlined), (s.library, Icons.photo_library_outlined)];
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: scheme.outline),
+          borderRadius: BorderRadius.circular(NazzilRadius.card),
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: Padding(
           padding: const EdgeInsets.all(6),
@@ -251,37 +286,33 @@ class _Tabs extends StatelessWidget {
             children: [
               for (var i = 0; i < items.length; i++)
                 Expanded(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    decoration: BoxDecoration(
-                      color: controller.tab == i ? NazzilColors.rose : Colors.transparent,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(22),
-                      onTap: () {
-                        if (controller.tab != i) controller.goTab(i);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              items[i].$2,
-                              size: 16,
-                              color: controller.tab == i ? Colors.white : scheme.onSurfaceVariant,
+                  child: Builder(
+                    builder: (context) {
+                      final active = controller.tab == i;
+                      final ink = active ? scheme.onPrimaryContainer : scheme.onSurfaceVariant;
+                      return Tappable(
+                        onTap: () => controller.goTab(i),
+                        selected: active,
+                        color: active ? scheme.primaryContainer : Colors.transparent,
+                        side: active ? BorderSide(color: scheme.primary, width: 1.5) : BorderSide.none,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 44),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              runAlignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              children: [
+                                Icon(items[i].$2, size: 18, color: ink),
+                                Text(items[i].$1, style: theme.textTheme.labelLarge?.copyWith(color: ink)),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              items[i].$1,
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(color: controller.tab == i ? Colors.white : scheme.onSurfaceVariant),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
             ],

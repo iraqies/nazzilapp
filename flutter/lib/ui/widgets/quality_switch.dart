@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/media.dart';
-import '../../theme/nazzil_theme.dart';
+import 'nazzil_chip.dart';
 
 class QualitySwitch extends StatelessWidget {
   const QualitySwitch({
@@ -35,63 +35,24 @@ class QualitySwitch extends StatelessWidget {
       MediaKind.photo => Icons.photo_library_outlined,
       MediaKind.audio => Icons.graphic_eq_rounded,
       MediaKind.video when option.photoUrls.isNotEmpty => Icons.slideshow_outlined,
-      MediaKind.video => Icons.hd_outlined,
+      MediaKind.video when option.label == 'HD' => Icons.hd_outlined,
+      MediaKind.video when option.label == 'SD' => Icons.sd_outlined,
+      MediaKind.video => Icons.videocam_outlined,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         for (final option in options)
-          Builder(
-            builder: (context) {
-              final active = option.id == selected?.id;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                child: Material(
-                  color: active
-                      ? (option.kind == MediaKind.photo
-                          ? NazzilColors.lilac
-                          : NazzilColors.rose)
-                      : scheme.surfaceContainerLow,
-                  shape: StadiumBorder(
-                    side: BorderSide(
-                      color: active
-                          ? Colors.transparent
-                          : scheme.outline,
-                    ),
-                  ),
-                  child: InkWell(
-                    customBorder: const StadiumBorder(),
-                    onTap: () => onSelect(option),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _icon(option),
-                            size: 16,
-                            color: active ? Colors.white : scheme.onSurface,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _label(option),
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: active ? Colors.white : scheme.onSurface,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
+          NazzilChip(
+            label: _label(option),
+            icon: _icon(option),
+            selected: option.id == selected?.id,
+            onTap: () => onSelect(option),
           ),
       ],
     );

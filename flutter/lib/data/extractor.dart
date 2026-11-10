@@ -55,25 +55,24 @@ class MediaExtractor {
   }
 }
 
-String friendlyError(Object error) {
-  if (error is CancelledException || error is PausedException) return '';
-  final text = error.toString();
-  final lower = text.toLowerCase();
-  if (lower.contains('socket') ||
-      lower.contains('timeout') ||
-      lower.contains('network') ||
-      lower.contains('failed host')) {
-    return 'Connection dropped. Try again.';
+Failure failureOf(Object error, {bool downloading = false}) {
+  if (error is CancelledException || error is PausedException) return Failure.none;
+  final text = error.toString().toLowerCase();
+  bool has(List<Pattern> parts) => parts.any(text.contains);
+  if (has(const ['permission'])) return Failure.permission;
+  if (has(const ['still processing'])) return Failure.processing;
+  if (has(const ['sound together', 'could not make the video', 'into an mp3'])) return Failure.convert;
+  if (has(const ['not from a supported app', 'unsupported link'])) return Failure.unsupported;
+  if (has(['does not point to', RegExp(r'could not read this \w+ link')])) return Failure.badLink;
+  if (has(const ['private', 'deleted', 'removed', 'is gone', 'is public', 'did not share'])) {
+    return Failure.unavailable;
   }
-  if (lower.contains('blocked') ||
-      lower.contains('sign in') ||
-      lower.contains('bot') ||
-      lower.contains('cookies')) {
-    return 'This post blocked the download. Try again.';
+  if (has(const ['no video', 'no photos', 'no media', 'no downloadable', 'nothing to download'])) {
+    return Failure.noMedia;
   }
-  final cleaned = text.replaceAll(RegExp(r'^(Exception|Bad state|HttpException|FormatException):\s*'), '').trim();
-  if (cleaned.startsWith('http') && cleaned.contains('://')) {
-    return 'Could not download this. Try again.';
+  if (has(const ['socket', 'timeout', 'timed out', 'network', 'failed host', 'connection', 'handshake'])) {
+    return Failure.network;
   }
-  return cleaned.length > 140 ? '${clipUtf16(cleaned, 140)}…' : (cleaned.isEmpty ? 'Could not load this link' : cleaned);
+  if (has(['blocked', 'sign in', 'login', 'cookies', RegExp(r'\bbot\b')])) return Failure.blocked;
+  return downloading ? Failure.download : Failure.load;
 }

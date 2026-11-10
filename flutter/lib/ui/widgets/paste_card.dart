@@ -17,6 +17,7 @@ class PasteCard extends StatefulWidget {
 class _PasteCardState extends State<PasteCard> {
   late final TextEditingController _text;
   late final VoidCallback _sync;
+  final _focus = FocusNode();
 
   @override
   void initState() {
@@ -31,11 +32,16 @@ class _PasteCardState extends State<PasteCard> {
       }
     };
     widget.controller.addListener(_sync);
+    _focus.addListener(_onFocus);
   }
+
+  void _onFocus() => setState(() {});
 
   @override
   void dispose() {
     widget.controller.removeListener(_sync);
+    _focus.removeListener(_onFocus);
+    _focus.dispose();
     _text.dispose();
     super.dispose();
   }
@@ -43,29 +49,42 @@ class _PasteCardState extends State<PasteCard> {
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: NazzilColors.rose.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(NazzilRadius.card),
+        border: Border.all(color: _focus.hasFocus ? scheme.onSurface : scheme.outline, width: 1.5),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 8, 8),
+        padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _text,
-              onChanged: widget.controller.setUrl,
-              minLines: 2,
-              maxLines: 4,
-              style: Theme.of(context).textTheme.bodyLarge,
-              decoration: InputDecoration(
-                hintText: s.pasteHint,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ExcludeSemantics(child: Text(s.linkLabel, style: theme.textTheme.labelMedium)),
+                  Semantics(
+                    label: s.linkLabel,
+                    child: TextField(
+                      controller: _text,
+                      focusNode: _focus,
+                      onChanged: widget.controller.setUrl,
+                      onSubmitted: (_) => widget.controller.fetch(),
+                      keyboardType: TextInputType.url,
+                      textInputAction: TextInputAction.go,
+                      autocorrect: false,
+                      minLines: 2,
+                      maxLines: 4,
+                      style: theme.textTheme.bodyLarge,
+                      decoration: InputDecoration(hintText: s.pasteHint, hintMaxLines: 4),
+                    ),
+                  ),
+                ],
               ),
             ),
             Row(
@@ -75,8 +94,8 @@ class _PasteCardState extends State<PasteCard> {
                     final data = await Clipboard.getData('text/plain');
                     await widget.controller.paste(data?.text ?? '');
                   },
-                  icon: Icon(Icons.content_paste_rounded, size: 16, color: NazzilColors.rose),
-                  label: Text(s.paste, style: TextStyle(color: NazzilColors.rose)),
+                  icon: const Icon(Icons.content_paste_rounded, size: 16),
+                  label: Text(s.paste),
                 ),
                 if (widget.controller.url.isNotEmpty)
                   TextButton(

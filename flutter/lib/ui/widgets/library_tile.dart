@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/strings.dart';
 import '../../models/media.dart';
 import '../../theme/nazzil_theme.dart';
+import 'tappable.dart';
 
 class LibraryTile extends StatelessWidget {
   const LibraryTile({
@@ -18,6 +18,7 @@ class LibraryTile extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
+    this.onRetry,
     this.progress,
   });
 
@@ -28,191 +29,193 @@ class LibraryTile extends StatelessWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onPause;
   final VoidCallback? onResume;
+  final VoidCallback? onRetry;
   final double? progress;
+
+  static const coverRatio = 0.8;
+  static const _gap = 8.0;
+
+  /// Height of a tile [width] wide: the cover plus two title lines at the
+  /// current text size, so large system fonts get the room they need.
+  static double heightFor(BuildContext context, double width) {
+    final style = Theme.of(context).textTheme.titleMedium!;
+    final line = MediaQuery.textScalerOf(context).scale(style.fontSize!) * style.height!;
+    return width / coverRatio + _gap + (line * 2).ceilToDouble() + 2;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AspectRatio(
-          aspectRatio: item.kind == MediaKind.photo ? 0.78 : 0.86,
-          child: Material(
-            color: scheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(22),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onOpen,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _cover(),
-                  if (item.isAlbum) const _AlbumShine(),
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    right: 10,
-                    child: Row(
-                      children: [
-                        _chip(
-                          item.kind == MediaKind.photo ? s.photos : item.platform.name,
-                          item.kind == MediaKind.photo ? NazzilColors.lilac : NazzilColors.rose,
-                        ),
-                        const Spacer(),
-                        if (item.photoCount > 1)
-                          _chip('${item.photoCount}', NazzilColors.lilac),
-                      ],
-                    ),
-                  ),
-                  if (item.status == LibraryItem.statusQueued ||
-                      item.status == LibraryItem.statusDownloading ||
-                      item.status == LibraryItem.statusPaused)
-                    ColoredBox(
-                      color: Colors.black45,
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (item.status == LibraryItem.statusDownloading)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: LinearProgressIndicator(
-                                    value: progress,
-                                    color: NazzilColors.rose,
-                                    backgroundColor: Colors.white24,
-                                  ),
-                                ),
-                              Text(
-                                item.status == LibraryItem.statusDownloading
-                                    ? s.downloading
-                                    : item.status == LibraryItem.statusPaused
-                                        ? s.paused
-                                        : s.queued,
-                                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white),
-                                textAlign: TextAlign.center,
-                              ),
-                              Wrap(
-                                alignment: WrapAlignment.center,
-                                children: [
-                                  if (onPause != null && item.status == LibraryItem.statusDownloading)
-                                    TextButton(
-                                      onPressed: onPause,
-                                      child: Text(s.pause, style: const TextStyle(color: Colors.white)),
-                                    ),
-                                  if (onResume != null && item.status == LibraryItem.statusPaused)
-                                    TextButton(
-                                      onPressed: onResume,
-                                      child: Text(s.resume, style: const TextStyle(color: Colors.white)),
-                                    ),
-                                  if (onCancel != null)
-                                    TextButton(
-                                      onPressed: onCancel,
-                                      child: Text(s.cancel, style: const TextStyle(color: Colors.white)),
-                                    ),
-                                ],
-                              ),
-                            ],
+    final theme = Theme.of(context);
+    final busy = item.active;
+    final stopped = item.status == LibraryItem.statusFailed || item.status == LibraryItem.statusCancelled;
+    final missing = !kept && item.done;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: constraints.maxWidth / coverRatio,
+              child: Tappable(
+                onTap: onOpen,
+                label: item.title,
+                radius: NazzilRadius.card,
+                color: theme.colorScheme.surfaceContainerHigh,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _cover(context),
+                    if (busy || stopped || missing)
+                      ColoredBox(
+                        color: NazzilColors.photoScrim,
+                        child: Center(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(8),
+                            child: busy ? _busy(context) : _stopped(context, missing: missing),
                           ),
                         ),
-                      ),
-                    )
-                  else if (item.status == LibraryItem.statusFailed ||
-                      item.status == LibraryItem.statusCancelled)
-                    ColoredBox(
-                      color: Colors.black45,
-                      child: Center(
-                        child: Text(
-                          item.status == LibraryItem.statusCancelled ? s.cancelled : s.downloadFailed,
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white),
-                          textAlign: TextAlign.center,
+                      )
+                    else
+                      PositionedDirectional(
+                        top: 8,
+                        start: 8,
+                        end: 8,
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _chip(context, s.platformName(item.platform), icon: _kindIcon),
+                            if (item.photoCount > 1) _chip(context, s.photosN(item.photoCount)),
+                          ],
                         ),
                       ),
-                    )
-                  else if (!kept && item.done)
-                    ColoredBox(
-                      color: Colors.black45,
-                      child: Center(
-                        child: Text(
-                          s.missingFile,
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
+            const SizedBox(height: _gap),
+            Expanded(
+              child: ExcludeSemantics(
+                child: Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  IconData get _kindIcon => switch (item.kind) {
+        MediaKind.photo => Icons.photo_outlined,
+        MediaKind.audio => Icons.graphic_eq_rounded,
+        MediaKind.video => Icons.videocam_outlined,
+      };
+
+  Widget _busy(BuildContext context) {
+    final label = Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white);
+    final white = TextButton.styleFrom(foregroundColor: Colors.white);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (item.status == LibraryItem.statusDownloading)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: LinearProgressIndicator(
+              value: progress,
+              color: Colors.white,
+              backgroundColor: Colors.white30,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
         Text(
-          item.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleMedium,
+          item.status == LibraryItem.statusDownloading
+              ? s.downloading
+              : item.status == LibraryItem.statusPaused
+                  ? s.paused
+                  : s.queued,
+          style: label,
+          textAlign: TextAlign.center,
+        ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            if (onPause != null && item.status == LibraryItem.statusDownloading)
+              TextButton(onPressed: onPause, style: white, child: Text(s.pause)),
+            if (onResume != null && item.status == LibraryItem.statusPaused)
+              TextButton(onPressed: onResume, style: white, child: Text(s.resume)),
+            if (onCancel != null) TextButton(onPressed: onCancel, style: white, child: Text(s.cancel)),
+          ],
         ),
       ],
     );
   }
 
-  Widget _cover() {
-    final thumb = item.thumbnail;
-    if (thumb != null && thumb.startsWith('http')) {
-      return CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover);
-    }
-    if (thumb != null && File(thumb).existsSync()) {
-      return Image.file(File(thumb), fit: BoxFit.cover);
-    }
-    if (item.paths.isNotEmpty && File(item.paths.first).existsSync()) {
-      return Image.file(File(item.paths.first), fit: BoxFit.cover);
-    }
-    return Center(child: Icon(Icons.movie_outlined, color: NazzilColors.rose));
+  Widget _stopped(BuildContext context, {required bool missing}) {
+    final label = Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white);
+    final text = missing
+        ? s.missingFile
+        : item.status == LibraryItem.statusCancelled
+            ? s.cancelled
+            : item.error.isEmpty
+                ? s.downloadFailed
+                : s.failure(Failure.named(item.error));
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(text, style: label, textAlign: TextAlign.center),
+        if (onRetry != null)
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: Text(missing ? s.downloadAgain : s.retry, textAlign: TextAlign.center),
+          ),
+      ],
+    );
   }
 
-  Widget _chip(String label, Color color) {
+  Widget _cover(BuildContext context) {
+    final fallback = Center(
+      child: Icon(_kindIcon, color: Theme.of(context).colorScheme.onSurfaceVariant),
+    );
+    final thumb = item.thumbnail;
+    if (thumb != null && thumb.startsWith('http')) {
+      return CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover, errorWidget: (_, _, _) => fallback);
+    }
+    if (thumb != null && File(thumb).existsSync()) {
+      return Image.file(File(thumb), fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback);
+    }
+    if (item.paths.isNotEmpty && File(item.paths.first).existsSync()) {
+      return Image.file(File(item.paths.first), fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback);
+    }
+    return fallback;
+  }
+
+  Widget _chip(BuildContext context, String label, {IconData? icon}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black54,
-        borderRadius: BorderRadius.circular(999),
+        color: NazzilColors.photoScrim,
+        borderRadius: BorderRadius.circular(NazzilRadius.small),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'Outfit',
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _AlbumShine extends StatelessWidget {
-  const _AlbumShine();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Align(
-        alignment: Alignment.topRight,
-        child: Transform.rotate(
-          angle: math.pi / 22,
-          child: Container(
-            margin: const EdgeInsets.only(top: 16, right: 12),
-            width: 42,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white24),
-              color: Colors.white10,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: Colors.white),
+            const SizedBox(width: 4),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(fontSize: 12, color: Colors.white),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

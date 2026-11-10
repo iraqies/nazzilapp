@@ -24,50 +24,57 @@ class DoneSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 22),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          const ConfettiBurst(),
-          Material(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(32),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    photos ? s.albumSaved : s.downloaded,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 18),
-                  NazzilButton(
-                    label: photos ? s.view : s.play,
-                    icon: photos ? Icons.photo_outlined : Icons.play_arrow_rounded,
-                    onPressed: onView,
-                  ),
-                  const SizedBox(height: 10),
-                  NazzilButton(
-                    label: s.share,
-                    icon: Icons.ios_share_rounded,
-                    tint: NazzilColors.lilac,
-                    onPressed: onShare,
-                  ),
-                  TextButton(onPressed: onClose, child: Text(s.close)),
-                ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (!NazzilMotion.reduced(context)) const ConfettiBurst(),
+            Material(
+              color: theme.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(NazzilRadius.card),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 24, 22, 14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      photos ? s.albumSaved : s.downloaded,
+                      style: theme.textTheme.headlineMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 18),
+                    NazzilButton(
+                      label: photos ? s.view : s.play,
+                      icon: photos ? Icons.photo_outlined : Icons.play_arrow_rounded,
+                      onPressed: onView,
+                    ),
+                    const SizedBox(height: 10),
+                    NazzilButton(
+                      label: s.share,
+                      icon: Icons.ios_share_rounded,
+                      secondary: true,
+                      onPressed: onShare,
+                    ),
+                    const SizedBox(height: 4),
+                    TextButton(onPressed: onClose, child: Text(s.close)),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
+/// The one celebration in the app: it runs once when a download lands, in
+/// the picked colour, and is skipped when the system asks for less motion.
 class ConfettiBurst extends StatefulWidget {
   const ConfettiBurst({super.key});
 
@@ -96,12 +103,7 @@ class _ConfettiBurstState extends State<ConfettiBurst>
         spin: 180 + random.nextDouble() * 520,
         w: 6 + random.nextDouble() * 8,
         h: 4 + random.nextDouble() * 5,
-        color: [
-          NazzilColors.rose,
-          NazzilColors.lilac,
-          NazzilColors.cream,
-          NazzilColors.mint,
-        ][i % 4],
+        brand: i % 3 != 0,
         delay: random.nextDouble() * 0.14,
         circle: i % 5 == 0,
       );
@@ -118,6 +120,7 @@ class _ConfettiBurstState extends State<ConfettiBurst>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return IgnorePointer(
       child: SizedBox(
         height: 420,
@@ -125,7 +128,9 @@ class _ConfettiBurstState extends State<ConfettiBurst>
         child: AnimatedBuilder(
           animation: _clock,
           builder: (context, _) {
-            return CustomPaint(painter: _ConfettiPainter(_pieces, _clock.value));
+            return CustomPaint(
+              painter: _ConfettiPainter(_pieces, _clock.value, scheme.primaryContainer, scheme.onSurface),
+            );
           },
         ),
       ),
@@ -143,19 +148,21 @@ class _Piece {
     required this.spin,
     required this.w,
     required this.h,
-    required this.color,
+    required this.brand,
     required this.delay,
     required this.circle,
   });
   final double ox, oy, vx, vy, g, spin, w, h, delay;
-  final Color color;
+  final bool brand;
   final bool circle;
 }
 
 class _ConfettiPainter extends CustomPainter {
-  _ConfettiPainter(this.pieces, this.t);
+  _ConfettiPainter(this.pieces, this.t, this.brand, this.neutral);
   final List<_Piece> pieces;
   final double t;
+  final Color brand;
+  final Color neutral;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -166,7 +173,7 @@ class _ConfettiPainter extends CustomPainter {
       final y = piece.oy * size.height +
           piece.vy * local * size.height +
           piece.g * local * local * size.height;
-      final paint = Paint()..color = piece.color.withValues(alpha: 1 - local * 0.9);
+      final paint = Paint()..color = (piece.brand ? brand : neutral).withValues(alpha: 1 - local * 0.9);
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(piece.spin * local * math.pi / 180);

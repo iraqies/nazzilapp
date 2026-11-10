@@ -21,7 +21,6 @@ import '../data/settings_store.dart';
 import '../data/update_checker.dart';
 import '../l10n/strings.dart';
 import '../models/media.dart';
-import '../theme/nazzil_theme.dart';
 
 class NazzilController extends ChangeNotifier {
   NazzilController() {
@@ -48,7 +47,7 @@ class NazzilController extends ChangeNotifier {
   bool loading = false;
   bool downloading = false;
   double progress = 0;
-  String error = '';
+  Failure failure = Failure.none;
   LibraryItem? doneItem;
   LibraryItem? duplicate;
   RemoteVersion? remote;
@@ -81,6 +80,9 @@ class NazzilController extends ChangeNotifier {
 
   Locale get locale => Locale(s.lang);
 
+  /// Worded at read time, so it follows a language switch.
+  String get error => s.failure(failure);
+
   int get queuedCount => library.where((e) => e.status == LibraryItem.statusQueued).length;
 
   List<LibraryItem> get visibleLibrary {
@@ -96,6 +98,12 @@ class NazzilController extends ChangeNotifier {
     }).toList();
   }
 
+  /// The apps that have something in the library, in a fixed order.
+  List<PlatformId> get libraryPlatforms => [
+        for (final platform in PlatformId.values)
+          if (platform != PlatformId.unknown && library.any((item) => item.platform == platform)) platform,
+      ];
+
   LibraryItem? jobForCurrent({int? onlyPhoto}) {
     final current = media;
     final option = selected;
@@ -110,7 +118,6 @@ class NazzilController extends ChangeNotifier {
 
   Future<void> _init() async {
     settings = await settingsStore.load();
-    NazzilColors.palette = NazzilPalette.byId(settings.palette);
     library = libraryStore.recoverInterrupted(await libraryStore.all());
     await libraryStore.save(library);
     try {
@@ -159,7 +166,7 @@ class NazzilController extends ChangeNotifier {
 
   void setUrl(String value) {
     url = value;
-    error = '';
+    failure = Failure.none;
     notifyListeners();
   }
 
@@ -167,7 +174,7 @@ class NazzilController extends ChangeNotifier {
     url = '';
     media = null;
     selected = null;
-    error = '';
+    failure = Failure.none;
     doneItem = null;
     clipOffer = null;
     notifyListeners();
@@ -213,18 +220,18 @@ class NazzilController extends ChangeNotifier {
   Future<void> fetch([String? value]) async {
     final link = LinkParser.extract(value ?? url);
     if (link.isEmpty) {
-      error = s.pasteFirst;
+      failure = Failure.pasteFirst;
       notifyListeners();
       return;
     }
     if (!LinkParser.isSupported(link)) {
-      error = s.unknownPlatform;
+      failure = Failure.unsupported;
       notifyListeners();
       return;
     }
     extractor.net.cancel();
     url = link;
-    error = '';
+    failure = Failure.none;
     media = null;
     selected = null;
     loading = true;
@@ -242,7 +249,7 @@ class NazzilController extends ChangeNotifier {
       if (gen != _fetchGen) return;
     } catch (e) {
       if (gen != _fetchGen) return;
-      error = friendlyError(e);
+      failure = failureOf(e);
     } finally {
       if (gen == _fetchGen) {
         loading = false;
@@ -275,6 +282,12 @@ class NazzilController extends ChangeNotifier {
 
   void setLibraryPlatform(String value) {
     libraryPlatform = value;
+    notifyListeners();
+  }
+
+  void clearLibraryFilters() {
+    libraryKind = 'all';
+    libraryPlatform = 'all';
     notifyListeners();
   }
 
@@ -369,6 +382,28 @@ class NazzilController extends ChangeNotifier {
     unawaited(_pump());
   }
 
+  /// Puts a failed, cancelled or since-removed download back in the queue.
+  Future<void> retryJob(LibraryItem item) async {
+    if (item.active) return;
+    final option = item.option;
+    if (option == null) {
+      await ingest(item.sourceUrl);
+      return;
+    }
+    // Only a failed job can have a usable partial file to continue from.
+    final fresh = item.status != LibraryItem.statusFailed;
+    await _patch(
+      item.id,
+      item.copyWith(
+        status: LibraryItem.statusQueued,
+        error: '',
+        paths: fresh ? const [] : null,
+        photoCount: fresh ? (option.kind == MediaKind.photo ? option.photoUrls.length : 0) : null,
+      ),
+    );
+    unawaited(_pump());
+  }
+
   Future<void> resumeCurrent() async {
     final job = jobForCurrent() ??
         library.cast<LibraryItem?>().firstWhere(
@@ -432,13 +467,13 @@ class NazzilController extends ChangeNotifier {
   Future<void> _runJob(LibraryItem queued) async {
     var job = queued;
     if (job.option == null) {
-      await _patch(job.id, job.copyWith(status: LibraryItem.statusFailed, error: 'Could not download this. Try again.'));
+      await _patch(job.id, job.copyWith(status: LibraryItem.statusFailed, error: Failure.download.name));
       return;
     }
     activeJobId = job.id;
     downloading = true;
     progress = 0.02;
-    error = '';
+    failure = Failure.none;
     await _patch(job.id, job.copyWith(status: LibraryItem.statusDownloading));
     await DownloadHost.start(title: job.title, percent: 2);
     var lastPercent = -1;
@@ -520,11 +555,11 @@ class NazzilController extends ChangeNotifier {
           current.status == LibraryItem.statusPaused) {
         return;
       }
-      final message = friendlyError(e);
-      error = message;
-      await _patch(job.id, job.copyWith(status: LibraryItem.statusFailed, error: message));
+      final kind = failureOf(e, downloading: true);
+      failure = kind;
+      await _patch(job.id, job.copyWith(status: LibraryItem.statusFailed, error: kind.name));
       if (libraryStore.nextQueued(library) == null) {
-        await DownloadHost.failed(message.isEmpty ? s.downloadFailed : message);
+        await DownloadHost.failed(kind == Failure.none ? s.downloadFailed : s.failure(kind));
       }
     }
   }
@@ -621,17 +656,8 @@ class NazzilController extends ChangeNotifier {
 
   Future<void> setPalette(String id) async {
     settings = settings.copyWith(palette: id);
-    NazzilColors.palette = NazzilPalette.byId(id);
     await settingsStore.save(settings);
     notifyListeners();
-    // Widgets read the palette directly rather than through Theme, so they
-    // only pick it up when rebuilt.
-    void rebuild(Element element) {
-      element.markNeedsBuild();
-      element.visitChildren(rebuild);
-    }
-
-    WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
   }
 
   Future<void> setTheme(String theme) async {

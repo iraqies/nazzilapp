@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/nazzil_theme.dart';
+import 'tappable.dart';
 
 class SegmentedChoice<T> extends StatelessWidget {
   const SegmentedChoice({
@@ -15,52 +16,80 @@ class SegmentedChoice<T> extends StatelessWidget {
   final List<(T, String)> options;
   final ValueChanged<T> onChanged;
 
+  static const _inset = 6.0;
+  static const _labelPad = 10.0;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final style = theme.textTheme.labelLarge!;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: scheme.outline),
+        borderRadius: BorderRadius.circular(NazzilRadius.card),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(5),
-        child: Row(
-          children: [
-            for (final option in options)
-              Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  decoration: BoxDecoration(
-                    color: value == option.$1 ? NazzilColors.rose : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onChanged(option.$1);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          option.$2,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: value == option.$1 ? Colors.white : scheme.onSurfaceVariant,
-                                fontSize: 13,
-                              ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+        padding: const EdgeInsets.all(_inset),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Equal cells on one line while every label fits at the current
+            // text size; otherwise the cells wrap at their own width.
+            final cell = constraints.maxWidth / options.length;
+            final scaler = MediaQuery.textScalerOf(context);
+            final direction = Directionality.of(context);
+            final fits = options.every((option) {
+              final painter = TextPainter(
+                text: TextSpan(text: option.$2, style: style),
+                textDirection: direction,
+                textScaler: scaler,
+                maxLines: 1,
+              )..layout();
+              final width = painter.width;
+              painter.dispose();
+              return width + _labelPad * 2 <= cell;
+            });
+            final cells = [
+              for (final option in options) _cell(context, option, style, stretch: fits),
+            ];
+            if (fits) {
+              return Row(children: [for (final cell in cells) Expanded(child: cell)]);
+            }
+            return SizedBox(
+              width: double.infinity,
+              child: Wrap(spacing: 4, runSpacing: 4, children: cells),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _cell(BuildContext context, (T, String) option, TextStyle style, {required bool stretch}) {
+    final scheme = Theme.of(context).colorScheme;
+    final active = value == option.$1;
+    return Tappable(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onChanged(option.$1);
+      },
+      selected: active,
+      color: active ? scheme.primaryContainer : Colors.transparent,
+      side: active ? BorderSide(color: scheme.primary, width: 1.5) : BorderSide.none,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: Align(
+          widthFactor: stretch ? null : 1,
+          heightFactor: 1,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _labelPad, vertical: 8),
+            child: Text(
+              option.$2,
+              textAlign: TextAlign.center,
+              style: style.copyWith(color: active ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+            ),
+          ),
         ),
       ),
     );

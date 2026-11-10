@@ -1,77 +1,56 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/nazzil_theme.dart';
-
 class NazzilButton extends StatelessWidget {
   const NazzilButton({
     super.key,
     required this.label,
     required this.onPressed,
-    this.busy = false,
-    this.progress,
     this.icon,
-    this.tint,
+    this.busy = false,
+    this.secondary = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
-  final bool busy;
-  final double? progress;
   final IconData? icon;
-  final Color? tint;
+  final bool busy;
+
+  /// The quieter of two buttons; the brand fill stays on the main action.
+  final bool secondary;
 
   @override
   Widget build(BuildContext context) {
-    final color = tint ?? NazzilColors.rose;
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: 56,
       width: double.infinity,
       child: FilledButton(
         onPressed: busy ? null : onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: color,
-          disabledBackgroundColor: color.withValues(alpha: 0.45),
-          padding: EdgeInsets.zero,
-          elevation: 0,
-          shadowColor: color.withValues(alpha: 0.4),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (progress != null)
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: FractionallySizedBox(
-                  widthFactor: progress!.clamp(0, 1),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                    ),
-                  ),
+        style: secondary
+            ? FilledButton.styleFrom(
+                backgroundColor: scheme.surfaceContainerHigh,
+                foregroundColor: scheme.onSurface,
+                iconColor: scheme.onSurface,
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (busy) ...[
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: scheme.onSurfaceVariant),
                 ),
-              ),
-            Center(
-              child: busy
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(icon, size: 18, color: Colors.white),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(label),
-                      ],
-                    ),
-            ),
-          ],
+                const SizedBox(width: 10),
+              ] else if (icon != null) ...[
+                Icon(icon, size: 18),
+                const SizedBox(width: 8),
+              ],
+              Flexible(child: Text(label, textAlign: TextAlign.center)),
+            ],
+          ),
         ),
       ),
     );

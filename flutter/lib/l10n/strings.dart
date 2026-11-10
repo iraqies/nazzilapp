@@ -15,6 +15,7 @@ class S {
       _pc
           ? _t('Videos, TikTok photos, Instagram carousels. Straight into Downloads.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالتنزيلات.')
           : _t('Videos, TikTok photos, Instagram carousels. Straight into your gallery.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالمعرض.');
+  String get linkLabel => _t('Link', 'الرابط');
   String get pasteHint =>
       _t('Paste or share a YouTube, TikTok, Instagram, Facebook, Reddit, X or Pinterest link', 'الصق رابط يوتيوب أو تيك توك أو إنستغرام أو فيسبوك أو ريديت أو X أو بنترست');
   String get paste => _t('Paste', 'لصّق');
@@ -26,6 +27,7 @@ class S {
   String get pause => _t('Pause', 'وقّف');
   String get paused => _t('Paused', 'متوقف');
   String get resume => _t('Resume', 'كمّل');
+  String get retry => _t('Try again', 'حاول مرة ثانية');
   String get download => _t('Download', 'نزّل');
   String get savePhotos => _t('Save photos', 'حفظ الصور');
   String get savePhoto => _t('Save this photo', 'حفظ هذي الصورة');
@@ -33,7 +35,6 @@ class S {
   String get saveThis => _t('Save this one', 'حفظ هذا');
   String get photos => _t('Photos', 'صور');
   String get album => _t('Album', 'ألبوم');
-  String get photoCount => _t('photos', 'صور');
   String get video => _t('Video', 'فيديو');
   String get audio => _t('Audio', 'صوت');
   String get hd => _t('HD', 'جودة عالية');
@@ -41,6 +42,7 @@ class S {
   String get home => _t('Home', 'الرئيسية');
   String get library => _t('Library', 'التحميلات');
   String get settings => _t('Settings', 'الإعدادات');
+  String get back => _t('Back', 'رجوع');
   String get ready => _t('Ready', 'جاهز');
   String get downloading => _t('Downloading…', 'قاعد ينزّل…');
   String get downloaded => _t('Saved', 'تم التنزيل');
@@ -50,7 +52,7 @@ class S {
   String get close => _t('Close', 'سكّر');
   String get original => _t('Original', 'الأصل');
   String get language => _t('Language', 'اللغة');
-  String get languageSystem => _t('System language', 'لغة الجهاز');
+  String get system => _t('System', 'حسب الجهاز');
   String get english => 'English';
   String get arabic => 'العربية';
   String get theme => _t('Theme', 'المظهر');
@@ -62,32 +64,41 @@ class S {
         'grape' => _t('Grape', 'عنبي'),
         _ => _t('Rose', 'وردي'),
       };
-  String get themeSystem => _t('System theme', 'مظهر الجهاز');
   String get themeLight => _t('Light', 'فاتح');
   String get themeDark => _t('Dark', 'داكن');
   String get about => _t('About', 'عن التطبيق');
   String get aboutBody => _t(
         _pc
-            ? 'Nazzil saves videos, TikTok photo posts and Instagram carousels into Downloads/Nazzil. Paste or drop a link, pick a quality, download.'
-            : 'Nazzil saves videos, TikTok photo posts and Instagram carousels into your gallery. Paste a link, pick a quality, download.',
+            ? 'Nazzil saves videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest into Downloads/Nazzil. Paste or drop a link, pick a quality, download.'
+            : 'Nazzil saves videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest into your gallery. Paste a link, pick a quality, download.',
         _pc
-            ? 'نزل يحفظ الفيديو ومنشورات تيك توك وإنستغرام الصور بمجلد التنزيلات/Nazzil. الصق أو اسحب الرابط، اختار الجودة، ونزّل.'
-            : 'نزل يحفظ الفيديو ومنشورات تيك توك وإنستغرام الصور بالمعرض. الصق الرابط، اختار الجودة، ونزّل.',
+            ? 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست بمجلد التنزيلات/Nazzil. الصق أو اسحب الرابط، اختار الجودة، ونزّل.'
+            : 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست بالمعرض. الصق الرابط، اختار الجودة، ونزّل.',
       );
   String get credits => _t('Credits', 'حقوق');
   String get version => _t('Version', 'الإصدار');
   String get emptyLibrary => _t('Nothing saved yet', 'بعد ما نزلت شي');
-  String get emptyLibraryHint =>
-      _t('Downloads land here. Photos stay photos.', 'التحميلات تظهر هنا. الصور تبقى صور.');
-  String get pasteFirst => _t('Paste a link first.', 'أول شي الصق رابط.');
-  String get unknownPlatform =>
-      _t('This link is not from a supported app yet.', 'هذا الرابط مو من تطبيق مدعوم بعد.');
-  String get failed => _t('Could not load this. Try again.', 'ما كدرت أجيبه. حاول مرة ثانية.');
+  String get emptyLibraryHint => _t('What you download shows up here.', 'اللي تنزله يطلع هنا.');
+  String get addLink => _t('Add a link', 'ضيف رابط');
+  String get emptyFilter => _t('Nothing here for this filter', 'ماكو شي بهذا الفلتر');
+  String get showAll => _t('Show all', 'اعرض الكل');
   String get downloadFailed => _t('Download failed', 'التنزيل فشل');
   String get alreadyHave => _t('You already have this', 'هذا نازل عندك');
   String get alreadyHaveBody =>
       _t(_pc ? 'This file is still on this computer.' : 'This file is still on your phone.', 'الملف بعد موجود على جهازك.');
   String get missingFile => _pc ? _t('File was removed', 'الملف انحذف') : _t('Removed from gallery', 'انحذف من المعرض');
+  String get fileGone => _t(
+        _pc ? 'This file is no longer on this computer.' : 'This file is no longer in your gallery.',
+        'الملف بعد ما موجود على جهازك.',
+      );
+  String get downloadAgain => _t('Download again', 'نزّله مرة ثانية');
+  String get cantPlay => _t('This video will not play here.', 'الفيديو ما يشتغل هنا.');
+  String get photoFailed => _t('Could not load this photo.', 'ما كدرت أجيب الصورة.');
+  String get deleteTitle => _t('Delete this download?', 'تحذف هذا التنزيل؟');
+  String get deleteBody => _t(
+        _pc ? 'The saved file is removed from this computer too.' : 'The saved file is removed from your gallery too.',
+        'الملف المحفوظ ينحذف من جهازك هم.',
+      );
   String get queued => _t('Waiting', 'بالانتظار');
   String get clipOffer => _t('A supported link is on your clipboard', 'في رابط مدعوم بالنسخ');
   String get fetchThis => _t('Fetch this', 'جيب هذا');
@@ -96,21 +107,18 @@ class S {
   String get filterPhotos => _t('Photos', 'صور');
   String get filterVideos => _t('Videos', 'فيديو');
   String get filterAudio => _t('Audio', 'صوت');
-  String get howTitle => _t('Three beats', 'ثلاث خطوات');
-  String get step1 => _pc ? _t('Paste or drop a link', 'الصق أو اسحب الرابط') : _t('Share or paste a link', 'شارك أو الصق الرابط');
-  String get step2 => _t('Pick HD, SD, audio — or save photo albums', 'اختار الجودة — أو احفظ ألبوم الصور');
-  String get step3 =>
-      _pc ? _t('It lands in Downloads → Nazzil', 'ينزل بالتنزيلات ← Nazzil') : _t('It lands in Gallery → Nazzil', 'ينزل بالمعرض ← نزل');
+  String get how => _pc
+      ? _t(
+          'Paste a link or drop it on this window. Pick the quality and it saves to the Nazzil folder in Downloads.',
+          'الصق الرابط أو اسحبه على النافذة. اختار الجودة وينحفظ بمجلد Nazzil بالتنزيلات.',
+        )
+      : _t(
+          'Share a post to Nazzil from any app, or paste its link here. Pick the quality and it saves to the Nazzil album in your gallery.',
+          'شارك المنشور ويّا نزل من أي تطبيق، أو الصق الرابط هنا. اختار الجودة وينحفظ بألبوم نزل بالمعرض.',
+        );
   String get ofWord => _t('of', 'من');
   String get updateAvailable => _t('A new version is out', 'في إصدار جديد');
   String get updateNow => _t('Update', 'حدّث');
-  String get updateLater => _t('Later', 'بعدين');
-  String get updateCurrent => _t('You are on the latest version', 'هذا أحدث إصدار');
-  String get updateCheck => _t('Check for update', 'تحقق من التحديث');
-  String get permissionNeeded =>
-      _t('Gallery permission is needed to save.', 'نحتاج إذن المعرض للحفظ.');
-  String get openSettings => _t('Settings', 'الإعدادات');
-  String get platforms => _t('YouTube · TikTok · Instagram · Facebook', 'يوتيوب · تيك توك · إنستغرام · فيسبوك');
   String get albumSaved => _t('Photos saved', 'الصور انحفظت');
   String get view => _t('View', 'عرض');
   String get youtube => 'YouTube';
@@ -132,11 +140,35 @@ class S {
         PlatformId.unknown => '',
       };
 
+  String failure(Failure kind) => switch (kind) {
+        Failure.none => '',
+        Failure.pasteFirst => _t('Paste a link first.', 'أول شي الصق رابط.'),
+        Failure.unsupported => _t('This link is not from a supported app yet.', 'هذا الرابط مو من تطبيق مدعوم بعد.'),
+        Failure.network => _t('Connection dropped. Try again.', 'النت انقطع. حاول مرة ثانية.'),
+        Failure.blocked => _t('This post blocked the download. Try again later.', 'المنشور منع التنزيل. جرّب بعدين.'),
+        Failure.permission => _t('Gallery permission is needed to save.', 'نحتاج إذن المعرض للحفظ.'),
+        Failure.unavailable => _t('This post is private or was deleted.', 'المنشور خاص أو محذوف.'),
+        Failure.noMedia => _t('This post has no video or photos to save.', 'هذا المنشور ما بيه فيديو ولا صور.'),
+        Failure.badLink => _t('This link does not point to a post.', 'هذا الرابط مو لمنشور.'),
+        Failure.processing => _t('This video is still processing. Try again in a bit.', 'الفيديو بعده يتجهز. جرّب بعد شوية.'),
+        Failure.convert => _t('Downloaded, but converting it failed. Try again.', 'نزل بس التحويل فشل. حاول مرة ثانية.'),
+        Failure.load => _t('Could not load this. Try again.', 'ما كدرت أجيبه. حاول مرة ثانية.'),
+        Failure.download => _t('Could not download this. Try again.', 'ما كدرت أنزّله. حاول مرة ثانية.'),
+      };
+
   String photosN(int n) => isAr ? '$n صور' : (n == 1 ? '1 photo' : '$n photos');
 
   String itemsN(int n) => isAr ? '$n عناصر' : (n == 1 ? '1 item' : '$n items');
 
   String waitingN(int n) => isAr ? '$n بالانتظار' : (n == 1 ? '1 waiting' : '$n waiting');
+
+  /// 75 seconds reads 1:15; an hour and more reads 1:02:03.
+  String clock(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final sec = (seconds % 60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$sec' : '$m:$sec';
+  }
 
   String _t(String en, String ar) => isAr ? ar : en;
 }

@@ -2,6 +2,26 @@ enum PlatformId { youtube, tiktok, instagram, facebook, reddit, x, pinterest, un
 
 enum MediaKind { video, audio, photo }
 
+/// Why a fetch or a download stopped. The interface words each one in its
+/// own language; a failed library item stores the name.
+enum Failure {
+  none,
+  pasteFirst,
+  unsupported,
+  network,
+  blocked,
+  permission,
+  unavailable,
+  noMedia,
+  badLink,
+  processing,
+  convert,
+  load,
+  download;
+
+  static Failure named(String name) => values.firstWhere((f) => f.name == name, orElse: () => download);
+}
+
 class CancelledException implements Exception {
   @override
   String toString() => 'Cancelled';

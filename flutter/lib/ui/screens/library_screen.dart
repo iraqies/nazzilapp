@@ -3,19 +3,28 @@ import 'package:flutter/material.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
-import '../widgets/glow_backdrop.dart';
 import '../widgets/library_tile.dart';
+import '../widgets/nazzil_chip.dart';
 import '../widgets/segmented.dart';
+import '../widgets/state_message.dart';
 import 'viewer_screen.dart';
 
 class LibraryScreen extends StatelessWidget {
-  const LibraryScreen({super.key, required this.controller});
+  const LibraryScreen({super.key, required this.controller, this.showAddLink = true});
   final NazzilController controller;
+
+  /// Off when the link box sits beside the library, as on a wide window.
+  final bool showAddLink;
+
+  static const _maxTile = 220.0;
+  static const _gap = 12.0;
 
   @override
   Widget build(BuildContext context) {
     final s = controller.s;
+    final theme = Theme.of(context);
     final items = controller.visibleLibrary;
+    final platforms = controller.libraryPlatforms;
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -24,12 +33,9 @@ class LibraryScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.library, style: displayStyle(context, size: 40)),
+                Text(s.library, style: theme.textTheme.displaySmall),
                 const SizedBox(height: 6),
-                Text(
-                  '${items.length}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text(s.itemsN(items.length), style: theme.textTheme.bodySmall),
                 const SizedBox(height: 16),
                 SegmentedChoice(
                   value: controller.libraryKind,
@@ -41,36 +47,29 @@ class LibraryScreen extends StatelessWidget {
                   ],
                   onChanged: controller.setLibraryKind,
                 ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final option in [
-                        ('all', s.filterAll),
-                        ('youtube', s.youtube),
-                        ('tiktok', s.tiktok),
-                        ('instagram', s.instagram),
-                        ('facebook', s.facebook),
-                      ])
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 8),
-                          child: FilterChip(
-                            selected: controller.libraryPlatform == option.$1,
-                            label: Text(option.$2),
-                            onSelected: (_) => controller.setLibraryPlatform(option.$1),
-                            showCheckmark: false,
-                            selectedColor: NazzilColors.rose.withValues(alpha: 0.2),
-                            side: BorderSide(
-                              color: controller.libraryPlatform == option.$1
-                                  ? NazzilColors.rose
-                                  : Theme.of(context).colorScheme.outline,
+                if (platforms.length > 1 || controller.libraryPlatform != 'all') ...[
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.all(2),
+                    child: Row(
+                      children: [
+                        for (final option in [
+                          ('all', s.filterAll),
+                          for (final platform in platforms) (platform.name, s.platformName(platform)),
+                        ])
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 8),
+                            child: NazzilChip(
+                              label: option.$2,
+                              selected: controller.libraryPlatform == option.$1,
+                              onTap: () => controller.setLibraryPlatform(option.$1),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -78,58 +77,56 @@ class LibraryScreen extends StatelessWidget {
         if (items.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Mark(size: 72),
-                  const SizedBox(height: 22),
-                  Text(
-                    s.emptyLibrary,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
+            child: controller.library.isEmpty
+                ? StateMessage(
+                    title: s.emptyLibrary,
+                    body: s.emptyLibraryHint,
+                    actions: [if (showAddLink) (s.addLink, () => controller.goTab(0))],
+                  )
+                : StateMessage(
+                    title: s.emptyFilter,
+                    actions: [(s.showAll, controller.clearLibraryFilters)],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    s.emptyLibraryHint,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ),
-            ),
           )
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 40),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final item = items[index];
-                  return LibraryTile(
-                    item: item,
-                    s: s,
-                    kept: controller.libraryStore.stillHave(item),
-                    progress: item.id == controller.activeJobId ? controller.progress : null,
-                    onOpen: () => _open(context, item),
-                    onCancel: item.active ? () => controller.cancelJob(item) : null,
-                    onPause: item.status == LibraryItem.statusDownloading
-                        ? () => controller.pauseJob(item)
-                        : null,
-                    onResume: item.paused ? () => controller.resumeJob(item) : null,
-                  );
-                },
-                childCount: items.length,
-              ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 18,
-                childAspectRatio: 0.62,
-              ),
+            sliver: SliverLayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.crossAxisExtent;
+                final columns = ((width + _gap) / (_maxTile + _gap)).ceil().clamp(2, 12);
+                final tile = (width - _gap * (columns - 1)) / columns;
+                return SliverGrid(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final item = items[index];
+                      final kept = controller.libraryStore.stillHave(item);
+                      final stopped = item.status == LibraryItem.statusFailed ||
+                          item.status == LibraryItem.statusCancelled;
+                      return LibraryTile(
+                        item: item,
+                        s: s,
+                        kept: kept,
+                        progress: item.id == controller.activeJobId ? controller.progress : null,
+                        onOpen: () => _open(context, item),
+                        onCancel: item.active ? () => controller.cancelJob(item) : null,
+                        onPause: item.status == LibraryItem.statusDownloading
+                            ? () => controller.pauseJob(item)
+                            : null,
+                        onResume: item.paused ? () => controller.resumeJob(item) : null,
+                        onRetry: stopped || (item.done && !kept) ? () => controller.retryJob(item) : null,
+                      );
+                    },
+                    childCount: items.length,
+                  ),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: _gap,
+                    mainAxisSpacing: 18,
+                    mainAxisExtent: LibraryTile.heightFor(context, tile),
+                  ),
+                );
+              },
             ),
           ),
       ],
@@ -139,29 +136,33 @@ class LibraryScreen extends StatelessWidget {
   Future<void> _open(BuildContext context, LibraryItem item) async {
     final s = controller.s;
     if (item.pending || item.paused) return;
+    final kept = controller.libraryStore.stillHave(item);
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) {
+      sheetAnimationStyle: NazzilMotion.style(context),
+      builder: (sheet) {
+        final error = Theme.of(sheet).colorScheme.error;
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: Theme.of(context).textTheme.titleLarge),
+                Text(item.title, style: Theme.of(sheet).textTheme.titleLarge),
                 const SizedBox(height: 16),
-                if (item.done && controller.libraryStore.stillHave(item)) ...[
+                if (item.done && kept) ...[
                   ListTile(
-                    leading: const Icon(Icons.play_arrow_rounded),
+                    leading: Icon(item.kind == MediaKind.photo ? Icons.photo_outlined : Icons.play_arrow_rounded),
                     title: Text(item.kind == MediaKind.photo ? s.view : s.play),
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheet);
                       Navigator.push(
                         context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => ViewerScreen(item: item),
+                        NazzilMotion.route<void>(
+                          context,
+                          (_) => ViewerScreen(controller: controller, item: item),
                         ),
                       );
                     },
@@ -170,7 +171,7 @@ class LibraryScreen extends StatelessWidget {
                     leading: const Icon(Icons.photo_library_outlined),
                     title: Text(s.openGallery),
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheet);
                       controller.openInGallery(item);
                     },
                   ),
@@ -178,25 +179,33 @@ class LibraryScreen extends StatelessWidget {
                     leading: const Icon(Icons.ios_share_rounded),
                     title: Text(s.share),
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheet);
                       controller.shareItem(item);
                     },
                   ),
-                ],
+                ] else
+                  ListTile(
+                    leading: const Icon(Icons.refresh_rounded),
+                    title: Text(item.done ? s.downloadAgain : s.retry),
+                    onTap: () {
+                      Navigator.pop(sheet);
+                      controller.retryJob(item);
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.link_rounded),
                   title: Text(s.original),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(sheet);
                     controller.openOriginal(item.sourceUrl);
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-                  title: Text(s.delete, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  leading: Icon(Icons.delete_outline, color: error),
+                  title: Text(s.delete, style: TextStyle(color: error)),
                   onTap: () {
-                    Navigator.pop(context);
-                    controller.remove(item);
+                    Navigator.pop(sheet);
+                    _delete(context, item);
                   },
                 ),
               ],
@@ -205,5 +214,31 @@ class LibraryScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Asks first only when a saved file would go with the entry.
+  Future<void> _delete(BuildContext context, LibraryItem item) async {
+    final s = controller.s;
+    if (!controller.libraryStore.stillHave(item)) {
+      await controller.remove(item);
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      animationStyle: NazzilMotion.style(context),
+      builder: (dialog) => AlertDialog(
+        title: Text(s.deleteTitle),
+        content: Text(s.deleteBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false), child: Text(s.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(dialog).colorScheme.error),
+            child: Text(s.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await controller.remove(item);
   }
 }

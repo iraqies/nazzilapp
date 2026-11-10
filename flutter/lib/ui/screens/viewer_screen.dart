@@ -6,11 +6,15 @@ import 'package:video_player/video_player.dart';
 import '../../data/downloader.dart';
 import '../../data/host.dart';
 import '../../data/platforms.dart';
+import '../../l10n/strings.dart';
 import '../../models/media.dart';
-import '../../theme/nazzil_theme.dart';
+import '../../state/nazzil_controller.dart';
+import '../widgets/state_message.dart';
+import '../widgets/tappable.dart';
 
 class ViewerScreen extends StatefulWidget {
-  const ViewerScreen({super.key, required this.item});
+  const ViewerScreen({super.key, required this.controller, required this.item});
+  final NazzilController controller;
   final LibraryItem item;
 
   @override
@@ -19,22 +23,26 @@ class ViewerScreen extends StatefulWidget {
 
 class _ViewerScreenState extends State<ViewerScreen> {
   VideoPlayerController? _player;
+  bool _failed = false;
   int _index = 0;
+
+  S get _s => widget.controller.s;
 
   @override
   void initState() {
     super.initState();
-    if (widget.item.kind != MediaKind.photo && Platforms.inAppVideo) {
-      final path = widget.item.primaryPath;
-      if (path != null && File(path).existsSync()) {
-        _player = VideoPlayerController.file(File(path))
-          ..initialize().then((_) {
-            if (!mounted) return;
-            setState(() {});
-            _player?.play();
-          });
-      }
-    }
+    final path = widget.item.primaryPath;
+    if (widget.item.kind == MediaKind.photo || !Platforms.inAppVideo) return;
+    if (path == null || !File(path).existsSync()) return;
+    final player = VideoPlayerController.file(File(path));
+    _player = player;
+    player.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {});
+      player.play();
+    }).catchError((Object _) {
+      if (mounted) setState(() => _failed = true);
+    });
   }
 
   @override
@@ -46,22 +54,44 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final photo = item.kind == MediaKind.photo;
     return Scaffold(
-      backgroundColor: item.kind == MediaKind.photo ? Colors.black : null,
+      backgroundColor: photo ? Colors.black : null,
       appBar: AppBar(
-        backgroundColor: item.kind == MediaKind.photo ? Colors.black : null,
-        foregroundColor: item.kind == MediaKind.photo ? Colors.white : null,
-        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        backgroundColor: photo ? Colors.black : null,
+        foregroundColor: photo ? Colors.white : null,
+        title: Text(
+          item.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: photo ? Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white) : null,
+        ),
       ),
-      body: item.kind == MediaKind.photo ? _photos(item) : _video(),
+      body: photo ? _photos(item) : _video(),
+    );
+  }
+
+  Widget _gone({bool onPhoto = false}) {
+    final item = widget.item;
+    return StateMessage(
+      onPhoto: onPhoto,
+      title: _s.fileGone,
+      actions: [
+        (
+          _s.downloadAgain,
+          () {
+            Navigator.pop(context);
+            widget.controller.retryJob(item);
+          },
+        ),
+        (_s.original, () => widget.controller.openOriginal(item.sourceUrl)),
+      ],
     );
   }
 
   Widget _photos(LibraryItem item) {
     final paths = item.paths.where((p) => File(p).existsSync()).toList();
-    if (paths.isEmpty) {
-      return const Center(child: Icon(Icons.broken_image_outlined, color: Colors.white54));
-    }
+    if (paths.isEmpty) return _gone(onPhoto: true);
     return Column(
       children: [
         Expanded(
@@ -70,31 +100,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
             onPageChanged: (i) => setState(() => _index = i),
             itemBuilder: (context, i) {
               if (isVideoFile(File(paths[i]))) {
-                if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i]);
-                return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index);
+                if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i], s: _s, onPhoto: true);
+                return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index, s: _s);
               }
               return InteractiveViewer(
-                child: Image.file(File(paths[i]), fit: BoxFit.contain),
+                child: Image.file(
+                  File(paths[i]),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => StateMessage(onPhoto: true, title: _s.photoFailed),
+                ),
               );
             },
           ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: NazzilColors.lilac.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '${_index + 1} / ${paths.length}',
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.w700,
-                color: NazzilColors.lilac,
-              ),
-            ),
+          child: Text(
+            '${_index + 1} ${_s.ofWord} ${paths.length}',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white),
           ),
         ),
       ],
@@ -102,30 +125,71 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Widget _video() {
-    if (!Platforms.inAppVideo) {
-      final path = widget.item.primaryPath;
-      if (path == null) return const SizedBox.shrink();
-      return _ExternalVideo(path: path);
-    }
+    final path = widget.item.primaryPath;
+    if (path == null || !File(path).existsSync()) return _gone();
+    if (!Platforms.inAppVideo) return _ExternalVideo(path: path, s: _s);
     final player = _player;
-    if (player == null || !player.value.isInitialized) {
-      return Center(child: CircularProgressIndicator(color: NazzilColors.rose));
+    if (_failed || player == null) {
+      return StateMessage(
+        title: _s.cantPlay,
+        actions: [
+          (_s.openGallery, () => DownloadHost.openFile(path)),
+          (_s.original, () => widget.controller.openOriginal(widget.item.sourceUrl)),
+        ],
+      );
     }
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          player.value.isPlaying ? player.pause() : player.play();
-        });
-      },
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: player.value.aspectRatio,
+    if (!player.value.isInitialized) return const Center(child: CircularProgressIndicator());
+    return _PlayArea(player: player, s: _s);
+  }
+}
+
+/// The video itself is the play and pause control, by tap or by keyboard.
+class _PlayArea extends StatefulWidget {
+  const _PlayArea({required this.player, required this.s, this.onPhoto = false});
+  final VideoPlayerController player;
+  final S s;
+  final bool onPhoto;
+
+  @override
+  State<_PlayArea> createState() => _PlayAreaState();
+}
+
+class _PlayAreaState extends State<_PlayArea> {
+  late bool _playing = widget.player.value.isPlaying;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.player.addListener(_sync);
+  }
+
+  @override
+  void dispose() {
+    widget.player.removeListener(_sync);
+    super.dispose();
+  }
+
+  void _sync() {
+    final playing = widget.player.value.isPlaying;
+    if (playing != _playing && mounted) setState(() => _playing = playing);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = widget.player;
+    return Center(
+      child: AspectRatio(
+        aspectRatio: player.value.aspectRatio,
+        child: Tappable(
+          radius: 0,
+          ringColor: widget.onPhoto ? Colors.white : null,
+          label: _playing ? widget.s.pause : widget.s.play,
+          onTap: () => _playing ? player.pause() : player.play(),
           child: Stack(
-            alignment: Alignment.center,
+            fit: StackFit.expand,
             children: [
               VideoPlayer(player),
-              if (!player.value.isPlaying)
-                const Icon(Icons.play_circle, size: 72, color: Colors.white),
+              if (!_playing) const Center(child: Icon(Icons.play_circle, size: 72, color: Colors.white)),
             ],
           ),
         ),
@@ -135,9 +199,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
 }
 
 class _AlbumVideo extends StatefulWidget {
-  const _AlbumVideo({super.key, required this.path, required this.active});
+  const _AlbumVideo({super.key, required this.path, required this.active, required this.s});
   final String path;
   final bool active;
+  final S s;
 
   @override
   State<_AlbumVideo> createState() => _AlbumVideoState();
@@ -145,12 +210,15 @@ class _AlbumVideo extends StatefulWidget {
 
 class _AlbumVideoState extends State<_AlbumVideo> {
   late final VideoPlayerController _player = VideoPlayerController.file(File(widget.path));
+  bool _failed = false;
 
   @override
   void initState() {
     super.initState();
     _player.initialize().then((_) {
       if (mounted) setState(() {});
+    }).catchError((Object _) {
+      if (mounted) setState(() => _failed = true);
     });
   }
 
@@ -168,48 +236,50 @@ class _AlbumVideoState extends State<_AlbumVideo> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_player.value.isInitialized) {
-      return Center(child: CircularProgressIndicator(color: NazzilColors.lilac));
+    if (_failed) {
+      return StateMessage(
+        onPhoto: true,
+        title: widget.s.cantPlay,
+        actions: [(widget.s.openGallery, () => DownloadHost.openFile(widget.path))],
+      );
     }
-    return GestureDetector(
-      onTap: () => setState(() => _player.value.isPlaying ? _player.pause() : _player.play()),
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: _player.value.aspectRatio,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              VideoPlayer(_player),
-              if (!_player.value.isPlaying) const Icon(Icons.play_circle, size: 72, color: Colors.white),
-            ],
-          ),
-        ),
-      ),
-    );
+    if (!_player.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
+    }
+    return _PlayArea(player: _player, s: widget.s, onPhoto: true);
   }
 }
 
 class _ExternalVideo extends StatelessWidget {
-  const _ExternalVideo({required this.path});
+  const _ExternalVideo({required this.path, required this.s, this.onPhoto = false});
   final String path;
+  final S s;
+  final bool onPhoto;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
+            tooltip: s.play,
             iconSize: 88,
-            color: NazzilColors.rose,
+            color: onPhoto ? Colors.white : scheme.primary,
             icon: const Icon(Icons.play_circle),
             onPressed: () => DownloadHost.openFile(path),
           ),
           const SizedBox(height: 8),
-          Text(
-            path.split(Platform.pathSeparator).last,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              path.split(Platform.pathSeparator).last,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: onPhoto ? Colors.white : scheme.onSurfaceVariant,
+                  ),
+            ),
           ),
         ],
       ),
