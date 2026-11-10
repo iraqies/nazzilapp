@@ -890,4 +890,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.settings.palette, 'grape');
   });
+
+  testWidgets('keyboard: tab walks the page before the tabs, and one pane before the other', (tester) async {
+    // On a phone the tabs come last; on a wide window the library follows the link pane.
+    for (final (size, after) in [
+      (const Size(360, 720), ['Home', 'Library']),
+      (const Size(1280, 800), ['All']),
+    ]) {
+      final controller = await boot(
+        tester,
+        size: size,
+        library: [entry('k', PlatformId.reddit, MediaKind.video, onDisk: true)],
+      );
+      controller
+        ..media = sampleVideo
+        ..selected = sampleVideo.options.first
+        ..notifyListeners();
+      await tester.pumpAndSettle();
+
+      final stops = <String, Finder>{
+        'Settings': find.byTooltip('Settings'),
+        'Link': find.byType(TextField),
+        for (final text in ['Paste', 'Fetch', 'HD', 'SD', 'Audio', 'Download', 'Home', 'Library', 'All'])
+          text: find.text(text),
+      };
+      String focused() {
+        final rect = FocusManager.instance.primaryFocus!.rect;
+        return stops.entries
+            .where((stop) => stop.value.evaluate().isNotEmpty && rect.contains(tester.getCenter(stop.value.first)))
+            .map((stop) => stop.key)
+            .join('+');
+      }
+
+      final walked = <String>[];
+      for (var i = 0; i < 8 + after.length; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        walked.add(focused());
+      }
+      expect(walked, ['Settings', 'Link', 'Paste', 'Fetch', 'HD', 'SD', 'Audio', 'Download', ...after], reason: '$size');
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
 }

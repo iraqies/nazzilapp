@@ -181,44 +181,55 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
         controller: controller,
         child: Scaffold(
           // The tabs sit in this slot so a snack bar floats above them, not over them.
+          // Each group is walked to its end by the Tab key before the next one starts:
+          // the page before the tabs, and one pane before the other on a wide window.
           bottomNavigationBar: _settings || wide
               ? null
-              : SafeArea(
-                  top: false,
-                  child: Center(
-                    heightFactor: 1,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 640),
-                      child: _Tabs(controller: controller),
+              : FocusTraversalGroup(
+                  child: SafeArea(
+                    top: false,
+                    child: Center(
+                      heightFactor: 1,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        child: _Tabs(controller: controller),
+                      ),
                     ),
                   ),
                 ),
-          body: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
-                child: Column(
-                  children: [
-                    _header(context),
-                    Expanded(
-                      child: _settings
-                          ? SettingsScreen(controller: controller)
-                          : wide
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(width: 460, child: HomeScreen(controller: controller)),
-                                    const VerticalDivider(),
-                                    Expanded(
-                                      child: LibraryScreen(controller: controller, showAddLink: false),
-                                    ),
-                                  ],
-                                )
-                              : controller.tab == 0
-                                  ? HomeScreen(controller: controller)
-                                  : LibraryScreen(controller: controller),
-                    ),
-                  ],
+          body: FocusTraversalGroup(
+            child: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
+                  child: Column(
+                    children: [
+                      _header(context),
+                      Expanded(
+                        child: _settings
+                            ? SettingsScreen(controller: controller)
+                            : wide
+                                ? Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        width: 460,
+                                        child: FocusTraversalGroup(child: HomeScreen(controller: controller)),
+                                      ),
+                                      const VerticalDivider(),
+                                      Expanded(
+                                        child: FocusTraversalGroup(
+                                          child: LibraryScreen(controller: controller, showAddLink: false),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : controller.tab == 0
+                                    ? HomeScreen(controller: controller)
+                                    : LibraryScreen(controller: controller),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
