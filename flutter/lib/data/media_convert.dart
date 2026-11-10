@@ -17,10 +17,8 @@ class MediaConverter {
   Future<File> join(File video, File audio, File output) =>
       _run(FfmpegArgs.join(video.path, audio.path, output.path), output, 'Could not put the video and sound together.');
 
-  /// Hardware H.264 first, at 720p too because some encoders (the software
-  /// one on slow devices) refuse 1080x1920 by encoding nothing; mpeg4 is
-  /// built into every ffmpeg. AAC sound plays everywhere, a copy is the
-  /// fallback.
+  /// Hardware H.264 at 1080 wide, then 720 (some encoders output nothing at
+  /// 1080x1920), then mpeg4. Sound is AAC, with a plain copy as the fallback.
   Future<File> slideshow(List<File> images, File? audio, File output) async {
     const failure = 'Could not make the video.';
     final paths = [for (final image in images) image.path];

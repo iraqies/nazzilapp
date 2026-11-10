@@ -97,9 +97,8 @@ class FfmpegArgs {
     return args;
   }
 
-  /// MediaCodec can leave the first IDR frame unmarked, and players then
-  /// skip ahead to the next key frame. Raw H.264 carries no such marks: the
-  /// parser finds the key frames itself when it goes into the MP4.
+  /// MediaCodec can leave the first IDR frame unmarked, so players skip to
+  /// the next key frame. Raw H.264 has no marks: the MP4 parser finds them.
   static List<String> wrapH264({
     required String video,
     String? audio,

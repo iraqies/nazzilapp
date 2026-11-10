@@ -259,9 +259,8 @@ class MediaDownloader {
     }
   }
 
-  /// Removes what interrupted downloads left in the media folder. Names are
-  /// compared, not full paths, because Android reports the same folder as
-  /// both /data/user/0 and /data/data.
+  /// Removes what interrupted downloads left in the media folder. Compares
+  /// names, not paths: Android reports it as /data/user/0 and /data/data.
   Future<void> sweep(Iterable<LibraryItem> items) async {
     final folder = Directory(p.join((await getApplicationSupportDirectory()).path, 'media'));
     if (!folder.existsSync()) return;

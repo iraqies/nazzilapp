@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-/// ID3v2.3 tags for MP3s where no native tagger exists (Windows, Linux,
-/// macOS). Writes the same frames as AudioTagger.kt: cover, title, artist,
-/// album, lyrics and synced lyrics.
+/// ID3v2.3 tags for MP3s on Windows, Linux and macOS, which have no native
+/// tagger. Writes the same frames as AudioTagger.kt.
 class Id3Tag {
   const Id3Tag({required this.title, this.artist, this.jpeg, this.plainLyrics, this.syncedLyrics});
 

@@ -36,9 +36,8 @@ class GalleryService {
     }
   }
 
-  /// Photos and the video gallery refuse audio, so songs go to Music/Nazzil
-  /// on Android and to the app's Documents/Nazzil folder (shown in the Files
-  /// app) on iOS.
+  /// Galleries refuse audio, so songs go to Music/Nazzil on Android and to
+  /// Documents/Nazzil (shown in the Files app) on iOS.
   Future<void> saveAudio(File file) async {
     if (!Platforms.mobile) return _toDownloads(file);
     try {
