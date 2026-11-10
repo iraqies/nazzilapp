@@ -54,6 +54,14 @@ class S {
   String get english => 'English';
   String get arabic => 'العربية';
   String get theme => _t('Theme', 'المظهر');
+  String get colour => _t('Colour', 'اللون');
+  String paletteName(String id) => switch (id) {
+        'ocean' => _t('Ocean', 'بحري'),
+        'emerald' => _t('Emerald', 'زمردي'),
+        'sunset' => _t('Sunset', 'غروب'),
+        'grape' => _t('Grape', 'عنبي'),
+        _ => _t('Rose', 'وردي'),
+      };
   String get themeSystem => _t('System theme', 'مظهر الجهاز');
   String get themeLight => _t('Light', 'فاتح');
   String get themeDark => _t('Dark', 'داكن');

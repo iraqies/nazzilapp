@@ -93,11 +93,11 @@ class _PhotoFilmState extends State<PhotoFilm> {
                             CachedNetworkImage(
                               imageUrl: widget.urls[i],
                               fit: BoxFit.cover,
-                              placeholder: (_, _) => const Center(
+                              placeholder: (_, _) => Center(
                                 child: CircularProgressIndicator(color: NazzilColors.lilac),
                               ),
                               errorWidget: (_, _, _) =>
-                                  const Icon(Icons.photo_outlined, color: NazzilColors.lilac),
+                                  Icon(Icons.photo_outlined, color: NazzilColors.lilac),
                             ),
                             const DecoratedBox(
                               decoration: BoxDecoration(

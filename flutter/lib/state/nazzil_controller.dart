@@ -21,6 +21,7 @@ import '../data/settings_store.dart';
 import '../data/update_checker.dart';
 import '../l10n/strings.dart';
 import '../models/media.dart';
+import '../theme/nazzil_theme.dart';
 
 class NazzilController extends ChangeNotifier {
   NazzilController() {
@@ -109,6 +110,7 @@ class NazzilController extends ChangeNotifier {
 
   Future<void> _init() async {
     settings = await settingsStore.load();
+    NazzilColors.palette = NazzilPalette.byId(settings.palette);
     library = libraryStore.recoverInterrupted(await libraryStore.all());
     await libraryStore.save(library);
     try {
@@ -615,6 +617,21 @@ class NazzilController extends ChangeNotifier {
     settings = settings.copyWith(language: language);
     await settingsStore.save(settings);
     notifyListeners();
+  }
+
+  Future<void> setPalette(String id) async {
+    settings = settings.copyWith(palette: id);
+    NazzilColors.palette = NazzilPalette.byId(id);
+    await settingsStore.save(settings);
+    notifyListeners();
+    // Widgets read the palette directly rather than through Theme, so they
+    // only pick it up when rebuilt.
+    void rebuild(Element element) {
+      element.markNeedsBuild();
+      element.visitChildren(rebuild);
+    }
+
+    WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
   }
 
   Future<void> setTheme(String theme) async {

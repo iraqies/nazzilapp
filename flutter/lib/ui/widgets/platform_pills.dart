@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/nazzil_theme.dart';
 
 class PlatformPills extends StatelessWidget {
   const PlatformPills({super.key});
 
   static const _items = [
     ('YouTube', Color(0xFFFF4D4D)),
-    ('TikTok', NazzilColors.rose),
+    ('TikTok', Color(0xFFFF4D8D)),
     ('Instagram', Color(0xFFE1306C)),
     ('Facebook', Color(0xFF4B8BFF)),
   ];

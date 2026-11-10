@@ -81,7 +81,7 @@ class _DesktopInputState extends State<DesktopInput> {
                         borderRadius: BorderRadius.circular(28),
                         border: Border.all(color: NazzilColors.rose, width: 2),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Icon(Icons.link_rounded, size: 72, color: NazzilColors.rose),
                       ),
                     ),

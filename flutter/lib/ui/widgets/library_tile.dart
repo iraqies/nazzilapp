@@ -169,7 +169,7 @@ class LibraryTile extends StatelessWidget {
     if (item.paths.isNotEmpty && File(item.paths.first).existsSync()) {
       return Image.file(File(item.paths.first), fit: BoxFit.cover);
     }
-    return const Center(child: Icon(Icons.movie_outlined, color: NazzilColors.rose));
+    return Center(child: Icon(Icons.movie_outlined, color: NazzilColors.rose));
   }
 
   Widget _chip(String label, Color color) {

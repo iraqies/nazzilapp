@@ -75,8 +75,8 @@ class _PasteCardState extends State<PasteCard> {
                     final data = await Clipboard.getData('text/plain');
                     await widget.controller.paste(data?.text ?? '');
                   },
-                  icon: const Icon(Icons.content_paste_rounded, size: 16, color: NazzilColors.rose),
-                  label: Text(s.paste, style: const TextStyle(color: NazzilColors.rose)),
+                  icon: Icon(Icons.content_paste_rounded, size: 16, color: NazzilColors.rose),
+                  label: Text(s.paste, style: TextStyle(color: NazzilColors.rose)),
                 ),
                 if (widget.controller.url.isNotEmpty)
                   TextButton(

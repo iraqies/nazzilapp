@@ -251,15 +251,18 @@ class AppSettings {
   const AppSettings({
     this.language = 'system',
     this.theme = 'system',
+    this.palette = 'rose',
   });
 
   final String language;
   final String theme;
+  final String palette;
 
-  AppSettings copyWith({String? language, String? theme}) {
+  AppSettings copyWith({String? language, String? theme, String? palette}) {
     return AppSettings(
       language: language ?? this.language,
       theme: theme ?? this.theme,
+      palette: palette ?? this.palette,
     );
   }
 }

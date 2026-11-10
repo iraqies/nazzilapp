@@ -89,7 +89,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             ),
             child: Text(
               '${_index + 1} / ${paths.length}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Outfit',
                 fontWeight: FontWeight.w700,
                 color: NazzilColors.lilac,
@@ -109,7 +109,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     final player = _player;
     if (player == null || !player.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator(color: NazzilColors.rose));
+      return Center(child: CircularProgressIndicator(color: NazzilColors.rose));
     }
     return GestureDetector(
       onTap: () {
@@ -169,7 +169,7 @@ class _AlbumVideoState extends State<_AlbumVideo> {
   @override
   Widget build(BuildContext context) {
     if (!_player.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator(color: NazzilColors.lilac));
+      return Center(child: CircularProgressIndicator(color: NazzilColors.lilac));
     }
     return GestureDetector(
       onTap: () => setState(() => _player.value.isPlaying ? _player.pause() : _player.play()),

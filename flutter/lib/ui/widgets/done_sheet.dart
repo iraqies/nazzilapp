@@ -96,7 +96,7 @@ class _ConfettiBurstState extends State<ConfettiBurst>
         spin: 180 + random.nextDouble() * 520,
         w: 6 + random.nextDouble() * 8,
         h: 4 + random.nextDouble() * 5,
-        color: const [
+        color: [
           NazzilColors.rose,
           NazzilColors.lilac,
           NazzilColors.cream,

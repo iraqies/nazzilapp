@@ -261,7 +261,7 @@ class _Poster extends StatelessWidget {
             if (url != null)
               CachedNetworkImage(imageUrl: url!, fit: BoxFit.cover)
             else
-              const Center(child: Icon(Icons.videocam_outlined, size: 42, color: NazzilColors.rose)),
+              Center(child: Icon(Icons.videocam_outlined, size: 42, color: NazzilColors.rose)),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -314,7 +314,7 @@ class _How extends StatelessWidget {
                       height: 32,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           colors: [NazzilColors.rose, NazzilColors.roseDeep],
                         ),
                         shape: BoxShape.circle,
@@ -365,7 +365,7 @@ class _ClipOffer extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
         child: Row(
           children: [
-            const Icon(Icons.content_paste_go_rounded, color: NazzilColors.rose, size: 20),
+            Icon(Icons.content_paste_go_rounded, color: NazzilColors.rose, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Text(s.clipOffer, style: Theme.of(context).textTheme.bodyMedium),

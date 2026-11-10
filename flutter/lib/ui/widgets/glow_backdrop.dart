@@ -9,33 +9,34 @@ class GlowBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final palette = NazzilColors.palette;
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: dark
-              ? const [Color(0xFF08060C), Color(0xFF140A16), Color(0xFF08060C)]
-              : const [Color(0xFFF7F1F4), Color(0xFFFFE8F0), Color(0xFFF4EEF8)],
+              ? [NazzilColors.ink, palette.tint(NazzilColors.ink, 0.06), NazzilColors.ink]
+              : [NazzilColors.paper, palette.tint(Colors.white, 0.12), palette.accentTint(const Color(0xFFF6F5F8), 0.08)],
         ),
       ),
       child: Stack(
         children: [
-          const Positioned(
+          Positioned(
             top: -90,
             right: -50,
-            child: _Blob(color: Color(0x55FF4D8D), size: 260),
+            child: _Blob(color: palette.primary.withValues(alpha: 0.33), size: 260),
           ),
-          const Positioned(
+          Positioned(
             bottom: 80,
             left: -70,
-            child: _Blob(color: Color(0x338B7CFF), size: 240),
+            child: _Blob(color: palette.accent.withValues(alpha: 0.2), size: 240),
           ),
           if (!dark)
-            const Positioned(
+            Positioned(
               top: 180,
               left: 40,
-              child: _Blob(color: Color(0x22FF4D8D), size: 160),
+              child: _Blob(color: palette.primary.withValues(alpha: 0.13), size: 160),
             ),
           child,
         ],
@@ -83,8 +84,8 @@ class Mark extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: dark
-              ? const [Color(0xFF2A121C), Color(0xFF140C12)]
-              : const [Color(0xFFFFE0EC), Color(0xFFFFC2D7)],
+              ? [NazzilColors.palette.tint(NazzilColors.ink, 0.15), NazzilColors.palette.tint(NazzilColors.ink, 0.05)]
+              : [NazzilColors.palette.tint(Colors.white, 0.15), NazzilColors.palette.tint(Colors.white, 0.3)],
         ),
         boxShadow: [
           BoxShadow(
