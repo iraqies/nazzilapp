@@ -4,7 +4,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/media.dart';
-import 'audio_convert.dart';
+import 'ffmpeg_args.dart';
+import 'media_convert.dart';
 import 'extractor.dart';
 import 'gallery.dart';
 import 'host.dart';
@@ -23,14 +24,14 @@ class MediaDownloader {
     required this.extractor,
     required this.gallery,
     NetClient? net,
-    AudioConverter? converter,
+    MediaConverter? converter,
   })  : net = net ?? extractor.net,
-        converter = converter ?? AudioConverter();
+        converter = converter ?? MediaConverter();
 
   final MediaExtractor extractor;
   final GalleryService gallery;
   final NetClient net;
-  final AudioConverter converter;
+  final MediaConverter converter;
 
   Future<DownloadResult> download({
     required MediaInfo media,
@@ -104,6 +105,10 @@ class MediaDownloader {
     if (url == null || url.isEmpty) {
       throw StateError('Could not download this. Try again.');
     }
+    final audioUrl = option.audioUrl;
+    if (audioUrl != null && audioUrl.isNotEmpty) {
+      return _downloadJoined(url, audioUrl, folder, base, onProgress, resumePaths);
+    }
     final isAudio = option.kind == MediaKind.audio;
     final ext = option.ext.isEmpty ? 'mp4' : option.ext;
     final dest = resumePaths.isNotEmpty
@@ -152,6 +157,41 @@ class MediaDownloader {
     return DownloadResult(files: [file], photoCount: 0);
   }
 
+  Future<DownloadResult> _downloadJoined(
+    String videoUrl,
+    String audioUrl,
+    Directory folder,
+    String base,
+    void Function(double progress) onProgress,
+    List<String> resumePaths,
+  ) async {
+    final video = resumePaths.isNotEmpty ? File(resumePaths[0]) : _unique(folder, '$base-video', 'mp4');
+    final audio = resumePaths.length > 1 ? File(resumePaths[1]) : _unique(folder, '$base-audio', 'm4a');
+    try {
+      await net.save(videoUrl, video, referer: extractor.refererFor(videoUrl), onProgress: (v) => onProgress(v * 0.75));
+      await net.save(audioUrl, audio, referer: extractor.refererFor(audioUrl), onProgress: (v) => onProgress(0.75 + v * 0.13));
+    } on PausedException {
+      throw PausedException(paths: [video.path, audio.path]);
+    } on CancelledException {
+      _deleteAll([video, audio]);
+      rethrow;
+    }
+    onProgress(0.9);
+    final File file;
+    try {
+      file = await converter.join(video, audio, _unique(folder, base, 'mp4'));
+    } finally {
+      _deleteAll([video, audio]);
+    }
+    onProgress(0.95);
+    if (!await gallery.ensureAccess(images: false)) {
+      throw StateError('Gallery permission is needed to save.');
+    }
+    await gallery.saveFile(file, image: false);
+    onProgress(1);
+    return DownloadResult(files: [file], photoCount: 0);
+  }
+
   void _deleteAll(Iterable<File> files) {
     for (final file in files) {
       if (file.existsSync()) {
@@ -163,7 +203,7 @@ class MediaDownloader {
   }
 
   Future<File> _toMp3(File source, File target) async {
-    if (AudioConverter.isMp3(source)) return source.renameSync(target.path);
+    if (FfmpegArgs.isMp3(source)) return source.renameSync(target.path);
     try {
       return await converter.toMp3(source, target);
     } finally {

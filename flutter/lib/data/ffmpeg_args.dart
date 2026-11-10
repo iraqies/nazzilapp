@@ -1,12 +1,11 @@
 import 'dart:io';
 
-import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
-
-class AudioConverter {
+/// Kept free of Flutter imports so the commands can be checked against a
+/// desktop ffmpeg in tests.
+class FfmpegArgs {
   /// Tags are written afterwards by [DownloadHost.tagAudio], so the source's
   /// own metadata (YouTube titles, encoder names) is dropped here.
-  static List<String> mp3Args(String input, String output) => [
+  static List<String> mp3(String input, String output) => [
         '-y',
         '-hide_banner',
         '-nostdin',
@@ -28,6 +27,26 @@ class AudioConverter {
         output,
       ];
 
+  /// `-c copy` only works when the streams already fit MP4 (H.264 + AAC).
+  static List<String> join(String video, String audio, String output) => [
+        '-y',
+        '-hide_banner',
+        '-nostdin',
+        '-i',
+        video,
+        '-i',
+        audio,
+        '-map',
+        '0:v:0',
+        '-map',
+        '1:a:0',
+        '-c',
+        'copy',
+        '-movflags',
+        '+faststart',
+        output,
+      ];
+
   static bool isMp3(File file) {
     try {
       final raf = file.openSync();
@@ -39,16 +58,5 @@ class AudioConverter {
     } catch (_) {
       return false;
     }
-  }
-
-  Future<File> toMp3(File input, File output) async {
-    if (output.existsSync()) output.deleteSync();
-    final session = await FFmpegKit.executeWithArguments(mp3Args(input.path, output.path));
-    final code = await session.getReturnCode();
-    if (ReturnCode.isSuccess(code) && output.existsSync() && output.lengthSync() > 1024) {
-      return output;
-    }
-    if (output.existsSync()) output.deleteSync();
-    throw StateError('Could not turn this into an MP3.');
   }
 }

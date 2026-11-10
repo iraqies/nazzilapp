@@ -23,6 +23,7 @@ class QualityOption {
     required this.kind,
     this.height,
     this.directUrl,
+    this.audioUrl,
     this.photoUrls = const [],
   });
 
@@ -32,6 +33,10 @@ class QualityOption {
   final MediaKind kind;
   final int? height;
   final String? directUrl;
+
+  /// Set when [directUrl] is a video-only stream that has to be joined with
+  /// this audio stream (YouTube above 360p).
+  final String? audioUrl;
   final List<String> photoUrls;
 
   bool get isPhotoAlbum => kind == MediaKind.photo && photoUrls.isNotEmpty;
@@ -43,6 +48,7 @@ class QualityOption {
         'kind': kind.name,
         'height': height,
         'directUrl': directUrl,
+        'audioUrl': audioUrl,
         'photoUrls': photoUrls,
       };
 
@@ -57,6 +63,7 @@ class QualityOption {
       ),
       height: json['height'] as int?,
       directUrl: json['directUrl'] as String?,
+      audioUrl: json['audioUrl'] as String?,
       photoUrls: ((json['photoUrls'] as List?) ?? const []).map((e) => e.toString()).toList(),
     );
   }
