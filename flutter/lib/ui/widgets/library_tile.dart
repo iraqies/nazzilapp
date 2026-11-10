@@ -67,7 +67,7 @@ class LibraryTile extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _cover(context, plain: busy || stopped || missing),
+                    _cover(context, constraints.maxWidth, plain: busy || stopped || missing),
                     if (busy || stopped || missing)
                       Center(
                         child: SingleChildScrollView(
@@ -188,21 +188,33 @@ class LibraryTile extends StatelessWidget {
   }
 
   /// [plain] leaves the icon out, for when a status sits in the middle.
-  Widget _cover(BuildContext context, {bool plain = false}) {
+  Widget _cover(BuildContext context, double width, {bool plain = false}) {
     final fallback = plain
         ? const SizedBox.shrink()
         : Center(child: Icon(_kindIcon, color: Theme.of(context).colorScheme.onSurfaceVariant));
+    // Decoded no larger than the tile needs: a full-size photo per tile would fill the memory.
+    final side = (width / coverRatio * MediaQuery.devicePixelRatioOf(context) * 1.5).round();
+    Widget fromFile(File file, Widget Function() otherwise) => Image(
+          image: ResizeImage(FileImage(file), width: side, height: side, policy: ResizeImagePolicy.fit),
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => otherwise(),
+        );
     final thumb = item.thumbnail;
-    if (thumb != null && thumb.startsWith('http')) {
-      return CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover, errorWidget: (_, _, _) => fallback);
+    final online = thumb != null && thumb.startsWith('http');
+    final thumbFile = thumb != null && !online && File(thumb).existsSync() ? File(thumb) : null;
+    Widget fromThumb() {
+      if (online) {
+        return CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover, errorWidget: (_, _, _) => fallback);
+      }
+      return thumbFile == null ? fallback : fromFile(thumbFile, () => fallback);
     }
-    if (thumb != null && File(thumb).existsSync()) {
-      return Image.file(File(thumb), fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback);
-    }
-    if (item.paths.isNotEmpty && File(item.paths.first).existsSync()) {
-      return Image.file(File(item.paths.first), fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback);
-    }
-    return fallback;
+
+    final first = item.paths.isEmpty ? null : File(item.paths.first);
+    final saved = first != null && first.existsSync();
+    // A saved photo is its own cover: sharper than the site's thumbnail, and there offline.
+    if (saved && item.kind == MediaKind.photo) return fromFile(first, fromThumb);
+    if (online || thumbFile != null) return fromThumb();
+    return saved ? fromFile(first, () => fallback) : fallback;
   }
 
   Widget _chip(BuildContext context, String label, {IconData? icon}) {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -422,6 +423,38 @@ void main() {
     await tester.tap(find.text('Add a link'));
     await tester.pumpAndSettle();
     expect(find.text('Download the video. Keep it.'), findsOneWidget);
+  });
+
+  testWidgets('library tile: a saved photo is its own cover, a video keeps the site picture', (tester) async {
+    Widget tile(LibraryItem item) => MaterialApp(
+          theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 160,
+                height: 260,
+                child: LibraryTile(item: item, s: const S('en'), kept: true, onOpen: () {}),
+              ),
+            ),
+          ),
+        );
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    const small = 'https://example.com/small.jpg';
+
+    final photo = entry('pic', PlatformId.reddit, MediaKind.photo, onDisk: true).copyWith(thumbnail: small);
+    await tester.pumpWidget(tile(photo));
+    final cover = tester.widget<Image>(find.byType(Image)).image as ResizeImage;
+    expect((cover.imageProvider as FileImage).file.path, photo.paths.first);
+    // 160 wide makes the cover 200 high; at 2 pixels a point, with half again in hand, that is 600.
+    expect((cover.width, cover.height, cover.policy), (600, 600, ResizeImagePolicy.fit));
+    expect(find.byType(CachedNetworkImage), findsNothing);
+
+    final clip = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true).copyWith(thumbnail: small);
+    await tester.pumpWidget(tile(clip));
+    expect(tester.widget<CachedNetworkImage>(find.byType(CachedNetworkImage)).imageUrl, small);
+    // The image cache sweeps ten seconds after its first use.
+    await tester.pump(const Duration(seconds: 11));
   });
 
   testWidgets('library sheet: Open file says so when nothing opens it, and Linux gets no Share', (tester) async {
