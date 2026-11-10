@@ -124,7 +124,7 @@ class FfmpegArgs {
         // Encoders write their own timing into the stream, and some of it
         // is wrong; frame N is shown at N/30 s.
         '-bsf:v',
-        'setts=ts=N:duration=1:time_base=1/30',
+        'setts=ts=N/(30*TB):duration=1/(30*TB)',
         '-t',
         '$seconds',
         '-movflags',
