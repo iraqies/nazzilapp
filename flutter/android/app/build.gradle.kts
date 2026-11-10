@@ -30,7 +30,8 @@ android {
         versionCode = 22
         versionName = "1.3"
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            // -PnazzilAbis=x86_64 gives an emulator build that runs FFmpeg natively.
+            abiFilters += (findProperty("nazzilAbis") as String? ?: "arm64-v8a").split(",")
         }
     }
 
