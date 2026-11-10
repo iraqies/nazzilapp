@@ -188,6 +188,7 @@ enum NazzilAudioTagger {
     body += latin("eng")
     body += [2, 1, 0xFF, 0xFE, 0, 0]
     for (stamp, text) in lines {
+      body += [0xFF, 0xFE]
       body += utf16le(text)
       body += [0, 0]
       var time = [UInt8](repeating: 0, count: 4)

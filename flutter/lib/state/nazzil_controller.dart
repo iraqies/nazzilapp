@@ -125,9 +125,12 @@ class NazzilController extends ChangeNotifier {
     if (initial != null) await ingest(initial);
     unawaited(offerClipboard());
     unawaited(_pump());
-    try {
-      remote = await updates.fetch();
-    } catch (_) {}
+    // The site only publishes APKs; other platforms have no update to offer.
+    if (Platform.isAndroid) {
+      try {
+        remote = await updates.fetch();
+      } catch (_) {}
+    }
     notifyListeners();
   }
 

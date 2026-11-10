@@ -70,13 +70,31 @@ final class ShareViewController: UIViewController {
     guard let url = components.url else { return }
 
     var responder: UIResponder? = self
-    let selector = sel_registerName("openURL:")
     while let current = responder {
-      if current.responds(to: selector) {
-        current.perform(selector, with: url)
-        break
+      if let application = current as? UIApplication {
+        open(url, with: application)
+        return
       }
       responder = current.next
+    }
+  }
+
+  /// iOS 18 ignores the old one-argument openURL:, so the app is opened with
+  /// open(_:options:completionHandler:). That method is marked unavailable in
+  /// extensions, hence the call through the runtime.
+  private func open(_ url: URL, with application: UIApplication) {
+    typealias OpenFunction = @convention(c) (
+      AnyObject, Selector, NSURL, NSDictionary, (@convention(block) (Bool) -> Void)?
+    ) -> Void
+    let modern = NSSelectorFromString("openURL:options:completionHandler:")
+    if application.responds(to: modern) {
+      let function = unsafeBitCast(application.method(for: modern), to: OpenFunction.self)
+      function(application, modern, url as NSURL, NSDictionary(), nil)
+      return
+    }
+    let legacy = NSSelectorFromString("openURL:")
+    if application.responds(to: legacy) {
+      application.perform(legacy, with: url)
     }
   }
 }

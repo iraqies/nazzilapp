@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:gal/gal.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'host.dart';
@@ -31,11 +33,28 @@ class GalleryService {
     }
   }
 
-  /// Photos and the video gallery refuse audio, so songs go to Music/Nazzil.
+  /// Photos and the video gallery refuse audio, so songs go to Music/Nazzil
+  /// on Android and to the app's Documents/Nazzil folder (shown in the Files
+  /// app) on iOS.
   Future<void> saveAudio(File file) async {
-    if (!Platform.isAndroid) return;
     try {
-      await DownloadHost.saveAudio(file.path);
+      if (Platform.isAndroid) {
+        await DownloadHost.saveAudio(file.path);
+      } else if (Platform.isIOS) {
+        final folder = Directory(p.join((await getApplicationDocumentsDirectory()).path, album));
+        await folder.create(recursive: true);
+        await file.copy(_free(folder, p.basename(file.path)).path);
+      }
     } catch (_) {}
+  }
+
+  File _free(Directory folder, String name) {
+    var target = File(p.join(folder.path, name));
+    var index = 1;
+    while (target.existsSync()) {
+      target = File(p.join(folder.path, '${p.basenameWithoutExtension(name)} ($index)${p.extension(name)}'));
+      index += 1;
+    }
+    return target;
   }
 }
