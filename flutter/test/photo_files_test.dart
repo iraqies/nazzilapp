@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -24,19 +25,33 @@ final bodies = <String, List<int>>{
   'one.jpg': jpeg(1, 2000),
   'two.jpg': jpeg(2, 3000),
   'three.jpg': jpeg(3, 4000),
+  // Sent in two parts, with a wait between them that the test ends.
+  'slow.jpg': jpeg(4, 5000),
   // Named like a JPEG by its site, a PNG by its bytes.
   'disguised.jpg': [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ...List.filled(1500, 9)],
 };
+
+/// Done once the first part of 'slow.jpg' is on its way.
+var midway = Completer<void>();
+
+/// The server sends the rest of 'slow.jpg' once this is done.
+var release = Completer<void>();
 
 /// Records the bytes that would have gone to the gallery or to Downloads.
 class _Gallery extends GalleryService {
   final saved = <List<int>>[];
 
+  /// The copy with this number fails, as a full disk would make it.
+  int? failAt;
+
   @override
   Future<bool> ensureAccess({required bool images}) async => true;
 
   @override
-  Future<void> saveFile(File file, {required bool image}) async => saved.add(file.readAsBytesSync());
+  Future<void> saveFile(File file, {required bool image}) async {
+    if (saved.length + 1 == failAt) throw const FileSystemException('No space left on device');
+    saved.add(file.readAsBytesSync());
+  }
 }
 
 QualityOption photosOf(List<String> names, {String id = 'photos', String label = 'Photos'}) => QualityOption(
@@ -58,6 +73,7 @@ MediaInfo post(String id, String title, QualityOption option) => MediaInfo(
 
 void main() {
   late _Gallery gallery;
+  late NetClient net;
   late MediaDownloader downloader;
 
   setUpAll(() async {
@@ -74,11 +90,29 @@ void main() {
       response.headers.contentType = ContentType('image', 'jpeg');
       if (from >= body.length) {
         response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
-      } else {
-        if (range != null) response.statusCode = HttpStatus.partialContent;
-        response.add(body.sublist(from));
+        await response.close();
+        return;
       }
-      await response.close();
+      if (range != null) response.statusCode = HttpStatus.partialContent;
+      final rest = body.sublist(from);
+      if (request.uri.pathSegments.last != 'slow.jpg') {
+        response.add(rest);
+        await response.close();
+        return;
+      }
+      // Unbuffered, or the first part would wait in the server for the second.
+      response.bufferOutput = false;
+      response.contentLength = rest.length;
+      response.add(rest.sublist(0, 1000));
+      await response.flush();
+      if (!midway.isCompleted) midway.complete();
+      await release.future;
+      try {
+        response.add(rest.sublist(1000));
+        await response.close();
+      } catch (_) {
+        // The app had stopped listening by then.
+      }
     });
     PackageInfo.setMockInitialValues(
       appName: 'Nazzil',
@@ -98,7 +132,7 @@ void main() {
       (call) async => scratch.path,
     );
     gallery = _Gallery();
-    final net = NetClient();
+    net = NetClient();
     addTearDown(net.close);
     downloader = MediaDownloader(extractor: MediaExtractor(), gallery: gallery, net: net);
   });
@@ -141,6 +175,73 @@ void main() {
     expect(result.files.single.path, isNot(theirs.path));
     expect(result.files.single.readAsBytesSync(), bodies['disguised.jpg']);
     expect(theirs.readAsBytesSync(), [1, 2, 3]);
+  });
+
+  test('an album paused twice on one photo still gets that photo whole', () async {
+    final album = photosOf(['one.jpg', 'slow.jpg']);
+    final media = post('slow', 'Slow album', album);
+
+    /// Runs the download until a part of 'slow.jpg' has arrived, then pauses it.
+    Future<PausedException> pausedRun(List<String> paths, int completed) async {
+      midway = Completer<void>();
+      release = Completer<void>();
+      final arrived = Completer<void>();
+      final stopped = downloader
+          .download(
+            media: media,
+            option: album,
+            // The second photo of two fills the upper half of the progress.
+            onProgress: (value) {
+              if (value > 0.5 && !arrived.isCompleted) arrived.complete();
+            },
+            resumePaths: paths,
+            completedPhotos: completed,
+          )
+          .then<Object?>((_) => null, onError: (Object error) => error);
+      await arrived.future;
+      net.pause();
+      release.complete();
+      return (await stopped)! as PausedException;
+    }
+
+    final first = await pausedRun(const [], 0);
+    expect(first.completed, 1);
+    expect(first.paths, hasLength(2));
+    expect(File(first.paths.last).lengthSync(), lessThan(bodies['slow.jpg']!.length));
+
+    final second = await pausedRun(first.paths, first.completed);
+    expect(second.completed, 1, reason: 'the photo that was under way is not counted as whole');
+    expect(second.paths, first.paths);
+
+    midway = Completer<void>();
+    release = Completer<void>()..complete();
+    final done = await downloader.download(
+      media: media,
+      option: album,
+      onProgress: (_) {},
+      resumePaths: second.paths,
+      completedPhotos: second.completed,
+    );
+    expect(done.files.last.readAsBytesSync(), bodies['slow.jpg']);
+    expect(gallery.saved, [bodies['one.jpg'], bodies['slow.jpg']]);
+  });
+
+  test('an album that breaks off leaves nothing of that run in the way of the next', () async {
+    final album = photosOf(['one.jpg', 'two.jpg', 'three.jpg']);
+    final media = post('brk', 'Broken album', album);
+    gallery.failAt = 2;
+    await expectLater(
+      downloader.download(media: media, option: album, onProgress: (_) {}),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(Directory('${scratch.path}/media').listSync(), isEmpty);
+
+    gallery.failAt = null;
+    final again = await downloader.download(media: media, option: album, onProgress: (_) {});
+    expect(
+      [for (final file in again.files) file.uri.pathSegments.last],
+      ['Broken album-1.jpg', 'Broken album-2.jpg', 'Broken album-3.jpg'],
+    );
   });
 
   test('deleting one of two entries that share a file leaves the file for the other', () async {

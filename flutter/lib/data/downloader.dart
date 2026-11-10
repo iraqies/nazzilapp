@@ -60,15 +60,14 @@ class MediaDownloader {
         for (final path in resumePaths.take(completedPhotos.clamp(0, urls.length)))
           if (path.isNotEmpty && File(path).existsSync()) File(path),
       ];
-      var start = files.length;
-      if (resumePaths.length > files.length) {
-        final partial = File(resumePaths[files.length]);
-        if (partial.existsSync()) {
-          files.add(partial);
-          start = files.length - 1;
-        }
+      // How many of [files] are whole. A part of the next photo may follow them.
+      var whole = files.length;
+      if (resumePaths.length > whole) {
+        final partial = File(resumePaths[whole]);
+        if (partial.existsSync()) files.add(partial);
       }
-      for (var i = start; i < urls.length; i++) {
+      final resumed = files.length;
+      for (var i = whole; i < urls.length; i++) {
         final ext = _extOf(urls[i], fallback: 'jpg');
         // A name of its own: a file already there is another download's, and
         // saving onto it would be taken for the rest of that file.
@@ -76,8 +75,10 @@ class MediaDownloader {
             ? files[i]
             : _unique(folder, urls.length == 1 ? base : '$base-${i + 1}', ext);
         dest.parent.createSync(recursive: true);
+        // Where the photo is once it is whole; its ending may have been put right by then.
+        var landed = dest;
         try {
-          final file = _matchExtension(await net.save(
+          final file = landed = _matchExtension(await net.save(
             urls[i],
             dest,
             referer: extractor.refererFor(urls[i]),
@@ -93,17 +94,23 @@ class MediaDownloader {
           } else {
             files.add(file);
           }
+          whole = i + 1;
           onProgress((i + 1) / urls.length);
         } on PausedException {
+          // The photo that was under way is listed after the whole ones, and not counted with them.
           throw PausedException(
             paths: [
-              for (final file in files) file.path,
-              if (dest.existsSync() && (files.isEmpty || files.last.path != dest.path)) dest.path,
+              for (final file in files.take(whole)) file.path,
+              if (dest.existsSync()) dest.path,
             ],
-            completed: files.length,
+            completed: whole,
           );
         } on CancelledException {
           _deleteAll([...files, dest]);
+          rethrow;
+        } catch (_) {
+          // A failed job starts these over, so what this run added is not left in the way.
+          _deleteAll([...files.skip(resumed), if (i >= resumed) landed]);
           rethrow;
         }
       }
