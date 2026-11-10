@@ -13,11 +13,15 @@ class DoneSheet extends StatelessWidget {
     required this.photos,
     required this.onView,
     required this.onClose,
+    this.onePhoto = false,
     this.onShare,
   });
 
   final S s;
   final bool photos;
+
+  /// True when a single photo was saved, not an album.
+  final bool onePhoto;
   final VoidCallback onView;
   final VoidCallback onClose;
 
@@ -45,7 +49,7 @@ class DoneSheet extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      photos ? s.albumSaved : s.downloaded,
+                      photos ? (onePhoto ? s.photoSaved : s.albumSaved) : s.downloaded,
                       style: theme.textTheme.headlineMedium,
                       textAlign: TextAlign.center,
                     ),

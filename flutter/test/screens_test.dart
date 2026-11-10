@@ -649,11 +649,18 @@ void main() {
     expect(fourth.dy, first.dy, reason: 'at least four tiles share the first row');
   });
 
-  testWidgets('done dialog: confetti runs once, and not at all under reduce motion', (tester) async {
-    Widget dialog() => MaterialApp(
+  testWidgets('done dialog: confetti once, none under reduce motion, and the title counts the photos', (tester) async {
+    Widget dialog({bool photos = false, bool onePhoto = false}) => MaterialApp(
           theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
           home: Scaffold(
-            body: DoneSheet(s: const S('en'), photos: false, onView: () {}, onShare: () {}, onClose: () {}),
+            body: DoneSheet(
+              s: const S('en'),
+              photos: photos,
+              onePhoto: onePhoto,
+              onView: () {},
+              onShare: () {},
+              onClose: () {},
+            ),
           ),
         );
     await tester.pumpWidget(dialog());
@@ -666,6 +673,12 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(dialog());
     expect(find.byType(ConfettiBurst), findsNothing);
+
+    // The title counts: one photo is not "Photos".
+    await tester.pumpWidget(dialog(photos: true, onePhoto: true));
+    expect(find.text('Photo saved'), findsOneWidget);
+    await tester.pumpWidget(dialog(photos: true));
+    expect(find.text('Photos saved'), findsOneWidget);
   });
 
   testWidgets('accessibility guidelines: tap targets, labels and text contrast', (tester) async {

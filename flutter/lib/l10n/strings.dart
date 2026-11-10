@@ -134,6 +134,7 @@ class S {
   String get updateAvailable => _t('A new version is out', 'في إصدار جديد');
   String get updateNow => _t('Update', 'حدّث');
   String get albumSaved => _t('Photos saved', 'الصور انحفظت');
+  String get photoSaved => _t('Photo saved', 'الصورة انحفظت');
   String get view => _t('View', 'عرض');
   String get youtube => 'YouTube';
   String get tiktok => _t('TikTok', 'تيك توك');

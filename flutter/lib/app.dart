@@ -112,6 +112,7 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
           builder: (dialog) => DoneSheet(
             s: s,
             photos: done.kind == MediaKind.photo,
+            onePhoto: done.kind == MediaKind.photo && !done.isAlbum,
             onView: () {
               Navigator.pop(dialog);
               widget.controller.dismissSheets();
