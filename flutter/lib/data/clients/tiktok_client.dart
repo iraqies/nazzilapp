@@ -20,6 +20,7 @@ class TikTokClient {
         return parse(await _request(pageUrl), pageUrl);
       } catch (error) {
         last = error;
+        if (error.toString().toLowerCase().contains('url parsing is failed')) break;
         final limit = error.toString().toLowerCase().contains('limit');
         await Future<void>.delayed(
           Duration(milliseconds: i == 0 ? 900 : limit ? 1500 : 600),
@@ -29,6 +30,7 @@ class TikTokClient {
     try {
       return await _fromHtml(pageUrl);
     } catch (error) {
+      if (error is StateError && error.message == goneMessage) rethrow;
       throw last ?? error;
     }
   }
@@ -91,11 +93,10 @@ class TikTokClient {
     final id = (data['id']?.toString().isNotEmpty == true)
         ? data['id'].toString()
         : (LinkParser.tiktokId(pageUrl) ?? DateTime.now().millisecondsSinceEpoch.toString());
-    final title = (data['title'] as String?)?.trim().isNotEmpty == true
-        ? data['title'] as String
-        : photos.isNotEmpty
-            ? 'TikTok photos'
-            : 'TikTok video';
+    final title = cleanTitle(
+      data['title'] as String? ?? '',
+      fallback: photos.isNotEmpty ? 'TikTok photos' : 'TikTok video',
+    );
 
     final options = <QualityOption>[];
     if (photos.isNotEmpty) {
@@ -158,7 +159,12 @@ class TikTokClient {
 
   Future<MediaInfo> _fromHtml(String pageUrl) async {
     final resolved = await LinkParser.resolve(pageUrl);
+    final postId = LinkParser.tiktokId(resolved);
+    // Dead or private links land on the home page, whose feed would otherwise
+    // be read as this post.
+    if (postId == null) throw StateError(goneMessage);
     final html = await net.get(resolved, userAgent: NetHints.desktopUa);
+    if (!pageIsPost(html, postId)) throw StateError(goneMessage);
     final photos = _photosFromHtml(html);
     final play = firstGroup(html, [
       RegExp(r'"playAddr"\s*:\s*"([^"]+)"'),
@@ -170,8 +176,7 @@ class TikTokClient {
     ]);
     final title = og(html, 'title') ?? 'TikTok';
     final cover = og(html, 'image');
-    final id = LinkParser.tiktokId(resolved) ??
-        DateTime.now().millisecondsSinceEpoch.toString();
+    final id = postId;
     final options = <QualityOption>[];
     if (photos.isNotEmpty) {
       options.add(QualityOption(
@@ -202,6 +207,12 @@ class TikTokClient {
       options: options,
       photos: photos,
     );
+  }
+
+  static const goneMessage = 'This TikTok post is gone or private.';
+
+  static bool pageIsPost(String html, String postId) {
+    return RegExp('"(?:id|itemId|aweme_id)"\\s*:\\s*"$postId"').hasMatch(html);
   }
 
   List<String> _photoUrls(dynamic raw) {
