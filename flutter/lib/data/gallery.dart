@@ -6,11 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'host.dart';
+import 'platforms.dart';
 
 class GalleryService {
   static const album = 'Nazzil';
 
   Future<bool> ensureAccess({required bool images}) async {
+    if (!Platforms.mobile) return true;
     final granted = await Gal.requestAccess(toAlbum: true);
     if (granted) return true;
     if (Platform.isAndroid) {
@@ -22,6 +24,7 @@ class GalleryService {
   }
 
   Future<void> saveFile(File file, {required bool image}) async {
+    if (!Platforms.mobile) return _toDownloads(file);
     try {
       if (image) {
         await Gal.putImage(file.path, album: album);
@@ -37,6 +40,7 @@ class GalleryService {
   /// on Android and to the app's Documents/Nazzil folder (shown in the Files
   /// app) on iOS.
   Future<void> saveAudio(File file) async {
+    if (!Platforms.mobile) return _toDownloads(file);
     try {
       if (Platform.isAndroid) {
         await DownloadHost.saveAudio(file.path);
@@ -45,6 +49,17 @@ class GalleryService {
         await folder.create(recursive: true);
         await file.copy(_free(folder, p.basename(file.path)).path);
       }
+    } catch (_) {}
+  }
+
+  /// Desktops have no gallery, so every download lands in Downloads/Nazzil.
+  Future<void> _toDownloads(File file) async {
+    try {
+      final downloads = await getDownloadsDirectory() ??
+          Directory(p.join(Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '.', 'Downloads'));
+      final folder = Directory(p.join(downloads.path, album));
+      await folder.create(recursive: true);
+      await file.copy(_free(folder, p.basename(file.path)).path);
     } catch (_) {}
   }
 

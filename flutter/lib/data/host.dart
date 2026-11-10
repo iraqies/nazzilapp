@@ -1,4 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'id3.dart';
+import 'platforms.dart';
 
 class DownloadHost {
   static const _ch = MethodChannel('nazzil/host');
@@ -9,6 +15,7 @@ class DownloadHost {
     required Future<void> Function() onResume,
     required Future<void> Function() onCancel,
   }) {
+    if (!Platforms.mobile) return;
     _ch.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'opened':
@@ -36,44 +43,32 @@ class DownloadHost {
     }();
   }
 
-  static Future<void> start({String title = 'Nazzil', int percent = 1}) async {
+  static Future<void> _notify(String method, [Map<String, Object?>? args]) async {
+    if (!Platforms.mobile) return;
     try {
-      await _ch.invokeMethod<void>('start', {'title': title, 'percent': percent});
+      await _ch.invokeMethod<void>(method, args);
     } catch (_) {}
   }
 
-  static Future<void> progress(String title, int percent) async {
-    try {
-      await _ch.invokeMethod<void>('progress', {'title': title, 'percent': percent});
-    } catch (_) {}
-  }
+  static Future<void> start({String title = 'Nazzil', int percent = 1}) =>
+      _notify('start', {'title': title, 'percent': percent});
 
-  static Future<void> paused(String title, int percent) async {
-    try {
-      await _ch.invokeMethod<void>('paused', {'title': title, 'percent': percent});
-    } catch (_) {}
-  }
+  static Future<void> progress(String title, int percent) => _notify('progress', {'title': title, 'percent': percent});
 
-  static Future<void> done(String title, {String? path}) async {
-    try {
-      await _ch.invokeMethod<void>('done', {'title': title, 'path': path});
-    } catch (_) {}
-  }
+  static Future<void> paused(String title, int percent) => _notify('paused', {'title': title, 'percent': percent});
 
-  static Future<void> failed(String message) async {
-    try {
-      await _ch.invokeMethod<void>('failed', {'message': message});
-    } catch (_) {}
-  }
+  static Future<void> done(String title, {String? path}) => _notify('done', {'title': title, 'path': path});
 
-  static Future<void> stop() async {
-    try {
-      await _ch.invokeMethod<void>('stop');
-    } catch (_) {}
-  }
+  static Future<void> failed(String message) => _notify('failed', {'message': message});
+
+  static Future<void> stop() => _notify('stop');
 
   static Future<void> openFile(String path) async {
-    await _ch.invokeMethod<void>('openFile', {'path': path});
+    if (Platforms.mobile) {
+      await _ch.invokeMethod<void>('openFile', {'path': path});
+    } else {
+      await launchUrl(Uri.file(path));
+    }
   }
 
   static Future<String?> saveAudio(String path) {
@@ -88,6 +83,9 @@ class DownloadHost {
     String? lyricsPlain,
     String? lyricsSynced,
   }) async {
+    if (!Platforms.mobile) {
+      return _tagInDart(path, title, author, coverPath, lyricsPlain, lyricsSynced);
+    }
     try {
       return await _ch.invokeMethod<String>('tagAudio', {
         'path': path,
@@ -99,6 +97,36 @@ class DownloadHost {
       });
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Desktop songs are always MP3 (FFmpeg converts them), so ID3 is enough.
+  static Future<String?> _tagInDart(
+    String path,
+    String title,
+    String? author,
+    String? coverPath,
+    String? lyricsPlain,
+    String? lyricsSynced,
+  ) async {
+    try {
+      final file = File(path);
+      if (!path.toLowerCase().endsWith('.mp3') || !file.existsSync()) return path;
+      List<int>? jpeg;
+      if (coverPath != null && File(coverPath).existsSync()) {
+        final raw = await File(coverPath).readAsBytes();
+        if (raw.length > 400 && raw[0] == 0xFF && raw[1] == 0xD8) jpeg = raw;
+      }
+      Id3Tag(
+        title: title,
+        artist: author,
+        jpeg: jpeg,
+        plainLyrics: lyricsPlain,
+        syncedLyrics: lyricsSynced,
+      ).writeTo(file);
+      return path;
+    } catch (_) {
+      return path;
     }
   }
 }

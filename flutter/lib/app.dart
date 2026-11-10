@@ -10,6 +10,7 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/library_screen.dart';
 import 'ui/screens/settings_screen.dart';
 import 'ui/screens/viewer_screen.dart';
+import 'ui/widgets/desktop_input.dart';
 import 'ui/widgets/done_sheet.dart';
 import 'ui/widgets/glow_backdrop.dart';
 
@@ -101,10 +102,7 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
             onView: () {
               Navigator.pop(context);
               widget.controller.dismissSheets();
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(builder: (_) => ViewerScreen(item: done)),
-              );
+              Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ViewerScreen(item: done)));
             },
             onShare: () {
               Navigator.pop(context);
@@ -144,10 +142,7 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
               onPressed: () {
                 Navigator.pop(context);
                 widget.controller.dismissSheets();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(builder: (_) => ViewerScreen(item: dup)),
-                );
+                Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ViewerScreen(item: dup)));
               },
               child: Text(dup.kind == MediaKind.photo ? s.view : s.play),
             ),
@@ -162,62 +157,69 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
     final controller = widget.controller;
     final s = controller.s;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: Theme.of(context).brightness == Brightness.dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      value: Theme.of(context).brightness == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: GlowBackdrop(
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 6, 10, 6),
-                  child: Row(
+            child: DesktopInput(
+              controller: controller,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Column(
                     children: [
-                      const Mark(),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _settings ? s.settings : s.appName,
-                          style: Theme.of(context).textTheme.titleLarge,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 6, 10, 6),
+                        child: Row(
+                          children: [
+                            const Mark(),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _settings ? s.settings : s.appName,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                            Text(
+                              controller.downloading
+                                  ? (controller.queuedCount > 0
+                                        ? '${s.downloading} · ${s.waitingN(controller.queuedCount)}'
+                                        : s.downloading)
+                                  : controller.library.any((e) => e.paused)
+                                  ? s.paused
+                                  : controller.loading
+                                  ? s.fetching
+                                  : s.ready,
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color:
+                                    controller.downloading ||
+                                        controller.loading ||
+                                        controller.library.any((e) => e.paused)
+                                    ? NazzilColors.rose
+                                    : NazzilColors.mint,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => setState(() => _settings = !_settings),
+                              icon: Icon(_settings ? Icons.arrow_back_rounded : Icons.settings_outlined),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        controller.downloading
-                            ? (controller.queuedCount > 0
-                                ? '${s.downloading} · ${s.waitingN(controller.queuedCount)}'
-                                : s.downloading)
-                            : controller.library.any((e) => e.paused)
-                                ? s.paused
-                            : controller.loading
-                                ? s.fetching
-                                : s.ready,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: controller.downloading ||
-                                      controller.loading ||
-                                      controller.library.any((e) => e.paused)
-                                  ? NazzilColors.rose
-                                  : NazzilColors.mint,
-                              fontWeight: FontWeight.w700,
-                            ),
+                      Expanded(
+                        child: _settings
+                            ? SettingsScreen(controller: controller)
+                            : controller.tab == 0
+                            ? HomeScreen(controller: controller)
+                            : LibraryScreen(controller: controller),
                       ),
-                      IconButton(
-                        onPressed: () => setState(() => _settings = !_settings),
-                        icon: Icon(_settings ? Icons.arrow_back_rounded : Icons.settings_outlined),
-                      ),
+                      if (!_settings) _Tabs(controller: controller, s: s),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: _settings
-                      ? SettingsScreen(controller: controller)
-                      : controller.tab == 0
-                          ? HomeScreen(controller: controller)
-                          : LibraryScreen(controller: controller),
-                ),
-                if (!_settings) _Tabs(controller: controller, s: s),
-              ],
+              ),
             ),
           ),
         ),
@@ -234,10 +236,7 @@ class _Tabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final items = [
-      (s.home, Icons.home_outlined),
-      (s.library, Icons.photo_library_outlined),
-    ];
+    final items = [(s.home, Icons.home_outlined), (s.library, Icons.photo_library_outlined)];
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: DecoratedBox(
@@ -276,9 +275,8 @@ class _Tabs extends StatelessWidget {
                             const SizedBox(width: 6),
                             Text(
                               items[i].$1,
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: controller.tab == i ? Colors.white : scheme.onSurfaceVariant,
-                                  ),
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(color: controller.tab == i ? Colors.white : scheme.onSurfaceVariant),
                             ),
                           ],
                         ),

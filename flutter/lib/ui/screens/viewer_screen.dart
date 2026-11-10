@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../data/downloader.dart';
+import '../../data/host.dart';
+import '../../data/platforms.dart';
 import '../../models/media.dart';
 import '../../theme/nazzil_theme.dart';
 
@@ -22,7 +24,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.item.kind != MediaKind.photo) {
+    if (widget.item.kind != MediaKind.photo && Platforms.inAppVideo) {
       final path = widget.item.primaryPath;
       if (path != null && File(path).existsSync()) {
         _player = VideoPlayerController.file(File(path))
@@ -68,6 +70,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             onPageChanged: (i) => setState(() => _index = i),
             itemBuilder: (context, i) {
               if (isVideoFile(File(paths[i]))) {
+                if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i]);
                 return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index);
               }
               return InteractiveViewer(
@@ -99,6 +102,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Widget _video() {
+    if (!Platforms.inAppVideo) {
+      final path = widget.item.primaryPath;
+      if (path == null) return const SizedBox.shrink();
+      return _ExternalVideo(path: path);
+    }
     final player = _player;
     if (player == null || !player.value.isInitialized) {
       return const Center(child: CircularProgressIndicator(color: NazzilColors.rose));
@@ -176,6 +184,34 @@ class _AlbumVideoState extends State<_AlbumVideo> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ExternalVideo extends StatelessWidget {
+  const _ExternalVideo({required this.path});
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            iconSize: 88,
+            color: NazzilColors.rose,
+            icon: const Icon(Icons.play_circle),
+            onPressed: () => DownloadHost.openFile(path),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            path.split(Platform.pathSeparator).last,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }

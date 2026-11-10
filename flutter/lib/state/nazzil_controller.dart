@@ -16,6 +16,7 @@ import '../data/inbound_share.dart';
 import '../data/library_store.dart';
 import '../data/link_parser.dart';
 import '../data/net.dart';
+import '../data/platforms.dart';
 import '../data/settings_store.dart';
 import '../data/update_checker.dart';
 import '../l10n/strings.dart';
@@ -411,7 +412,7 @@ class NazzilController extends ChangeNotifier {
     if (_pumping) return;
     _pumping = true;
     try {
-      await Permission.notification.request();
+      if (Platforms.mobile) await Permission.notification.request();
       while (true) {
         final job = libraryStore.nextQueued(library);
         if (job == null) break;
