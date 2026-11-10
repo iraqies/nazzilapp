@@ -82,14 +82,3 @@ androidComponents {
         }
     }
 }
-
-tasks.register<Exec>("stitchReleaseApk") {
-    workingDir = rootProject.projectDir.parentFile
-    commandLine("python3", "tool/pack_apk.py")
-}
-
-afterEvaluate {
-    tasks.named("assembleRelease").configure {
-        finalizedBy("stitchReleaseApk")
-    }
-}
