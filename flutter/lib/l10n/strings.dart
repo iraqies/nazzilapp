@@ -87,25 +87,29 @@ class S {
   String get alreadyHave => _t('You already have this', 'هذا نازل عندك');
   String get alreadyHaveBody =>
       _t(_pc ? 'This file is still on this computer.' : 'This file is still on your phone.', 'الملف بعد موجود على جهازك.');
-  String get missingFile => _pc ? _t('File was removed', 'الملف انحذف') : _t('Removed from gallery', 'انحذف من المعرض');
-  String get fileGone => _t(
-        _pc ? 'This file is no longer on this computer.' : 'This file is no longer in your gallery.',
-        'الملف بعد ما موجود على جهازك.',
-      );
+  // Nazzil tracks only its own copy, so these say nothing about the gallery or Downloads.
+  String get missingFile => _t('File was removed', 'الملف انحذف');
+  String get fileGone => _t("Nazzil's copy of this file is gone.", 'نسخة نزل من الملف راحت.');
   String get downloadAgain => _t('Download again', 'نزّله مرة ثانية');
   String get cantPlay => _t('This video will not play here.', 'الفيديو ما يشتغل هنا.');
   String get cantOpen => _pc
       ? _t(
-          'Nothing on this computer could open it. The file is in Downloads/Nazzil.',
-          'ماكو برنامج بجهازك يفتحه. الملف بمجلد Nazzil بالتنزيلات.',
+          'Nothing on this computer could open it. It was saved to Downloads/Nazzil.',
+          'ماكو برنامج بجهازك يفتحه. انحفظ بمجلد Nazzil بالتنزيلات.',
         )
       : _t('No app on this phone could open it.', 'ماكو تطبيق بتلفونك يفتحه.');
   String get photoFailed => _t('Could not load this photo.', 'ما كدرت أجيب الصورة.');
   String get deleteTitle => _t('Delete this download?', 'تحذف هذا التنزيل؟');
-  String get deleteBody => _t(
-        _pc ? 'The saved file is removed from this computer too.' : 'The saved file is removed from your gallery too.',
-        'الملف المحفوظ ينحذف من جهازك هم.',
-      );
+  // Delete removes the copy Nazzil keeps for itself and nothing else.
+  String get deleteBody => _pc
+      ? _t(
+          'Nazzil deletes its own copy. Downloads/Nazzil is left as it is.',
+          'نزل يحذف نسخته بس. مجلد Nazzil بالتنزيلات يبقى مثل ما هو.',
+        )
+      : _t(
+          'Nazzil deletes its own copy. Your gallery and files are left as they are.',
+          'نزل يحذف نسخته بس. المعرض وملفاتك يبقون مثل ما همّ.',
+        );
   String get queued => _t('Waiting', 'بالانتظار');
   String get clipOffer => _t('A supported link is on your clipboard', 'في رابط مدعوم بالنسخ');
   String get fetchThis => _t('Fetch this', 'جيب هذا');

@@ -395,6 +395,7 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(find.text('Delete this download?'), findsOneWidget);
+    expect(find.text('Nazzil deletes its own copy. Downloads/Nazzil is left as it is.'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(controller.library.length, 2);
@@ -437,7 +438,7 @@ void main() {
     expect(find.text('Share'), findsNothing);
     await tester.tap(find.text('Open file'));
     await tester.pumpAndSettle();
-    expect(find.text('Nothing on this computer could open it. The file is in Downloads/Nazzil.'), findsOneWidget);
+    expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.textContaining('Nothing on this computer'), findsNothing);
@@ -455,7 +456,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('This file is no longer on this computer.'), findsOneWidget);
+      expect(find.text("Nazzil's copy of this file is gone."), findsOneWidget);
       expect(find.text('Download again'), findsOneWidget);
       expect(find.text('Original'), findsOneWidget);
     }
@@ -483,7 +484,7 @@ void main() {
     await tester.tap(find.byTooltip('Play'));
     await tester.pumpAndSettle();
     expect(asked.single, endsWith('/clip.mp4'));
-    expect(find.text('Nothing on this computer could open it. The file is in Downloads/Nazzil.'), findsOneWidget);
+    expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
   });
 
   testWidgets('converting: the label says so and Pause goes, since nothing is left to pause', (tester) async {
