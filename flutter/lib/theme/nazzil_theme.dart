@@ -214,6 +214,7 @@ class NazzilTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: type.bodyMedium?.copyWith(color: scheme.onInverseSurface),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.control)),
