@@ -180,7 +180,8 @@ class LibraryScreen extends StatelessWidget {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.photo_library_outlined),
+                    // A phone opens its gallery here; a computer hands the file to another app.
+                    leading: Icon(Platforms.desktop ? Icons.open_in_new_rounded : Icons.photo_library_outlined),
                     title: Text(s.openGallery),
                     onTap: () async {
                       final messenger = ScaffoldMessenger.of(context);

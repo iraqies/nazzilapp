@@ -471,6 +471,11 @@ void main() {
     await tester.pumpAndSettle();
     // share_plus throws for files on Linux, where these tests run.
     expect(find.text('Share'), findsNothing);
+    // A video is not a stack of photos: on a computer the row shows "opens elsewhere".
+    expect(
+      find.descendant(of: find.widgetWithText(ListTile, 'Open file'), matching: find.byIcon(Icons.open_in_new_rounded)),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Open file'));
     await tester.pumpAndSettle();
     expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
