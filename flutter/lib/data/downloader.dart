@@ -114,10 +114,14 @@ class MediaDownloader {
       return _downloadJoined(url, audioUrl, folder, base, onProgress, resumePaths);
     }
     final isAudio = option.kind == MediaKind.audio;
+    final song = LyricsClient.splitNames(media.title, media.author);
+    final songBase = LinkParser.sanitizeFilename(
+      song.artist.isEmpty ? song.track : '${song.artist} - ${song.track}',
+    );
     final ext = option.ext.isEmpty ? 'mp4' : option.ext;
     final dest = resumePaths.isNotEmpty
         ? File(resumePaths.first)
-        : _unique(folder, isAudio ? '$base-source' : base, ext);
+        : _unique(folder, isAudio ? '$songBase-source' : base, ext);
     dest.parent.createSync(recursive: true);
     File file;
     try {
@@ -138,9 +142,9 @@ class MediaDownloader {
     onProgress(0.9);
     try {
       if (isAudio) {
-        file = await _toMp3(file, _unique(folder, base, 'mp3'));
+        file = await _toMp3(file, _unique(folder, songBase, 'mp3'), song);
         onProgress(0.93);
-        file = await _tagAudio(file, media);
+        file = await _tagAudio(file, media, song);
       }
       onProgress(0.95);
       if (!await gallery.ensureAccess(images: option.kind != MediaKind.video)) {
@@ -255,6 +259,26 @@ class MediaDownloader {
     }
   }
 
+  /// Removes what interrupted downloads left in the media folder. Names are
+  /// compared, not full paths, because Android reports the same folder as
+  /// both /data/user/0 and /data/data.
+  Future<void> sweep(Iterable<LibraryItem> items) async {
+    final folder = Directory(p.join((await getApplicationSupportDirectory()).path, 'media'));
+    if (!folder.existsSync()) return;
+    final keep = <String>{
+      for (final item in items) ...[
+        ...item.paths.map(p.basename),
+        if (item.thumbnail != null) p.basename(item.thumbnail!),
+      ],
+    };
+    for (final entry in folder.listSync()) {
+      if (keep.contains(p.basename(entry.path))) continue;
+      try {
+        entry.deleteSync(recursive: true);
+      } catch (_) {}
+    }
+  }
+
   void _deleteAll(Iterable<File> files) {
     for (final file in files) {
       if (file.existsSync()) {
@@ -265,16 +289,16 @@ class MediaDownloader {
     }
   }
 
-  Future<File> _toMp3(File source, File target) async {
+  Future<File> _toMp3(File source, File target, ({String track, String artist}) song) async {
     if (FfmpegArgs.isMp3(source)) return source.renameSync(target.path);
     try {
-      return await converter.toMp3(source, target);
+      return await converter.toMp3(source, target, title: song.track, artist: song.artist);
     } finally {
       _deleteAll([source]);
     }
   }
 
-  Future<File> _tagAudio(File audio, MediaInfo media) async {
+  Future<File> _tagAudio(File audio, MediaInfo media, ({String track, String artist}) song) async {
     File? cover;
     try {
       cover = await _coverFile(media);
@@ -290,8 +314,8 @@ class MediaDownloader {
       } catch (_) {}
       final tagged = await DownloadHost.tagAudio(
         path: audio.path,
-        title: media.title,
-        author: media.author,
+        title: song.track,
+        author: song.artist.isEmpty ? media.author : song.artist,
         coverPath: cover?.path,
         lyricsPlain: lyrics?.plain,
         lyricsSynced: lyrics?.synced,
@@ -316,10 +340,10 @@ class MediaDownloader {
   }
 
   Future<File?> _coverFile(MediaInfo media) async {
-    final urls = <String>[
-      if (media.thumbnail != null && media.thumbnail!.startsWith('http')) media.thumbnail!,
+    final urls = <String>{
       ..._youtubeCovers(media.webpageUrl),
-    ];
+      if (media.thumbnail != null && media.thumbnail!.startsWith('http')) media.thumbnail!,
+    };
     if (urls.isEmpty) return null;
     final folder = Directory(p.join((await getTemporaryDirectory()).path, 'covers'));
     await folder.create(recursive: true);
@@ -340,11 +364,12 @@ class MediaDownloader {
   List<String> _youtubeCovers(String pageUrl) {
     final id = LinkParser.youtubeId(pageUrl);
     if (id == null) return const [];
+    // maxres and mq are true 16:9; sd and hq are 4:3 with black bars.
     return [
-      'https://i.ytimg.com/vi/$id/hqdefault.jpg',
-      'https://i.ytimg.com/vi/$id/sddefault.jpg',
-      'https://i.ytimg.com/vi/$id/mqdefault.jpg',
       'https://i.ytimg.com/vi/$id/maxresdefault.jpg',
+      'https://i.ytimg.com/vi/$id/sddefault.jpg',
+      'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+      'https://i.ytimg.com/vi/$id/mqdefault.jpg',
     ];
   }
 

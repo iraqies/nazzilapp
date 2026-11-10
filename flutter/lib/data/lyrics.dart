@@ -63,17 +63,33 @@ class LyricsClient {
   LyricsHit? _hit(String raw) {
     final json = jsonDecode(raw);
     if (json is! Map) return null;
-    final synced = (json['syncedLyrics'] as String?)?.trim();
+    final synced = lineSynced(json['syncedLyrics'] as String?);
     var plain = (json['plainLyrics'] as String?)?.trim();
     if ((plain == null || plain.isEmpty) && synced != null) {
       plain = synced
           .split('\n')
-          .map((line) => line.replaceFirst(RegExp(r'^\[\d.+\s*'), ''))
-          .where((line) => line.trim().isNotEmpty)
+          .map((line) => line.replaceFirst(_lineStamps, '').trim())
+          .where((line) => line.isNotEmpty && !line.startsWith('['))
           .join('\n');
     }
     if ((plain == null || plain.isEmpty) && (synced == null || synced.isEmpty)) return null;
     return LyricsHit(plain: plain ?? '', synced: synced);
+  }
+
+  static final _lineStamps = RegExp(r'^(\[\d+:\d+(?:[.:]\d+)?\]\s*)+');
+  static final _wordStamps = RegExp(r'<\d+:\d+(?:[.:]\d+)?>\s*');
+
+  /// Word-by-word "<mm:ss.xx>" marks are an LRC extension most players print
+  /// as text, so only the line times are kept.
+  static String? lineSynced(String? lrc) {
+    final text = lrc?.trim();
+    if (text == null || text.isEmpty) return null;
+    final lines = [
+      for (final line in text.split(RegExp(r'\r?\n')))
+        line.replaceAll(_wordStamps, '').replaceAll(RegExp(r'\s+$'), ''),
+    ];
+    final out = lines.join('\n').trim();
+    return out.isEmpty ? null : out;
   }
 
   static ({String track, String artist}) splitNames(String title, String? author) {
@@ -94,10 +110,14 @@ class LyricsClient {
         )
         .trim()
         .replaceAll(RegExp(r'''^["'\-–—]+|["'\-–—]+$'''), '');
-    var artist = author?.split(',').first.split(' - ').first.trim() ?? '';
+    var artist = (author?.split(',').first.split(' - ').first.trim() ?? '')
+        .replaceFirst(RegExp(r'\s*(VEVO|Official|Topic)$', caseSensitive: false), '')
+        .trim();
     final parts = track.split(RegExp(r'\s+[-–—]\s+'));
-    if (parts.length == 2) {
-      if (artist.isEmpty) artist = parts[0].trim();
+    if (parts.length == 2 && parts[0].trim().isNotEmpty && parts[1].trim().isNotEmpty) {
+      // Labels and fan channels upload as "Artist - Song", so the title
+      // names the singer better than the channel does.
+      artist = parts[0].trim();
       track = parts[1].trim();
     }
     return (track: track.isEmpty ? title.trim() : track, artist: artist);

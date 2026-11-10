@@ -6,7 +6,7 @@ import 'dart:io';
 class FfmpegArgs {
   /// Tags are written afterwards by [DownloadHost.tagAudio], so the source's
   /// own metadata (YouTube titles, encoder names) is dropped here.
-  static List<String> mp3(String input, String output) => [
+  static List<String> mp3(String input, String output, {String? title, String? artist}) => [
         '-y',
         '-hide_banner',
         '-nostdin',
@@ -17,6 +17,8 @@ class FfmpegArgs {
         '-vn',
         '-map_metadata',
         '-1',
+        if (title != null && title.isNotEmpty) ...['-metadata', 'title=$title'],
+        if (artist != null && artist.isNotEmpty) ...['-metadata', 'artist=$artist'],
         '-c:a',
         'libmp3lame',
         '-b:a',

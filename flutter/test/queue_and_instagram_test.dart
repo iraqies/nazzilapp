@@ -195,4 +195,34 @@ void main() {
     expect(names.track.toLowerCase(), contains('song'));
     expect(names.artist, isNotEmpty);
   });
+
+  test('song names come from the title, not the uploading channel', () {
+    final rick = LyricsClient.splitNames(
+      'Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)',
+      'Rick Astley',
+    );
+    expect(rick.track, 'Never Gonna Give You Up');
+    expect(rick.artist, 'Rick Astley');
+    final label = LyricsClient.splitNames('Juice WRLD - Lucid Dreams (Official Audio)', 'Lyrical Lemonade');
+    expect(label.artist, 'Juice WRLD');
+    expect(label.track, 'Lucid Dreams');
+    final vevo = LyricsClient.splitNames('Hello', 'AdeleVEVO');
+    expect(vevo.artist, 'Adele');
+    expect(vevo.track, 'Hello');
+  });
+
+  test('word-by-word lyric timings are dropped, line timings kept', () {
+    const lrc = "[00:18.89] <00:18.89>We're <00:19.25>no <00:19.53>strangers\n"
+        '[00:22.82]<00:22.82>You <00:23.23>know';
+    expect(LyricsClient.lineSynced(lrc), "[00:18.89] We're no strangers\n[00:22.82]You know");
+    expect(LyricsClient.lineSynced('  '), isNull);
+  });
+
+  test('plain lyrics are rebuilt from synced ones when missing', () async {
+    final client = LyricsClient((uri) async => '{"syncedLyrics":"[ar:Rick]\\n[00:01.00]Line one\\n[00:02.50][00:09.00] <00:02.50>Line two","plainLyrics":null}');
+    final hit = await client.find('Rick Astley - Song', null, null);
+    expect(hit, isNotNull);
+    expect(hit!.plain, 'Line one\nLine two');
+    expect(hit.synced, contains('[00:02.50][00:09.00] Line two'));
+  });
 }

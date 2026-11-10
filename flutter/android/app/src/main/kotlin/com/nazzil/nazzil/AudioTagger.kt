@@ -21,7 +21,6 @@ object AudioTagger {
             val file = namedForFormat(audio)
             val jpeg = loadJpeg(coverPath)
             val lyrics = Lyrics(lyricsPlain?.trim().orEmpty(), lyricsSynced?.trim()?.ifBlank { null })
-            if (jpeg == null && lyrics.forTag.isBlank()) return file
             val meta = TagMeta(title, author, jpeg, lyrics.takeIf { it.forTag.isNotBlank() })
             val tagged = when (sniff(file)) {
                 Format.MP4 -> embedM4a(file, meta) ?: file
@@ -32,8 +31,6 @@ object AudioTagger {
                     else -> file
                 }
             }
-            jpeg?.let { File(tagged.parentFile, "${tagged.name}.cover").writeBytes(it) }
-            lyrics.synced?.let { File(tagged.parentFile, "${tagged.nameWithoutExtension}.lrc").writeText(it) }
             tagged
         } catch (error: Exception) {
             Log.w("Nazzil", "audio tag failed", error)
@@ -51,7 +48,27 @@ object AudioTagger {
         if (!file.exists() || file.length() < 32) return null
         val raw = file.readBytes()
         val bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.size) ?: return raw.takeIf { it.size >= 400 }
-        return toJpeg(bitmap) ?: raw.takeIf { it.size >= 400 }
+        return toJpeg(withoutBars(bitmap)) ?: raw.takeIf { it.size >= 400 }
+    }
+
+    /** YouTube's 4:3 thumbnails pad 16:9 videos with black bands top and bottom. */
+    private fun withoutBars(bitmap: Bitmap): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        val band = (h - w * 9 / 16) / 2
+        if (w < 16 || band < h / 16) return bitmap
+        fun dark(y: Int): Boolean {
+            val row = IntArray(w)
+            bitmap.getPixels(row, 0, w, 0, y, w, 1)
+            return row.all { px ->
+                ((px shr 16) and 0xFF) < 24 && ((px shr 8) and 0xFF) < 24 && (px and 0xFF) < 24
+            }
+        }
+        val probes = listOf(band / 4, band / 2, band - 2)
+        if (!probes.all { dark(it) && dark(h - 1 - it) }) return bitmap
+        val cropped = Bitmap.createBitmap(bitmap, 0, band, w, h - band * 2)
+        if (cropped !== bitmap) bitmap.recycle()
+        return cropped
     }
 
     private fun toJpeg(bitmap: Bitmap): ByteArray? {

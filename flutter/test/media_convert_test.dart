@@ -11,6 +11,9 @@ void main() {
     expect(args, containsAllInOrder(['-i', 'in.webm', '-map', '0:a:0', '-vn']));
     expect(args, containsAllInOrder(['-c:a', 'libmp3lame', '-b:a', '320k']));
     expect(args.last, 'out.mp3');
+    expect(args, isNot(contains('-metadata')));
+    final named = FfmpegArgs.mp3('in.webm', 'out.mp3', title: 'Song', artist: 'Singer');
+    expect(named, containsAllInOrder(['-metadata', 'title=Song', '-metadata', 'artist=Singer', '-c:a']));
   });
 
   test('join command copies video and sound without re-encoding', () {

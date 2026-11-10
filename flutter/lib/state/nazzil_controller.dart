@@ -110,6 +110,9 @@ class NazzilController extends ChangeNotifier {
     settings = await settingsStore.load();
     library = libraryStore.recoverInterrupted(await libraryStore.all());
     await libraryStore.save(library);
+    try {
+      await downloader.sweep(library);
+    } catch (_) {}
     localVersion = await updates.current();
     DownloadHost.bind(
       onOpened: (openLibrary) {

@@ -6,8 +6,11 @@ import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
 import 'ffmpeg_args.dart';
 
 class MediaConverter {
-  Future<File> toMp3(File input, File output) =>
-      _run(FfmpegArgs.mp3(input.path, output.path), output, 'Could not turn this into an MP3.');
+  Future<File> toMp3(File input, File output, {String? title, String? artist}) => _run(
+        FfmpegArgs.mp3(input.path, output.path, title: title, artist: artist),
+        output,
+        'Could not turn this into an MP3.',
+      );
 
   Future<File> join(File video, File audio, File output) =>
       _run(FfmpegArgs.join(video.path, audio.path, output.path), output, 'Could not put the video and sound together.');
