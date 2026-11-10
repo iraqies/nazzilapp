@@ -189,7 +189,7 @@ class RedditClient {
           }
           continue;
         }
-        final original = _original(item['media_id'].toString(), meta['m']?.toString());
+        final original = _original(item['media_id'].toString(), meta['m']?.toString(), source['u']?.toString());
         final url = original ?? source['u']?.toString();
         if (url != null) urls.add(url);
       }
@@ -233,13 +233,20 @@ class RedditClient {
     );
   }
 
-  static String? _original(String mediaId, String? mime) {
-    final ext = switch (mime) {
-      'image/jpg' || 'image/jpeg' => 'jpg',
-      'image/png' => 'png',
-      'image/webp' => 'webp',
-      _ => null,
-    };
+  /// i.redd.it only answers with the exact extension the file was uploaded
+  /// with (.jpeg and .jpg are different files); the preview URL carries it.
+  static String? _original(String mediaId, String? mime, String? previewUrl) {
+    final fromPreview = previewUrl == null
+        ? null
+        : RegExp(r'\.(jpe?g|png|webp|gif)$', caseSensitive: false).firstMatch(Uri.tryParse(previewUrl)?.path ?? '')?.group(1)?.toLowerCase();
+    final ext = fromPreview ??
+        switch (mime) {
+          'image/jpg' => 'jpg',
+          'image/jpeg' => 'jpeg',
+          'image/png' => 'png',
+          'image/webp' => 'webp',
+          _ => null,
+        };
     return ext == null ? null : 'https://i.redd.it/$mediaId.$ext';
   }
 

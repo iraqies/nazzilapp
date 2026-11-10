@@ -103,16 +103,18 @@ void main() {
             'items': [
               {'media_id': 'bbb'},
               {'media_id': 'aaa'},
+              {'media_id': 'ccc'},
             ],
           },
           'media_metadata': {
             'aaa': {'status': 'valid', 'e': 'Image', 'm': 'image/png', 's': {'u': 'https://preview.redd.it/aaa.png?width=10'}},
             'bbb': {'status': 'valid', 'e': 'Image', 'm': 'image/jpg', 's': {'u': 'https://preview.redd.it/bbb.jpg?width=10'}},
+            'ccc': {'status': 'valid', 'e': 'Image', 'm': 'image/jpeg', 's': {'u': 'https://preview.redd.it/ccc.jpeg?width=4000&format=pjpg'}},
           },
         }),
       ])!;
       final info = RedditClient.parse(post, pageUrl: 'p');
-      expect(info.photos, ['https://i.redd.it/bbb.jpg', 'https://i.redd.it/aaa.png']);
+      expect(info.photos, ['https://i.redd.it/bbb.jpg', 'https://i.redd.it/aaa.png', 'https://i.redd.it/ccc.jpeg']);
       expect(info.options.map((o) => o.id), ['rd-photos', 'rd-slideshow']);
     });
 
