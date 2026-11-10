@@ -17,6 +17,7 @@ class SegmentedChoice<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   static const _inset = 6.0;
+  static const _gap = 4.0;
   static const _labelPad = 10.0;
 
   @override
@@ -36,7 +37,7 @@ class SegmentedChoice<T> extends StatelessWidget {
           builder: (context, constraints) {
             // Equal cells on one line while every label fits at the current
             // text size; otherwise the cells wrap at their own width.
-            final cell = constraints.maxWidth / options.length;
+            final cell = (constraints.maxWidth - _gap * (options.length - 1)) / options.length;
             final scaler = MediaQuery.textScalerOf(context);
             final direction = Directionality.of(context);
             final fits = options.every((option) {
@@ -54,11 +55,11 @@ class SegmentedChoice<T> extends StatelessWidget {
               for (final option in options) _cell(context, option, style, stretch: fits),
             ];
             if (fits) {
-              return Row(children: [for (final cell in cells) Expanded(child: cell)]);
+              return Row(spacing: _gap, children: [for (final cell in cells) Expanded(child: cell)]);
             }
             return SizedBox(
               width: double.infinity,
-              child: Wrap(spacing: 4, runSpacing: 4, children: cells),
+              child: Wrap(spacing: _gap, runSpacing: _gap, children: cells),
             );
           },
         ),
@@ -78,7 +79,7 @@ class SegmentedChoice<T> extends StatelessWidget {
       color: active ? scheme.primaryContainer : Colors.transparent,
       side: active ? BorderSide(color: scheme.primary, width: 1.5) : BorderSide.none,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
+        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
         child: Align(
           widthFactor: stretch ? null : 1,
           heightFactor: 1,

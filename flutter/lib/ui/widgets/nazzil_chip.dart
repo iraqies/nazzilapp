@@ -28,11 +28,12 @@ class NazzilChip extends StatelessWidget {
       color: selected ? scheme.primaryContainer : scheme.surfaceContainerLow,
       side: BorderSide(color: selected ? scheme.primary : scheme.outline, width: selected ? 1.5 : 1),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
+        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 16, color: ink),

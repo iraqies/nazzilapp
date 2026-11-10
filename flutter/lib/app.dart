@@ -283,6 +283,7 @@ class _Tabs extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: Row(
+            spacing: 4,
             children: [
               for (var i = 0; i < items.length; i++)
                 Expanded(
@@ -296,7 +297,7 @@ class _Tabs extends StatelessWidget {
                         color: active ? scheme.primaryContainer : Colors.transparent,
                         side: active ? BorderSide(color: scheme.primary, width: 1.5) : BorderSide.none,
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 44),
+                          constraints: const BoxConstraints(minHeight: 48),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                             child: Wrap(
