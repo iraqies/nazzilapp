@@ -101,6 +101,10 @@ class MediaDownloader {
       return DownloadResult(files: files, photoCount: files.length);
     }
 
+    if (option.kind == MediaKind.video && option.photoUrls.isNotEmpty) {
+      return _downloadSlideshow(option, folder, base, onProgress);
+    }
+
     final url = option.directUrl;
     if (url == null || url.isEmpty) {
       throw StateError('Could not download this. Try again.');
@@ -190,6 +194,65 @@ class MediaDownloader {
     await gallery.saveFile(file, image: false);
     onProgress(1);
     return DownloadResult(files: [file], photoCount: 0);
+  }
+
+  /// Photo posts saved as one video. The pieces are small, so a pause simply
+  /// starts the post over.
+  Future<DownloadResult> _downloadSlideshow(
+    QualityOption option,
+    Directory folder,
+    String base,
+    void Function(double progress) onProgress,
+  ) async {
+    final work = Directory(p.join(folder.path, '.slides-${DateTime.now().microsecondsSinceEpoch}'));
+    await work.create(recursive: true);
+    try {
+      final urls = option.photoUrls;
+      final images = <File>[];
+      for (var i = 0; i < urls.length; i++) {
+        final file = _matchExtension(await net.save(
+          urls[i],
+          File(p.join(work.path, 'photo-${i + 1}.${_extOf(urls[i], fallback: 'jpg')}')),
+          referer: extractor.refererFor(urls[i]),
+          onProgress: (v) => onProgress(((i + v) / urls.length) * 0.6),
+        ));
+        if (!isVideoFile(file)) images.add(file);
+      }
+      if (images.isEmpty) throw StateError('No photos on this post');
+      File? sound;
+      final audioUrl = option.audioUrl;
+      if (audioUrl != null && audioUrl.isNotEmpty) {
+        try {
+          sound = await net.save(
+            audioUrl,
+            File(p.join(work.path, 'sound')),
+            referer: extractor.refererFor(audioUrl),
+            onProgress: (v) => onProgress(0.6 + v * 0.1),
+          );
+        } on PausedException {
+          rethrow;
+        } on CancelledException {
+          rethrow;
+        } catch (_) {
+          sound = null;
+        }
+      }
+      onProgress(0.72);
+      final video = await converter.slideshow(images, sound, _unique(folder, base, 'mp4'));
+      onProgress(0.95);
+      if (!await gallery.ensureAccess(images: false)) {
+        throw StateError('Gallery permission is needed to save.');
+      }
+      await gallery.saveFile(video, image: false);
+      onProgress(1);
+      return DownloadResult(files: [video], photoCount: 0);
+    } on PausedException {
+      throw const PausedException();
+    } finally {
+      try {
+        work.deleteSync(recursive: true);
+      } catch (_) {}
+    }
   }
 
   void _deleteAll(Iterable<File> files) {

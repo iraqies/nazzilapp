@@ -19,6 +19,26 @@ void main() {
     expect(args.last, 'out.mp4');
   });
 
+  test('slideshow shows every photo and loops the sound to the end', () {
+    final args = FfmpegArgs.slideshow(
+      images: ['1.jpg', '2.jpg', '3.webp', '4.jpg'],
+      audio: 'sound',
+      output: 'out.mp4',
+      encoder: 'h264_mediacodec',
+    );
+    expect(args.where((a) => a == '-loop').length, 4);
+    expect(args, containsAllInOrder(['-stream_loop', '-1', '-i', 'sound']));
+    expect(args.firstWhere((a) => a.contains('concat=')), contains('concat=n=4:v=1:a=0[v]'));
+    expect(args, containsAllInOrder(['-map', '4:a:0', '-c:a', 'copy']));
+    expect(args, containsAllInOrder(['-t', '12']));
+    final silent = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4', encoder: 'mpeg4');
+    expect(silent, isNot(contains('-stream_loop')));
+    expect(silent, containsAllInOrder(['-q:v', '2']));
+    expect(FfmpegArgs.slideSeconds(1), 10);
+    expect(FfmpegArgs.slideSeconds(2), 5);
+    expect(FfmpegArgs.slideSeconds(9), 3);
+  });
+
   test('mp3 sniffing accepts ID3 and frame sync, rejects MP4', () {
     final dir = Directory.systemTemp.createTempSync('nazzil-mp3');
     File write(String name, List<int> bytes) => File('${dir.path}/$name')..writeAsBytesSync(bytes);

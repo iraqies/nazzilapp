@@ -25,6 +25,7 @@ class QualitySwitch extends StatelessWidget {
       'Audio' => s.audio,
       'Photos' => s.photos,
       'Album' => s.album,
+      'Video' => s.video,
       _ => option.label,
     };
   }
@@ -33,6 +34,7 @@ class QualitySwitch extends StatelessWidget {
     return switch (option.kind) {
       MediaKind.photo => Icons.photo_library_outlined,
       MediaKind.audio => Icons.graphic_eq_rounded,
+      MediaKind.video when option.photoUrls.isNotEmpty => Icons.slideshow_outlined,
       MediaKind.video => Icons.hd_outlined,
     };
   }

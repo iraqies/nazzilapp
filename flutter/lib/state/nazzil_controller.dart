@@ -323,7 +323,7 @@ class NazzilController extends ChangeNotifier {
       videoKey: key,
       thumbnail: current.thumbnail,
       paths: const [],
-      photoCount: toSave.photoUrls.length,
+      photoCount: toSave.kind == MediaKind.photo ? toSave.photoUrls.length : 0,
       status: LibraryItem.statusQueued,
       duration: current.duration,
       option: toSave,

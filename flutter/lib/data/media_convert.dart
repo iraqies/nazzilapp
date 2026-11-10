@@ -12,6 +12,37 @@ class MediaConverter {
   Future<File> join(File video, File audio, File output) =>
       _run(FfmpegArgs.join(video.path, audio.path, output.path), output, 'Could not put the video and sound together.');
 
+  /// Hardware H.264 first; mpeg4 is built into every ffmpeg and plays on
+  /// phones and computers alike. The post's sound is copied when MP4 takes
+  /// it as is, otherwise re-encoded.
+  Future<File> slideshow(List<File> images, File? audio, File output) async {
+    final encoders = [
+      if (Platform.isAndroid) 'h264_mediacodec',
+      if (Platform.isIOS || Platform.isMacOS) 'h264_videotoolbox',
+      'mpeg4',
+    ];
+    for (final encoder in encoders) {
+      for (final audioCodec in audio == null ? const ['copy'] : const ['copy', 'aac']) {
+        try {
+          return await _run(
+            FfmpegArgs.slideshow(
+              images: [for (final image in images) image.path],
+              audio: audio?.path,
+              output: output.path,
+              encoder: encoder,
+              audioCodec: audioCodec,
+            ),
+            output,
+            'Could not make the video.',
+          );
+        } on StateError {
+          continue;
+        }
+      }
+    }
+    throw StateError('Could not make the video.');
+  }
+
   Future<File> _run(List<String> args, File output, String failure) async {
     if (output.existsSync()) output.deleteSync();
     final session = await FFmpegKit.executeWithArguments(args);

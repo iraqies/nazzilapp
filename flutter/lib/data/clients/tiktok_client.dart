@@ -109,6 +109,14 @@ class TikTokClient {
           photoUrls: photos,
         ),
       );
+      options.add(QualityOption(
+        id: 'tiktok-slideshow',
+        label: 'Video',
+        ext: 'mp4',
+        kind: MediaKind.video,
+        photoUrls: photos,
+        audioUrl: music,
+      ));
     } else {
       if (hd != null) {
         options.add(QualityOption(

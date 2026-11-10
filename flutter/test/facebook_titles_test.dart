@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nazzil/data/clients/facebook_client.dart';
 import 'package:nazzil/data/clients/tiktok_client.dart';
+import 'package:nazzil/data/net.dart';
+import 'package:nazzil/models/media.dart';
 
 void main() {
   test('facebook titles drop view counts and keep the page as author', () {
@@ -22,6 +24,21 @@ void main() {
   test('facebook poster prefers the embed jpg', () {
     const html = '<img src="https://scontent-iad3-1.xx.fbcdn.net/v/t15.13418-10/1_n.jpg?stp=dst-jpg&amp;_nc=1">';
     expect(FacebookClient.jpegPoster(html), 'https://scontent-iad3-1.xx.fbcdn.net/v/t15.13418-10/1_n.jpg?stp=dst-jpg&_nc=1');
+  });
+
+  test('tiktok photo posts offer photos, a video with the sound, and audio', () {
+    final info = TikTokClient(NetClient()).parse({
+      'id': '7691533111737322782',
+      'title': 'Pasta night #food',
+      'images': ['https://p16.tiktokcdn.com/a.jpeg', 'https://p16.tiktokcdn.com/b.jpeg'],
+      'music': 'https://sf16.tiktokcdn.com/m.mp3',
+    }, 'https://www.tiktok.com/@a/photo/7691533111737322782');
+    expect(info.options.map((o) => o.id), ['tiktok-photos', 'tiktok-slideshow', 'tikwm-audio']);
+    final video = info.options[1];
+    expect(video.kind, MediaKind.video);
+    expect(video.photoUrls, hasLength(2));
+    expect(video.audioUrl, 'https://sf16.tiktokcdn.com/m.mp3');
+    expect(info.title, 'Pasta night');
   });
 
   test('a tiktok page only counts when it is the post itself', () {

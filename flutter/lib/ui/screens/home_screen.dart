@@ -94,7 +94,7 @@ class _Result extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photos = controller.selected?.kind == MediaKind.photo ||
-        (media.isPhotoAlbum && controller.selected?.kind != MediaKind.audio);
+        (media.isPhotoAlbum && controller.selected == null);
     final mixed = media.options.any((o) => o.label == 'Album');
     final job = controller.jobForCurrent();
     final scheme = Theme.of(context).colorScheme;

@@ -29,6 +29,9 @@ void main() {
     expect(media.isPhotoAlbum, isTrue);
     expect(media.photos, hasLength(2));
     expect(media.options.first.kind, MediaKind.photo);
-    expect(media.options.any((o) => o.kind == MediaKind.video), isFalse);
+    final videos = media.options.where((o) => o.kind == MediaKind.video).toList();
+    expect(videos, hasLength(1));
+    expect(videos.single.photoUrls, media.photos);
+    expect(videos.single.directUrl, isNull);
   });
 }

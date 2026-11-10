@@ -217,6 +217,9 @@ class InstagramClient {
         kind: MediaKind.photo,
         photoUrls: [for (final item in items) item.videos.isNotEmpty ? item.videos.first : item.image!],
       ));
+      if (!hasVideo && photos.length > 1) {
+        options.add(QualityOption(id: 'ig-slideshow', label: 'Video', ext: 'mp4', kind: MediaKind.video, photoUrls: photos));
+      }
     }
     return MediaInfo(
       id: code,
