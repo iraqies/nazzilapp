@@ -124,6 +124,9 @@ class NetClient {
       'Accept': '*/*',
       'Accept-Encoding': 'identity',
     };
+    if (isThrottledHost(url)) {
+      return _saveChunked(url, dest, headers: headers, userAgent: userAgent, onProgress: onProgress, gen: gen);
+    }
     if (already > 0) headers['Range'] = 'bytes=$already-';
 
     late final HttpClientResponse response;
@@ -177,6 +180,82 @@ class NetClient {
       rethrow;
     } catch (error) {
       _throwIfStopped(gen);
+      rethrow;
+    } finally {
+      try {
+        await sink.close();
+      } catch (_) {}
+    }
+    if (dest.lengthSync() < 800) {
+      dest.deleteSync();
+      throw const HttpException('Download was empty');
+    }
+    onProgress?.call(1);
+    return dest;
+  }
+
+  /// googlevideo.com slows a single long response to roughly real-time
+  /// playback speed, but serves each range request at full speed.
+  static bool isThrottledHost(String url) => Uri.tryParse(url)?.host.endsWith('googlevideo.com') ?? false;
+
+  static const chunkBytes = 10 * 1024 * 1024;
+
+  static int? totalFromContentRange(String? value) {
+    final match = RegExp(r'/(\d+)\s*$').firstMatch(value ?? '');
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
+  Future<File> _saveChunked(
+    String url,
+    File dest, {
+    required Map<String, String> headers,
+    required String userAgent,
+    void Function(double progress)? onProgress,
+    required int gen,
+  }) async {
+    var offset = dest.existsSync() ? dest.lengthSync() : 0;
+    int? total;
+    final sink = dest.openWrite(mode: offset > 0 ? FileMode.append : FileMode.write);
+    var lastEmit = DateTime.fromMillisecondsSinceEpoch(0);
+    try {
+      while (total == null || offset < total) {
+        _throwIfStopped(gen);
+        final response = await _open(
+          url,
+          headers: {...headers, 'Range': 'bytes=$offset-${offset + chunkBytes - 1}'},
+          userAgent: userAgent,
+        );
+        _throwIfStopped(gen);
+        final code = response.statusCode;
+        if (code == 416 && offset > 0) {
+          await response.drain<void>();
+          break;
+        }
+        if (code != 206) {
+          await response.drain<void>();
+          throw HttpException(_statusMessage(code), uri: Uri.parse(url));
+        }
+        total = totalFromContentRange(response.headers.value(HttpHeaders.contentRangeHeader)) ?? total;
+        var got = 0;
+        await for (final data in response) {
+          _throwIfStopped(gen);
+          sink.add(data);
+          got += data.length;
+          offset += data.length;
+          final now = DateTime.now();
+          if (now.difference(lastEmit).inMilliseconds >= 250) {
+            lastEmit = now;
+            onProgress?.call(_progressOf(offset, total ?? 0));
+          }
+        }
+        if (got == 0 || (total == null && got < chunkBytes)) break;
+      }
+      await sink.flush();
+    } on CancelledException {
+      try {
+        await sink.close();
+      } catch (_) {}
+      if (dest.existsSync()) dest.deleteSync();
       rethrow;
     } finally {
       try {
