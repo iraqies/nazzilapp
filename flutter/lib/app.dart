@@ -172,45 +172,54 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final media = MediaQuery.of(context);
+    final wide = media.size.width - media.padding.horizontal >= _wide;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        body: SafeArea(
-          child: DesktopInput(
-            controller: controller,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= _wide;
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
-                    child: Column(
-                      children: [
-                        _header(context),
-                        Expanded(
-                          child: _settings
-                              ? SettingsScreen(controller: controller)
-                              : wide
-                                  ? Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(width: 460, child: HomeScreen(controller: controller)),
-                                        const VerticalDivider(),
-                                        Expanded(
-                                          child: LibraryScreen(controller: controller, showAddLink: false),
-                                        ),
-                                      ],
-                                    )
-                                  : controller.tab == 0
-                                      ? HomeScreen(controller: controller)
-                                      : LibraryScreen(controller: controller),
-                        ),
-                        if (!_settings && !wide) _Tabs(controller: controller),
-                      ],
+      child: DesktopInput(
+        controller: controller,
+        child: Scaffold(
+          // The tabs sit in this slot so a snack bar floats above them, not over them.
+          bottomNavigationBar: _settings || wide
+              ? null
+              : SafeArea(
+                  top: false,
+                  child: Center(
+                    heightFactor: 1,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 640),
+                      child: _Tabs(controller: controller),
                     ),
                   ),
-                );
-              },
+                ),
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
+                child: Column(
+                  children: [
+                    _header(context),
+                    Expanded(
+                      child: _settings
+                          ? SettingsScreen(controller: controller)
+                          : wide
+                              ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(width: 460, child: HomeScreen(controller: controller)),
+                                    const VerticalDivider(),
+                                    Expanded(
+                                      child: LibraryScreen(controller: controller, showAddLink: false),
+                                    ),
+                                  ],
+                                )
+                              : controller.tab == 0
+                                  ? HomeScreen(controller: controller)
+                                  : LibraryScreen(controller: controller),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

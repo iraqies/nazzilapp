@@ -441,6 +441,11 @@ void main() {
     await tester.tap(find.text('Open file'));
     await tester.pumpAndSettle();
     expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
+    expect(
+      tester.getRect(find.byType(SnackBar)).bottom,
+      lessThanOrEqualTo(tester.getRect(find.text('Library').last).top),
+      reason: 'the message floats above the tabs and leaves them in reach',
+    );
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.textContaining('Nothing on this computer'), findsNothing);
