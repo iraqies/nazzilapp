@@ -70,6 +70,18 @@
                 <data android:host="facebook.com" />
                 <data android:host="m.facebook.com" />
                 <data android:host="fb.watch" />
+                <data android:host="x.com" />
+                <data android:host="www.x.com" />
+                <data android:host="mobile.x.com" />
+                <data android:host="twitter.com" />
+                <data android:host="www.twitter.com" />
+                <data android:host="mobile.twitter.com" />
+                <data android:host="www.reddit.com" />
+                <data android:host="reddit.com" />
+                <data android:host="old.reddit.com" />
+                <data android:host="new.reddit.com" />
+                <data android:host="redd.it" />
+                <data android:host="v.redd.it" />
             </intent-filter>
         </activity>
         <service
