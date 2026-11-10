@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/media.dart';
+import 'audio_convert.dart';
 import 'extractor.dart';
 import 'gallery.dart';
 import 'host.dart';
@@ -22,11 +23,14 @@ class MediaDownloader {
     required this.extractor,
     required this.gallery,
     NetClient? net,
-  }) : net = net ?? extractor.net;
+    AudioConverter? converter,
+  })  : net = net ?? extractor.net,
+        converter = converter ?? AudioConverter();
 
   final MediaExtractor extractor;
   final GalleryService gallery;
   final NetClient net;
+  final AudioConverter converter;
 
   Future<DownloadResult> download({
     required MediaInfo media,
@@ -100,10 +104,11 @@ class MediaDownloader {
     if (url == null || url.isEmpty) {
       throw StateError('Could not download this. Try again.');
     }
+    final isAudio = option.kind == MediaKind.audio;
     final ext = option.ext.isEmpty ? 'mp4' : option.ext;
     final dest = resumePaths.isNotEmpty
         ? File(resumePaths.first)
-        : _unique(folder, base, ext);
+        : _unique(folder, isAudio ? '$base-source' : base, ext);
     dest.parent.createSync(recursive: true);
     File file;
     try {
@@ -123,14 +128,20 @@ class MediaDownloader {
     }
     onProgress(0.9);
     try {
-      if (option.kind == MediaKind.audio) {
+      if (isAudio) {
+        file = await _toMp3(file, _unique(folder, base, 'mp3'));
+        onProgress(0.93);
         file = await _tagAudio(file, media);
       }
-      onProgress(0.94);
+      onProgress(0.95);
       if (!await gallery.ensureAccess(images: option.kind != MediaKind.video)) {
         throw StateError('Gallery permission is needed to save.');
       }
-      await gallery.saveFile(file, image: false);
+      if (isAudio) {
+        await gallery.saveAudio(file);
+      } else {
+        await gallery.saveFile(file, image: false);
+      }
     } on PausedException {
       throw PausedException(paths: [file.path]);
     } on CancelledException {
@@ -148,6 +159,15 @@ class MediaDownloader {
           file.deleteSync();
         } catch (_) {}
       }
+    }
+  }
+
+  Future<File> _toMp3(File source, File target) async {
+    if (AudioConverter.isMp3(source)) return source.renameSync(target.path);
+    try {
+      return await converter.toMp3(source, target);
+    } finally {
+      _deleteAll([source]);
     }
   }
 

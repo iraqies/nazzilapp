@@ -205,6 +205,7 @@ object AudioTagger {
         body.write(1)
         body.write(byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 0, 0))
         for ((stamp, text) in lines) {
+            body.write(byteArrayOf(0xFF.toByte(), 0xFE.toByte()))
             body.write(text.toByteArray(Charsets.UTF_16LE))
             body.write(byteArrayOf(0, 0))
             val time = ByteArray(4)

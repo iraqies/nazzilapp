@@ -3,6 +3,8 @@ package com.nazzil.nazzil
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -117,6 +119,22 @@ class MainActivity : FlutterActivity() {
                             call.argument<String>("lyricsSynced"),
                         )
                         result.success(tagged.absolutePath)
+                    }
+                    "saveAudio" -> {
+                        val path = call.argument<String>("path")
+                        if (path.isNullOrBlank()) {
+                            result.error("missing", "No path", null)
+                            return@setMethodCallHandler
+                        }
+                        val main = Handler(Looper.getMainLooper())
+                        Thread {
+                            try {
+                                val saved = MediaSaver.saveAudio(applicationContext, File(path))
+                                main.post { result.success(saved) }
+                            } catch (error: Exception) {
+                                main.post { result.error("save", error.message, null) }
+                            }
+                        }.start()
                     }
                     else -> result.notImplemented()
                 }

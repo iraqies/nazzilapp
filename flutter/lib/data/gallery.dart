@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:gal/gal.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'host.dart';
+
 class GalleryService {
   static const album = 'Nazzil';
 
@@ -27,5 +29,13 @@ class GalleryService {
     } catch (_) {
       // Keep the on-device copy even if the gallery insert fails.
     }
+  }
+
+  /// Photos and the video gallery refuse audio, so songs go to Music/Nazzil.
+  Future<void> saveAudio(File file) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await DownloadHost.saveAudio(file.path);
+    } catch (_) {}
   }
 }

@@ -76,6 +76,10 @@ class DownloadHost {
     await _ch.invokeMethod<void>('openFile', {'path': path});
   }
 
+  static Future<String?> saveAudio(String path) {
+    return _ch.invokeMethod<String>('saveAudio', {'path': path});
+  }
+
   static Future<String?> tagAudio({
     required String path,
     required String title,
