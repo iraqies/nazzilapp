@@ -378,9 +378,17 @@ String cleanTitle(String raw, {required String fallback, int max = 100}) {
   if (withoutTags.isNotEmpty) text = withoutTags;
   if (text.isEmpty) return fallback;
   if (text.length <= max) return text;
-  final cut = text.substring(0, max);
+  final cut = clipUtf16(text, max);
   final space = cut.lastIndexOf(' ');
   return '${(space > max ~/ 2 ? cut.substring(0, space) : cut).trimRight()}…';
+}
+
+/// Cuts to at most [max] UTF-16 units without leaving half of a surrogate
+/// pair behind; a lone surrogate makes file paths invalid.
+String clipUtf16(String text, int max) {
+  if (text.length <= max) return text;
+  final last = text.codeUnitAt(max - 1);
+  return text.substring(0, last >= 0xD800 && last <= 0xDBFF ? max - 1 : max);
 }
 
 String? firstGroup(String text, List<RegExp> patterns) {

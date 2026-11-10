@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../models/media.dart';
+import 'net.dart';
 
 class LinkParser {
   static final _url = RegExp(r'''https?://[^\s<>"'\\]+''', caseSensitive: false);
@@ -165,7 +166,7 @@ class LinkParser {
   static String sanitizeFilename(String name) {
     final cleaned = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '').trim();
     if (cleaned.isEmpty) return 'nazzil';
-    return cleaned.length > 60 ? cleaned.substring(0, 60) : cleaned;
+    return clipUtf16(cleaned, 60).trimRight();
   }
 
   static Future<String?> follow(String start, {String userAgent = NetHints.mobileUa}) async {

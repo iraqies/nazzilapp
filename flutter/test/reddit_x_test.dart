@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nazzil/data/clients/reddit_client.dart';
 import 'package:nazzil/data/clients/x_client.dart';
 import 'package:nazzil/data/link_parser.dart';
+import 'package:nazzil/data/net.dart';
 import 'package:nazzil/models/media.dart';
 
 const _mpd = '''
@@ -45,6 +46,15 @@ void main() {
       expect(LinkParser.redditId('https://redd.it/1xn6m2q'), '1xn6m2q');
       expect(LinkParser.identityKey('https://x.com/a/status/42'), 'x:42');
       expect(LinkParser.identityKey('https://www.reddit.com/comments/abc12'), 'rd:abc12');
+    });
+
+    test('long titles never cut a character in half', () {
+      final title = '${'a' * 59}𒀂𒀂';
+      final name = LinkParser.sanitizeFilename(title);
+      expect(name, 'a' * 59);
+      expect(name.runes.contains(0xFFFD), isFalse);
+      final clipped = cleanTitle('${'b' * 99}𒀂 tail', fallback: 'x');
+      expect(clipped.codeUnits.any((u) => u >= 0xD800 && u <= 0xDFFF), isFalse);
     });
   });
 
