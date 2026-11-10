@@ -32,8 +32,13 @@ void main() {
     expect(args.where((a) => a == '-loop').length, 4);
     expect(args, containsAllInOrder(['-stream_loop', '-1', '-i', 'sound']));
     expect(args.firstWhere((a) => a.contains('concat=')), contains('concat=n=4:v=1:a=0[v]'));
-    expect(args, containsAllInOrder(['-map', '4:a:0', '-c:a', 'copy']));
+    expect(args, containsAllInOrder(['-map', '4:a:0', '-c:a', 'aac']));
     expect(args, containsAllInOrder(['-t', '12']));
+    expect(args, containsAllInOrder(['-g', '90']));
+    expect(args.firstWhere((a) => a.contains('concat=')), contains('scale=1080:1920'));
+    final small = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4', encoder: 'h264_mediacodec', width: 720);
+    expect(small.firstWhere((a) => a.contains('concat=')), contains('pad=720:1280'));
+    expect(small, containsAllInOrder(['-b:v', '5M']));
     final silent = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4', encoder: 'mpeg4');
     expect(silent, isNot(contains('-stream_loop')));
     expect(silent, containsAllInOrder(['-q:v', '2']));

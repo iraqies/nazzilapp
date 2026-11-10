@@ -61,9 +61,11 @@ class FfmpegArgs {
     String? audio,
     required String output,
     required String encoder,
-    String audioCodec = 'copy',
+    String audioCodec = 'aac',
+    int width = 1080,
   }) {
-    const w = 1080, h = 1920, fps = 30;
+    const fps = 30;
+    final w = width, h = width * 16 ~/ 9;
     final seconds = slideSeconds(images.length);
     final args = <String>['-y', '-hide_banner', '-nostdin'];
     for (final image in images) {
@@ -81,7 +83,10 @@ class FfmpegArgs {
     args.addAll([
       '-c:v',
       encoder,
-      if (encoder == 'mpeg4') ...['-q:v', '2'] else ...['-b:v', '8M'],
+      if (encoder == 'mpeg4') ...['-q:v', '2'] else ...['-b:v', width >= 1080 ? '8M' : '5M'],
+      // One key frame per photo: stills need no more, and each one is large.
+      '-g',
+      '${fps * seconds}',
       '-pix_fmt',
       'yuv420p',
       '-t',

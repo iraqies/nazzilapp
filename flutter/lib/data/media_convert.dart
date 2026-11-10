@@ -17,17 +17,18 @@ class MediaConverter {
   Future<File> join(File video, File audio, File output) =>
       _run(FfmpegArgs.join(video.path, audio.path, output.path), output, 'Could not put the video and sound together.');
 
-  /// Hardware H.264 first; mpeg4 is built into every ffmpeg and plays on
-  /// phones and computers alike. The post's sound is copied when MP4 takes
-  /// it as is, otherwise re-encoded.
+  /// Hardware H.264 first, at 720p too because some encoders (the software
+  /// one on slow devices) refuse 1080x1920 by encoding nothing; mpeg4 is
+  /// built into every ffmpeg. AAC sound plays everywhere, a copy is the
+  /// fallback.
   Future<File> slideshow(List<File> images, File? audio, File output) async {
-    final encoders = [
-      if (Platform.isAndroid) 'h264_mediacodec',
-      if (Platform.isIOS || Platform.isMacOS) 'h264_videotoolbox',
-      'mpeg4',
+    final attempts = <(String, int)>[
+      if (Platform.isAndroid) ...[('h264_mediacodec', 1080), ('h264_mediacodec', 720)],
+      if (Platform.isIOS || Platform.isMacOS) ...[('h264_videotoolbox', 1080), ('h264_videotoolbox', 720)],
+      ('mpeg4', 1080),
     ];
-    for (final encoder in encoders) {
-      for (final audioCodec in audio == null ? const ['copy'] : const ['copy', 'aac']) {
+    for (final (encoder, width) in attempts) {
+      for (final audioCodec in audio == null ? const ['aac'] : const ['aac', 'copy']) {
         try {
           return await _run(
             FfmpegArgs.slideshow(
@@ -36,11 +37,14 @@ class MediaConverter {
               output: output.path,
               encoder: encoder,
               audioCodec: audioCodec,
+              width: width,
             ),
             output,
             'Could not make the video.',
             needsVideo: true,
           );
+        } on _NoPicture {
+          break;
         } on StateError {
           continue;
         }
@@ -61,10 +65,10 @@ class MediaConverter {
     debugPrint('ffmpeg ${ok ? 'wrote no video' : 'failed ($code)'}: '
         '${logs.length > 3000 ? logs.substring(logs.length - 3000) : logs}');
     if (output.existsSync()) output.deleteSync();
-    throw StateError(failure);
+    throw ok ? _NoPicture(failure) : StateError(failure);
   }
 
-  Future<bool> _hasVideo(File file) async {
+  static Future<bool> _hasVideo(File file) async {
     try {
       final session = await FFprobeKit.getMediaInformation(file.path);
       final streams = session.getMediaInformation()?.getStreams() ?? const [];
@@ -73,4 +77,9 @@ class MediaConverter {
       return false;
     }
   }
+}
+
+/// The encoder ran but delivered no frames; another sound codec will not help.
+class _NoPicture extends StateError {
+  _NoPicture(super.message);
 }
