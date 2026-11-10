@@ -625,6 +625,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('TikTok · 3 photos'), findsOneWidget);
     expect(find.text('1 of 3'), findsOneWidget);
+    expect(find.text('Save photos'), findsOneWidget);
+    expect(find.text('Save this photo'), findsOneWidget);
     await tester.tap(find.byTooltip('Next'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -635,6 +637,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(controller.photoIndex, 0);
     // Lets the image cache's clean-up timer run out before the test ends.
+    await tester.pump(const Duration(seconds: 11));
+  });
+
+  testWidgets('home: one photo gets one save button and singular words', (tester) async {
+    final controller = await boot(tester, size: const Size(360, 1200));
+    const urls = ['https://example.com/1.jpg'];
+    const one = MediaInfo(
+      id: 'one',
+      title: 'Dinner',
+      webpageUrl: 'https://www.tiktok.com/@someone/photo/2',
+      platform: PlatformId.tiktok,
+      photos: urls,
+      options: [QualityOption(id: 'photos', label: 'Photos', ext: 'jpg', kind: MediaKind.photo, photoUrls: urls)],
+    );
+    controller
+      ..media = one
+      ..selected = one.options.first
+      ..notifyListeners();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('TikTok · 1 photo'), findsOneWidget);
+    expect(find.text('Photo'), findsOneWidget);
+    expect(find.text('Photos'), findsNothing);
+    expect(find.text('Save photo'), findsOneWidget);
+    expect(find.text('Save photos'), findsNothing);
+    expect(find.text('Save this photo'), findsNothing, reason: 'it would save the same file as the button above it');
     await tester.pump(const Duration(seconds: 11));
   });
 

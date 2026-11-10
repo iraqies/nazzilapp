@@ -115,6 +115,8 @@ class _Result extends StatelessWidget {
     final photos = controller.selected?.kind == MediaKind.photo ||
         (media.isPhotoAlbum && controller.selected == null);
     final mixed = media.options.any((o) => o.label == 'Album');
+    // One photo needs one button: "all" and "this one" would save the same file.
+    final single = photos && media.photos.length == 1;
     final job = controller.jobForCurrent();
     final downloading = job?.status == LibraryItem.statusDownloading;
     final theme = Theme.of(context);
@@ -176,12 +178,12 @@ class _Result extends StatelessWidget {
                       : job?.status == LibraryItem.statusQueued
                           ? s.queued
                           : photos
-                              ? (mixed ? s.saveAll : s.savePhotos)
+                              ? (single ? s.saveOnePhoto : (mixed ? s.saveAll : s.savePhotos))
                               : s.download,
               icon: job?.status == LibraryItem.statusPaused
                   ? Icons.play_arrow_rounded
                   : photos
-                      ? Icons.photo_library_outlined
+                      ? (single ? Icons.photo_outlined : Icons.photo_library_outlined)
                       : Icons.download_rounded,
               busy: downloading,
               onPressed: job?.status == LibraryItem.statusPaused
@@ -212,7 +214,7 @@ class _Result extends StatelessWidget {
                   ),
                 ],
               ),
-            if (photos) ...[
+            if (photos && !single) ...[
               const SizedBox(height: 8),
               Center(
                 child: TextButton(

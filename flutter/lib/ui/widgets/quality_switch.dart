@@ -23,7 +23,7 @@ class QualitySwitch extends StatelessWidget {
       'HD' => s.hd,
       'SD' => s.sd,
       'Audio' => s.audio,
-      'Photos' => s.photos,
+      'Photos' => option.photoUrls.length == 1 ? s.photo : s.photos,
       'Album' => s.album,
       'Video' => s.video,
       _ => option.label,
@@ -32,7 +32,7 @@ class QualitySwitch extends StatelessWidget {
 
   IconData _icon(QualityOption option) {
     return switch (option.kind) {
-      MediaKind.photo => Icons.photo_library_outlined,
+      MediaKind.photo => option.photoUrls.length == 1 ? Icons.photo_outlined : Icons.photo_library_outlined,
       MediaKind.audio => Icons.graphic_eq_rounded,
       MediaKind.video when option.photoUrls.isNotEmpty => Icons.slideshow_outlined,
       MediaKind.video when option.label == 'HD' => Icons.hd_outlined,

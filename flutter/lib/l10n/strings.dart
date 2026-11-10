@@ -31,8 +31,10 @@ class S {
   String get download => _t('Download', 'نزّل');
   String get savePhotos => _t('Save photos', 'حفظ الصور');
   String get savePhoto => _t('Save this photo', 'حفظ هذي الصورة');
+  String get saveOnePhoto => _t('Save photo', 'حفظ الصورة');
   String get saveAll => _t('Save all', 'حفظ الكل');
   String get saveThis => _t('Save this one', 'حفظ هذا');
+  String get photo => _t('Photo', 'صورة');
   String get photos => _t('Photos', 'صور');
   String get album => _t('Album', 'ألبوم');
   String get video => _t('Video', 'فيديو');
