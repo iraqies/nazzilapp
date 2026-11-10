@@ -65,6 +65,8 @@ class _DesktopInputState extends State<DesktopInput> {
       },
       child: Focus(
         autofocus: true,
+        // It holds focus so the shortcut works from the start; the Tab key has no ring to show here.
+        skipTraversal: true,
         child: DropTarget(
           onDragEntered: (_) => setState(() => _hovering = true),
           onDragExited: (_) => setState(() => _hovering = false),

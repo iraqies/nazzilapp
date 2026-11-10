@@ -600,6 +600,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1 of 3'), findsOneWidget);
 
+    // Every stop of the Tab key is a control: the screen itself, which listens for the arrows, is not one.
+    final screen = tester.getSize(find.byType(ViewerScreen));
+    for (var i = 0; i < 6; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(FocusManager.instance.primaryFocus!.size.height, lessThan(screen.height / 2), reason: 'stop $i');
+    }
+
     final single = entry('one', PlatformId.pinterest, MediaKind.photo).copyWith(paths: [paths.first]);
     await tester.pumpWidget(
       MaterialApp(
@@ -923,12 +931,20 @@ void main() {
       }
 
       final walked = <String>[];
-      for (var i = 0; i < 8 + after.length; i++) {
+      for (var i = 0; i < 24; i++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pumpAndSettle();
         walked.add(focused());
+        // The window itself listens for the paste shortcut and has no ring to show.
+        expect(FocusManager.instance.primaryFocus!.size, isNot(size), reason: 'stop $i at $size is the whole window');
       }
-      expect(walked, ['Settings', 'Link', 'Paste', 'Fetch', 'HD', 'SD', 'Audio', 'Download', ...after], reason: '$size');
+      expect(
+        walked.take(8 + after.length),
+        ['Settings', 'Link', 'Paste', 'Fetch', 'HD', 'SD', 'Audio', 'Download', ...after],
+        reason: '$size',
+      );
+      expect(walked.where((stop) => stop == 'Settings').length, greaterThan(1), reason: 'the round closes at $size');
+      if (after.length == 2) expect(walked[10], 'Settings', reason: 'the first control follows the last tab');
       await tester.pumpWidget(const SizedBox());
     }
   });

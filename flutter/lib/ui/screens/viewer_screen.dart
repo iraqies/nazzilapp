@@ -115,6 +115,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       },
       child: Focus(
         autofocus: true,
+        // It holds focus so the arrow keys work from the start; the Tab key has no ring to show here.
+        skipTraversal: true,
         child: Column(
           children: [
             Expanded(

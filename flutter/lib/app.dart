@@ -181,8 +181,6 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
         controller: controller,
         child: Scaffold(
           // The tabs sit in this slot so a snack bar floats above them, not over them.
-          // Each group is walked to its end by the Tab key before the next one starts:
-          // the page before the tabs, and one pane before the other on a wide window.
           bottomNavigationBar: _settings || wide
               ? null
               : FocusTraversalGroup(
@@ -204,29 +202,33 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
                   constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
                   child: Column(
                     children: [
-                      _header(context),
+                      // The Tab key walks one group to its end before the next: header, page, tabs,
+                      // and on a wide window one pane before the other. A scrolled page cannot cut in.
+                      FocusTraversalGroup(child: _header(context)),
                       Expanded(
-                        child: _settings
-                            ? SettingsScreen(controller: controller)
-                            : wide
-                                ? Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      SizedBox(
-                                        width: 460,
-                                        child: FocusTraversalGroup(child: HomeScreen(controller: controller)),
-                                      ),
-                                      const VerticalDivider(),
-                                      Expanded(
-                                        child: FocusTraversalGroup(
-                                          child: LibraryScreen(controller: controller, showAddLink: false),
+                        child: FocusTraversalGroup(
+                          child: _settings
+                              ? SettingsScreen(controller: controller)
+                              : wide
+                                  ? Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(
+                                          width: 460,
+                                          child: FocusTraversalGroup(child: HomeScreen(controller: controller)),
                                         ),
-                                      ),
-                                    ],
-                                  )
-                                : controller.tab == 0
-                                    ? HomeScreen(controller: controller)
-                                    : LibraryScreen(controller: controller),
+                                        const VerticalDivider(),
+                                        Expanded(
+                                          child: FocusTraversalGroup(
+                                            child: LibraryScreen(controller: controller, showAddLink: false),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : controller.tab == 0
+                                      ? HomeScreen(controller: controller)
+                                      : LibraryScreen(controller: controller),
+                        ),
                       ),
                     ],
                   ),
