@@ -139,7 +139,7 @@ class _Swatch extends StatelessWidget {
                       colors: [palette.primary, palette.accent],
                     ),
                   ),
-                  child: selected ? const Icon(Icons.check_rounded, color: Colors.white, size: 22) : null,
+                  child: selected ? const Center(child: Icon(Icons.check_rounded, color: Colors.white, size: 22)) : null,
                 ),
               ),
               const SizedBox(height: 6),
