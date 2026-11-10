@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../data/downloader.dart';
@@ -9,8 +10,11 @@ import '../../data/platforms.dart';
 import '../../l10n/strings.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
+import '../../theme/nazzil_theme.dart';
+import '../widgets/page_stepper.dart';
 import '../widgets/state_message.dart';
 import '../widgets/tappable.dart';
+import '../widgets/title_text.dart';
 
 class ViewerScreen extends StatefulWidget {
   const ViewerScreen({super.key, required this.controller, required this.item});
@@ -23,6 +27,7 @@ class ViewerScreen extends StatefulWidget {
 
 class _ViewerScreenState extends State<ViewerScreen> {
   VideoPlayerController? _player;
+  final _pages = PageController();
   bool _failed = false;
   int _index = 0;
 
@@ -48,6 +53,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   void dispose() {
     _player?.dispose();
+    _pages.dispose();
     super.dispose();
   }
 
@@ -60,10 +66,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       appBar: AppBar(
         backgroundColor: photo ? Colors.black : null,
         foregroundColor: photo ? Colors.white : null,
-        title: Text(
+        title: TitleText(
           item.title,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: photo ? Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white) : null,
         ),
       ),
@@ -92,35 +97,56 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget _photos(LibraryItem item) {
     final paths = item.paths.where((p) => File(p).existsSync()).toList();
     if (paths.isEmpty) return _gone(onPhoto: true);
-    return Column(
-      children: [
-        Expanded(
-          child: PageView.builder(
-            itemCount: paths.length,
-            onPageChanged: (i) => setState(() => _index = i),
-            itemBuilder: (context, i) {
-              if (isVideoFile(File(paths[i]))) {
-                if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i], s: _s, onPhoto: true);
-                return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index, s: _s);
-              }
-              return InteractiveViewer(
-                child: Image.file(
-                  File(paths[i]),
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => StateMessage(onPhoto: true, title: _s.photoFailed),
-                ),
-              );
-            },
-          ),
+    void go(int page) {
+      if (page < 0 || page >= paths.length) return;
+      if (NazzilMotion.reduced(context)) {
+        _pages.jumpToPage(page);
+      } else {
+        _pages.animateToPage(page, duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic);
+      }
+    }
+
+    // The arrow that points the reading way goes to the next photo.
+    final forward = Directionality.of(context) == TextDirection.rtl ? -1 : 1;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () => go(_index + forward),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => go(_index - forward),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView.builder(
+                controller: _pages,
+                itemCount: paths.length,
+                onPageChanged: (i) => setState(() => _index = i),
+                itemBuilder: (context, i) {
+                  if (isVideoFile(File(paths[i]))) {
+                    if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i], s: _s, onPhoto: true);
+                    return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index, s: _s);
+                  }
+                  return InteractiveViewer(
+                    child: Image.file(
+                      File(paths[i]),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => StateMessage(onPhoto: true, title: _s.photoFailed),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (paths.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: PageStepper(index: _index, count: paths.length, onStep: go, s: _s, onPhoto: true),
+              )
+            else
+              const SizedBox(height: 24),
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: Text(
-            '${_index + 1} ${_s.ofWord} ${paths.length}',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white),
-          ),
-        ),
-      ],
+      ),
     );
   }
 

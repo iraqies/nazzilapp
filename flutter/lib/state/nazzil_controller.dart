@@ -81,7 +81,7 @@ class NazzilController extends ChangeNotifier {
   Locale get locale => Locale(s.lang);
 
   /// Worded at read time, so it follows a language switch.
-  String get error => s.failure(failure);
+  String get error => s.failureLine(failure);
 
   int get queuedCount => library.where((e) => e.status == LibraryItem.statusQueued).length;
 
@@ -559,7 +559,7 @@ class NazzilController extends ChangeNotifier {
       failure = kind;
       await _patch(job.id, job.copyWith(status: LibraryItem.statusFailed, error: kind.name));
       if (libraryStore.nextQueued(library) == null) {
-        await DownloadHost.failed(kind == Failure.none ? s.downloadFailed : s.failure(kind));
+        await DownloadHost.failed(kind == Failure.none ? s.downloadFailed : s.failureLine(kind));
       }
     }
   }

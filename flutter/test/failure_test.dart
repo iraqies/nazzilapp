@@ -62,7 +62,17 @@ void main() {
       expect(en, isNotEmpty, reason: kind.name);
       expect(RegExp(r'[\u0600-\u06FF]').hasMatch(ar), isTrue, reason: kind.name);
       expect(RegExp(r'[A-Za-z]').hasMatch(ar), isFalse, reason: kind.name);
+      expect(RegExp(r'[A-Za-z]').hasMatch(const S('ar').failureLine(kind)), isFalse, reason: kind.name);
     }
+  });
+
+  test('the retry advice is left off where a retry button sits beside the text', () {
+    const s = S('en');
+    expect(s.failure(Failure.network), 'Connection dropped.');
+    expect(s.failureLine(Failure.network), 'Connection dropped. Try again.');
+    expect(s.failureLine(Failure.blocked), 'This post blocked the download. Try again later.');
+    expect(s.failureLine(Failure.unavailable), 'This post is private or was deleted.');
+    expect(const S('ar').failureLine(Failure.processing), 'الفيديو بعده يتجهز. جرّب بعد شوية.');
   });
 
   test('a stored failure name survives a round trip, and old text falls back', () {

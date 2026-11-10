@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
+import '../widgets/heading.dart';
 import '../widgets/library_tile.dart';
 import '../widgets/nazzil_chip.dart';
 import '../widgets/segmented.dart';
 import '../widgets/state_message.dart';
+import '../widgets/title_text.dart';
 import 'viewer_screen.dart';
 
 class LibraryScreen extends StatelessWidget {
@@ -33,20 +35,25 @@ class LibraryScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.library, style: theme.textTheme.displaySmall),
-                const SizedBox(height: 6),
-                Text(s.itemsN(items.length), style: theme.textTheme.bodySmall),
-                const SizedBox(height: 16),
-                SegmentedChoice(
-                  value: controller.libraryKind,
-                  options: [
-                    ('all', s.filterAll),
-                    ('photos', s.filterPhotos),
-                    ('videos', s.filterVideos),
-                    ('audio', s.filterAudio),
-                  ],
-                  onChanged: controller.setLibraryKind,
-                ),
+                Heading(s.library),
+                if (controller.library.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(s.itemsN(items.length), style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 16),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: SegmentedChoice(
+                      value: controller.libraryKind,
+                      options: [
+                        ('all', s.filterAll),
+                        ('photos', s.filterPhotos),
+                        ('videos', s.filterVideos),
+                        ('audio', s.filterAudio),
+                      ],
+                      onChanged: controller.setLibraryKind,
+                    ),
+                  ),
+                ],
                 if (platforms.length > 1 || controller.libraryPlatform != 'all') ...[
                   const SizedBox(height: 10),
                   SingleChildScrollView(
@@ -55,7 +62,7 @@ class LibraryScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         for (final option in [
-                          ('all', s.filterAll),
+                          ('all', s.filterAllApps),
                           for (final platform in platforms) (platform.name, s.platformName(platform)),
                         ])
                           Padding(
@@ -150,7 +157,7 @@ class LibraryScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: Theme.of(sheet).textTheme.titleLarge),
+                TitleText(item.title, style: Theme.of(sheet).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 if (item.done && kept) ...[
                   ListTile(
@@ -230,7 +237,11 @@ class LibraryScreen extends StatelessWidget {
         title: Text(s.deleteTitle),
         content: Text(s.deleteBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialog, false), child: Text(s.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(dialog).colorScheme.onSurface),
+            child: Text(s.cancel),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(dialog, true),
             style: TextButton.styleFrom(foregroundColor: Theme.of(dialog).colorScheme.error),

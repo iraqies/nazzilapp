@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../theme/nazzil_theme.dart';
+import 'page_stepper.dart';
 
 class PhotoFilm extends StatefulWidget {
   const PhotoFilm({
@@ -108,11 +109,15 @@ class _PhotoFilmState extends State<PhotoFilm> {
             },
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          '${widget.index + 1} ${widget.s.ofWord} ${widget.urls.length}',
-          style: theme.textTheme.labelMedium,
-        ),
+        if (widget.urls.length > 1) ...[
+          const SizedBox(height: 4),
+          PageStepper(
+            index: widget.index,
+            count: widget.urls.length,
+            onStep: widget.onChanged,
+            s: widget.s,
+          ),
+        ],
       ],
     );
   }

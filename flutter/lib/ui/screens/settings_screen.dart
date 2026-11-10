@@ -44,8 +44,9 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 28),
         Text(s.colour, style: theme.textTheme.titleMedium),
         const SizedBox(height: 12),
+        // Five 58 wide swatches and four gaps fit one row on a 360 wide phone.
         Wrap(
-          spacing: 10,
+          spacing: 6,
           runSpacing: 12,
           children: [
             for (final palette in NazzilPalette.all)

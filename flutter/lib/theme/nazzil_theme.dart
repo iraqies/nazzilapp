@@ -108,26 +108,17 @@ class NazzilTheme {
       Color? color,
       double spacing = 0,
     }) {
-      if (arabic) {
-        final w = weight.value.clamp(400, 700);
-        return TextStyle(
-          fontFamily: 'NotoNaskhArabic',
-          fontFamilyFallback: const ['Outfit'],
-          fontSize: size,
-          fontWeight: FontWeight.values[(w ~/ 100) - 1],
-          fontVariations: [FontVariation('wght', w.toDouble())],
-          height: height + 0.2,
-          color: color ?? text,
-        );
-      }
+      // Outfit holds no Arabic, so Arabic falls to Noto Naskh and Latin keeps one face.
+      // Naskh stops at bold, needs taller lines, and letter spacing breaks its joins.
+      final w = arabic ? weight.value.clamp(400, 700) : weight.value;
       return TextStyle(
         fontFamily: 'Outfit',
         fontFamilyFallback: const ['NotoNaskhArabic'],
         fontSize: size,
-        fontWeight: weight,
-        fontVariations: [FontVariation('wght', weight.value.toDouble())],
-        height: height,
-        letterSpacing: spacing,
+        fontWeight: FontWeight.values[(w ~/ 100) - 1],
+        fontVariations: [FontVariation('wght', w.toDouble())],
+        height: arabic ? height + 0.2 : height,
+        letterSpacing: arabic ? 0 : spacing,
         color: color ?? text,
       );
     }
@@ -209,7 +200,9 @@ class NazzilTheme {
       ),
       iconButtonTheme: IconButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStatePropertyAll(text),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? text.withValues(alpha: 0.38) : text,
+          ),
           minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
           shape: WidgetStateProperty.resolveWith(
             (states) => RoundedRectangleBorder(

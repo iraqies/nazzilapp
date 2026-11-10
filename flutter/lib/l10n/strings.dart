@@ -104,6 +104,7 @@ class S {
   String get fetchThis => _t('Fetch this', 'جيب هذا');
   String get openGallery => _pc ? _t('Open file', 'افتح الملف') : _t('Open in gallery', 'افتح بالمعرض');
   String get filterAll => _t('All', 'الكل');
+  String get filterAllApps => _t('All apps', 'كل التطبيقات');
   String get filterPhotos => _t('Photos', 'صور');
   String get filterVideos => _t('Videos', 'فيديو');
   String get filterAudio => _t('Audio', 'صوت');
@@ -117,6 +118,8 @@ class S {
           'شارك المنشور ويّا نزل من أي تطبيق، أو الصق الرابط هنا. اختار الجودة وينحفظ بألبوم نزل بالمعرض.',
         );
   String get ofWord => _t('of', 'من');
+  String get previous => _t('Previous', 'السابق');
+  String get next => _t('Next', 'التالي');
   String get updateAvailable => _t('A new version is out', 'في إصدار جديد');
   String get updateNow => _t('Update', 'حدّث');
   String get albumSaved => _t('Photos saved', 'الصور انحفظت');
@@ -140,21 +143,32 @@ class S {
         PlatformId.unknown => '',
       };
 
+  /// What went wrong, for a spot that has its own retry button.
   String failure(Failure kind) => switch (kind) {
         Failure.none => '',
         Failure.pasteFirst => _t('Paste a link first.', 'أول شي الصق رابط.'),
         Failure.unsupported => _t('This link is not from a supported app yet.', 'هذا الرابط مو من تطبيق مدعوم بعد.'),
-        Failure.network => _t('Connection dropped. Try again.', 'النت انقطع. حاول مرة ثانية.'),
-        Failure.blocked => _t('This post blocked the download. Try again later.', 'المنشور منع التنزيل. جرّب بعدين.'),
+        Failure.network => _t('Connection dropped.', 'النت انقطع.'),
+        Failure.blocked => _t('This post blocked the download.', 'المنشور منع التنزيل.'),
         Failure.permission => _t('Gallery permission is needed to save.', 'نحتاج إذن المعرض للحفظ.'),
         Failure.unavailable => _t('This post is private or was deleted.', 'المنشور خاص أو محذوف.'),
         Failure.noMedia => _t('This post has no video or photos to save.', 'هذا المنشور ما بيه فيديو ولا صور.'),
         Failure.badLink => _t('This link does not point to a post.', 'هذا الرابط مو لمنشور.'),
-        Failure.processing => _t('This video is still processing. Try again in a bit.', 'الفيديو بعده يتجهز. جرّب بعد شوية.'),
-        Failure.convert => _t('Downloaded, but converting it failed. Try again.', 'نزل بس التحويل فشل. حاول مرة ثانية.'),
-        Failure.load => _t('Could not load this. Try again.', 'ما كدرت أجيبه. حاول مرة ثانية.'),
-        Failure.download => _t('Could not download this. Try again.', 'ما كدرت أنزّله. حاول مرة ثانية.'),
+        Failure.processing => _t('This video is still processing.', 'الفيديو بعده يتجهز.'),
+        Failure.convert => _t('Downloaded, but converting it failed.', 'نزل بس التحويل فشل.'),
+        Failure.load => _t('Could not load this.', 'ما كدرت أجيبه.'),
+        Failure.download => _t('Could not download this.', 'ما كدرت أنزّله.'),
       };
+
+  String advice(Failure kind) => switch (kind) {
+        Failure.network || Failure.convert || Failure.load || Failure.download => _t('Try again.', 'حاول مرة ثانية.'),
+        Failure.blocked => _t('Try again later.', 'جرّب بعدين.'),
+        Failure.processing => _t('Try again in a bit.', 'جرّب بعد شوية.'),
+        _ => '',
+      };
+
+  /// What went wrong and what to do, for a spot with no button of its own.
+  String failureLine(Failure kind) => [failure(kind), advice(kind)].where((part) => part.isNotEmpty).join(' ');
 
   String photosN(int n) => isAr ? '$n صور' : (n == 1 ? '1 photo' : '$n photos');
 

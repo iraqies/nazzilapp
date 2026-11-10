@@ -7,6 +7,7 @@ import '../../l10n/strings.dart';
 import '../../models/media.dart';
 import '../../theme/nazzil_theme.dart';
 import 'tappable.dart';
+import 'title_text.dart';
 
 class LibraryTile extends StatelessWidget {
   const LibraryTile({
@@ -64,14 +65,20 @@ class LibraryTile extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _cover(context),
+                    _cover(context, plain: busy || stopped || missing),
                     if (busy || stopped || missing)
-                      ColoredBox(
-                        color: NazzilColors.photoScrim,
-                        child: Center(
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.all(8),
-                            child: busy ? _busy(context) : _stopped(context, missing: missing),
+                      Center(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(8),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: NazzilColors.photoScrim,
+                              borderRadius: BorderRadius.circular(NazzilRadius.control),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
+                              child: busy ? _busy(context) : _stopped(context, missing: missing),
+                            ),
                           ),
                         ),
                       )
@@ -80,14 +87,19 @@ class LibraryTile extends StatelessWidget {
                         top: 8,
                         start: 8,
                         end: 8,
-                        child: Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            _chip(context, s.platformName(item.platform), icon: _kindIcon),
-                            if (item.photoCount > 1) _chip(context, s.photosN(item.photoCount)),
-                          ],
+                        // A tag on a photo grows a little with the system font,
+                        // the title under the cover grows all the way.
+                        child: MediaQuery.withClampedTextScaling(
+                          maxScaleFactor: 1.3,
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _chip(context, s.platformName(item.platform), icon: _kindIcon),
+                              if (item.photoCount > 1) _chip(context, s.photosN(item.photoCount)),
+                            ],
+                          ),
                         ),
                       ),
                   ],
@@ -97,12 +109,7 @@ class LibraryTile extends StatelessWidget {
             const SizedBox(height: _gap),
             Expanded(
               child: ExcludeSemantics(
-                child: Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
+                child: TitleText(item.title, maxLines: 2, style: theme.textTheme.titleMedium),
               ),
             ),
           ],
@@ -178,10 +185,11 @@ class LibraryTile extends StatelessWidget {
     );
   }
 
-  Widget _cover(BuildContext context) {
-    final fallback = Center(
-      child: Icon(_kindIcon, color: Theme.of(context).colorScheme.onSurfaceVariant),
-    );
+  /// [plain] leaves the icon out, for when a status sits in the middle.
+  Widget _cover(BuildContext context, {bool plain = false}) {
+    final fallback = plain
+        ? const SizedBox.shrink()
+        : Center(child: Icon(_kindIcon, color: Theme.of(context).colorScheme.onSurfaceVariant));
     final thumb = item.thumbnail;
     if (thumb != null && thumb.startsWith('http')) {
       return CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover, errorWidget: (_, _, _) => fallback);
@@ -212,6 +220,8 @@ class LibraryTile extends StatelessWidget {
           Flexible(
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(fontSize: 12, color: Colors.white),
             ),
           ),

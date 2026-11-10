@@ -5,10 +5,12 @@ import '../../l10n/strings.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
+import '../widgets/heading.dart';
 import '../widgets/nazzil_button.dart';
 import '../widgets/paste_card.dart';
 import '../widgets/photo_film.dart';
 import '../widgets/quality_switch.dart';
+import '../widgets/title_text.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.controller});
@@ -28,7 +30,7 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.tagline, style: theme.textTheme.displaySmall),
+                Heading(s.tagline),
                 const SizedBox(height: 10),
                 Text(s.photoTagline, style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
                 const SizedBox(height: 28),
@@ -38,9 +40,11 @@ class HomeScreen extends StatelessWidget {
                   _ClipOffer(controller: controller, s: s),
                 ],
                 const SizedBox(height: 14),
+                // With a result on screen the download button leads.
                 NazzilButton(
                   label: controller.loading ? s.fetching : s.fetch,
                   busy: controller.loading,
+                  secondary: media != null,
                   onPressed: controller.loading ? null : () => controller.fetch(),
                 ),
                 if (controller.loading)
@@ -77,9 +81,20 @@ class _ErrorLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final error = theme.colorScheme.error;
+    // The icon marks it as an error where the picked colour is close to red.
     return Semantics(
       liveRegion: true,
-      child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(top: 2, end: 8),
+            child: Icon(Icons.error_outline_rounded, size: 18, color: error),
+          ),
+          Expanded(child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: error))),
+        ],
+      ),
     );
   }
 }
@@ -138,10 +153,10 @@ class _Result extends StatelessWidget {
               Text(facts, style: theme.textTheme.labelMedium),
               const SizedBox(height: 6),
             ],
-            Text(media.title, style: theme.textTheme.headlineMedium),
+            TitleText(media.title, style: theme.textTheme.headlineMedium),
             if (media.author != null) ...[
               const SizedBox(height: 4),
-              Text(media.author!, style: theme.textTheme.bodySmall),
+              TitleText(media.author!, style: theme.textTheme.bodySmall),
             ],
             const SizedBox(height: 18),
             QualitySwitch(

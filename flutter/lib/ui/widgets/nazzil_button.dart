@@ -21,15 +21,19 @@ class NazzilButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final quiet = WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled) ? scheme.onSurfaceVariant : scheme.onSurface,
+    );
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
         onPressed: busy ? null : onPressed,
         style: secondary
-            ? FilledButton.styleFrom(
-                backgroundColor: scheme.surfaceContainerHigh,
-                foregroundColor: scheme.onSurface,
-                iconColor: scheme.onSurface,
+            ? ButtonStyle(
+                backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+                foregroundColor: quiet,
+                iconColor: quiet,
+                overlayColor: WidgetStatePropertyAll(scheme.onSurface.withValues(alpha: 0.08)),
               )
             : null,
         child: Padding(

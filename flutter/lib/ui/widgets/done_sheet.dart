@@ -173,7 +173,7 @@ class _ConfettiPainter extends CustomPainter {
       final y = piece.oy * size.height +
           piece.vy * local * size.height +
           piece.g * local * local * size.height;
-      final paint = Paint()..color = (piece.brand ? brand : neutral).withValues(alpha: 1 - local * 0.9);
+      final paint = Paint()..color = (piece.brand ? brand : neutral).withValues(alpha: 1 - local * local);
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(piece.spin * local * math.pi / 180);

@@ -63,14 +63,25 @@ void main() {
     expect(ratio(Colors.white, worst), greaterThanOrEqualTo(4.5));
   });
 
-  test('english text is set in Outfit and arabic in Noto Naskh Arabic', () {
-    final en = NazzilTheme.dark(NazzilPalette.rose, arabic: false).textTheme;
-    final ar = NazzilTheme.dark(NazzilPalette.rose, arabic: true).textTheme;
-    for (final style in [en.displaySmall, en.titleLarge, en.bodyLarge, en.bodyMedium, en.bodySmall, en.labelLarge]) {
-      expect(style?.fontFamily, 'Outfit');
+  test('latin is set in Outfit and arabic falls through to Noto Naskh Arabic, in both languages', () {
+    for (final arabic in [false, true]) {
+      final type = NazzilTheme.dark(NazzilPalette.rose, arabic: arabic).textTheme;
+      for (final style in [
+        type.displaySmall,
+        type.headlineMedium,
+        type.titleLarge,
+        type.titleMedium,
+        type.bodyLarge,
+        type.bodyMedium,
+        type.bodySmall,
+        type.labelLarge,
+        type.labelMedium,
+      ]) {
+        expect(style?.fontFamily, 'Outfit');
+        expect(style?.fontFamilyFallback, ['NotoNaskhArabic']);
+      }
     }
-    for (final style in [ar.displaySmall, ar.titleLarge, ar.bodyLarge, ar.bodyMedium, ar.bodySmall, ar.labelLarge]) {
-      expect(style?.fontFamily, 'NotoNaskhArabic');
-    }
+    // Noto Naskh Arabic stops at bold, so the Arabic styles do too.
+    expect(NazzilTheme.dark(NazzilPalette.rose, arabic: true).textTheme.displaySmall?.fontWeight, FontWeight.w700);
   });
 }
