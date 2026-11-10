@@ -121,6 +121,10 @@ class FfmpegArgs {
         if (audio != null) ...['-map', '1:a:0', '-c:a', audioCodec],
         '-c:v',
         'copy',
+        // Encoders write their own timing into the stream, and some of it
+        // is wrong; frame N is shown at N/30 s.
+        '-bsf:v',
+        'setts=ts=N:duration=1:time_base=1/30',
         '-t',
         '$seconds',
         '-movflags',

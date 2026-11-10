@@ -44,7 +44,8 @@ void main() {
     expect(raw, isNot(contains('+faststart')));
     final wrapped = FfmpegArgs.wrapH264(video: 'o.mp4.h264', audio: 'sound', output: 'o.mp4', seconds: 12);
     expect(wrapped, containsAllInOrder(['-framerate', '30', '-i', 'o.mp4.h264', '-stream_loop', '-1', '-i', 'sound']));
-    expect(wrapped, containsAllInOrder(['-map', '1:a:0', '-c:a', 'aac', '-c:v', 'copy', '-t', '12']));
+    expect(wrapped, containsAllInOrder(['-map', '1:a:0', '-c:a', 'aac', '-c:v', 'copy', '-bsf:v', '-t', '12']));
+    expect(wrapped, contains('setts=ts=N:duration=1:time_base=1/30'));
     final silent = FfmpegArgs.slideshow(images: ['1.jpg'], output: 'o.mp4', encoder: 'mpeg4');
     expect(silent, isNot(contains('-stream_loop')));
     expect(silent, containsAllInOrder(['-q:v', '2']));
