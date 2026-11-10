@@ -1,3 +1,4 @@
+import '../data/platforms.dart';
 import '../models/media.dart';
 
 class S {
@@ -6,11 +7,14 @@ class S {
 
   bool get isAr => lang == 'ar';
   bool get rtl => isAr;
+  bool get _pc => Platforms.desktop;
 
   String get appName => _t('Nazzil', 'نزل');
   String get tagline => _t('Download the video. Keep it.', 'نزّل الفيديو. خليه عندك.');
   String get photoTagline =>
-      _t('Videos, TikTok photos, Instagram carousels. Straight into your gallery.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالمعرض.');
+      _pc
+          ? _t('Videos, TikTok photos, Instagram carousels. Straight into Downloads.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالتنزيلات.')
+          : _t('Videos, TikTok photos, Instagram carousels. Straight into your gallery.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالمعرض.');
   String get pasteHint =>
       _t('Paste or share a YouTube, TikTok, Instagram or Facebook link', 'الصق رابط يوتيوب أو تيك توك أو إنستغرام أو فيسبوك');
   String get paste => _t('Paste', 'لصّق');
@@ -55,8 +59,12 @@ class S {
   String get themeDark => _t('Dark', 'داكن');
   String get about => _t('About', 'عن التطبيق');
   String get aboutBody => _t(
-        'Nazzil saves videos, TikTok photo posts and Instagram carousels into your gallery. Paste a link, pick a quality, download.',
-        'نزل يحفظ الفيديو ومنشورات تيك توك وإنستغرام الصور بالمعرض. الصق الرابط، اختار الجودة، ونزّل.',
+        _pc
+            ? 'Nazzil saves videos, TikTok photo posts and Instagram carousels into Downloads/Nazzil. Paste or drop a link, pick a quality, download.'
+            : 'Nazzil saves videos, TikTok photo posts and Instagram carousels into your gallery. Paste a link, pick a quality, download.',
+        _pc
+            ? 'نزل يحفظ الفيديو ومنشورات تيك توك وإنستغرام الصور بمجلد التنزيلات/Nazzil. الصق أو اسحب الرابط، اختار الجودة، ونزّل.'
+            : 'نزل يحفظ الفيديو ومنشورات تيك توك وإنستغرام الصور بالمعرض. الصق الرابط، اختار الجودة، ونزّل.',
       );
   String get credits => _t('Credits', 'حقوق');
   String get version => _t('Version', 'الإصدار');
@@ -69,20 +77,22 @@ class S {
   String get failed => _t('Could not load this. Try again.', 'ما كدرت أجيبه. حاول مرة ثانية.');
   String get downloadFailed => _t('Download failed', 'التنزيل فشل');
   String get alreadyHave => _t('You already have this', 'هذا نازل عندك');
-  String get alreadyHaveBody => _t('This file is still on your phone.', 'الملف بعد موجود على جهازك.');
-  String get missingFile => _t('Removed from gallery', 'انحذف من المعرض');
+  String get alreadyHaveBody =>
+      _t(_pc ? 'This file is still on this computer.' : 'This file is still on your phone.', 'الملف بعد موجود على جهازك.');
+  String get missingFile => _pc ? _t('File was removed', 'الملف انحذف') : _t('Removed from gallery', 'انحذف من المعرض');
   String get queued => _t('Waiting', 'بالانتظار');
   String get clipOffer => _t('A supported link is on your clipboard', 'في رابط مدعوم بالنسخ');
   String get fetchThis => _t('Fetch this', 'جيب هذا');
-  String get openGallery => _t('Open in gallery', 'افتح بالمعرض');
+  String get openGallery => _pc ? _t('Open file', 'افتح الملف') : _t('Open in gallery', 'افتح بالمعرض');
   String get filterAll => _t('All', 'الكل');
   String get filterPhotos => _t('Photos', 'صور');
   String get filterVideos => _t('Videos', 'فيديو');
   String get filterAudio => _t('Audio', 'صوت');
   String get howTitle => _t('Three beats', 'ثلاث خطوات');
-  String get step1 => _t('Share or paste a link', 'شارك أو الصق الرابط');
+  String get step1 => _pc ? _t('Paste or drop a link', 'الصق أو اسحب الرابط') : _t('Share or paste a link', 'شارك أو الصق الرابط');
   String get step2 => _t('Pick HD, SD, audio — or save photo albums', 'اختار الجودة — أو احفظ ألبوم الصور');
-  String get step3 => _t('It lands in Gallery → Nazzil', 'ينزل بالمعرض ← نزل');
+  String get step3 =>
+      _pc ? _t('It lands in Downloads → Nazzil', 'ينزل بالتنزيلات ← Nazzil') : _t('It lands in Gallery → Nazzil', 'ينزل بالمعرض ← نزل');
   String get ofWord => _t('of', 'من');
   String get updateAvailable => _t('A new version is out', 'في إصدار جديد');
   String get updateNow => _t('Update', 'حدّث');

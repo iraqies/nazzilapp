@@ -1,0 +1,85 @@
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - "cursor/**"
+
+defaults:
+  run:
+    working-directory: flutter
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/Nazzil-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nazzil-windows-x64
+          path: flutter/build/Nazzil-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: Zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/Nazzil.app build/Nazzil-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nazzil-macos
+          path: flutter/build/Nazzil-macos.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libjson-glib-dev \
+            libmp3lame0 libogg0 libopencore-amrnb0 libopus0 libshine3 libsoxr0 libspeex1 \
+            libtwolame0 libvo-amrwbenc0 libvorbis0a libvorbisenc2
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build linux --release
+      - name: Tar
+        run: tar -C build/linux/x64/release -czf build/Nazzil-linux-x64.tar.gz --transform 's,^bundle,Nazzil,' bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nazzil-linux-x64
+          path: flutter/build/Nazzil-linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 14

@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new_audio/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
 import 'package:flutter/foundation.dart';
 
 import 'ffmpeg_args.dart';
+import 'mp4_probe.dart';
 
 class MediaConverter {
   Future<File> toMp3(File input, File output, {String? title, String? artist}) => _run(
@@ -89,11 +89,10 @@ class MediaConverter {
 
   static Future<bool> _hasVideo(File file) async {
     try {
-      final session = await FFprobeKit.getMediaInformation(file.path);
-      final streams = session.getMediaInformation()?.getStreams() ?? const [];
-      return streams.any((s) => s.getType() == 'video');
+      return await Mp4Probe.videoSamples(file) > 0;
     } catch (_) {
       return false;
     }
   }
+
 }

@@ -55,9 +55,11 @@ class GalleryService {
   /// Desktops have no gallery, so every download lands in Downloads/Nazzil.
   Future<void> _toDownloads(File file) async {
     try {
-      final downloads = await getDownloadsDirectory() ??
-          Directory(p.join(Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '.', 'Downloads'));
-      final folder = Directory(p.join(downloads.path, album));
+      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '.';
+      var downloads = (await getDownloadsDirectory())?.path;
+      // xdg-user-dir answers with the home folder itself when no XDG dirs are set up.
+      if (downloads == null || p.equals(downloads, home)) downloads = p.join(home, 'Downloads');
+      final folder = Directory(p.join(downloads, album));
       await folder.create(recursive: true);
       await file.copy(_free(folder, p.basename(file.path)).path);
     } catch (_) {}

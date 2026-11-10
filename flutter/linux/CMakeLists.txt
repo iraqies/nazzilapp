@@ -74,6 +74,12 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# The FFmpeg plugin dlopen()s libffmpegkit.so by bare name. The executable's
+# RUNPATH does not apply to a library's dlopen, so the plugin needs its own
+# $ORIGIN (bundle/lib) to find it.
+set_target_properties(ffmpeg_kit_flutter_new_audio_plugin PROPERTIES
+  BUILD_RPATH "$ORIGIN"
+  INSTALL_RPATH "$ORIGIN")
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build
@@ -105,6 +111,23 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endforeach(bundled_library)
+
+# FFmpegKit's Linux build links these codec libraries from the system, and
+# several are missing on a stock desktop, so the bundle carries its own copies.
+foreach(codec_soname
+    libmp3lame.so.0 libogg.so.0 libopencore-amrnb.so.0 libopus.so.0
+    libshine.so.3 libsoxr.so.0 libspeex.so.1 libtwolame.so.0
+    libvo-amrwbenc.so.0 libvorbis.so.0 libvorbisenc.so.2)
+  string(MAKE_C_IDENTIFIER "${codec_soname}" codec_var)
+  find_library(NAZZIL_${codec_var} NAMES "${codec_soname}")
+  if(NAZZIL_${codec_var})
+    get_filename_component(codec_real "${NAZZIL_${codec_var}}" REALPATH)
+    install(FILES "${codec_real}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+      RENAME "${codec_soname}" COMPONENT Runtime)
+  else()
+    message(WARNING "${codec_soname} not found; FFmpeg needs it at runtime")
+  endif()
+endforeach(codec_soname)
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")

@@ -23,4 +23,8 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
+# An old-style RPATH (unlike RUNPATH) also covers libraries that are loaded
+# later with dlopen, such as FFmpeg's libav* behind libffmpegkit.so.
+target_link_options(${BINARY_NAME} PRIVATE "-Wl,--disable-new-dtags")
+
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
