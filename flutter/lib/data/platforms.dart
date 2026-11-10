@@ -10,4 +10,7 @@ abstract final class Platforms {
   /// video_player has no Linux or Windows backend; those open the system
   /// player instead.
   static bool get inAppVideo => !(Platform.isLinux || Platform.isWindows);
+
+  /// share_plus cannot hand a file to another app on Linux, so Share is left out there.
+  static bool get fileShare => !Platform.isLinux;
 }

@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nazzil/app.dart';
+import 'package:nazzil/data/link_parser.dart';
 import 'package:nazzil/models/media.dart';
 import 'package:nazzil/state/nazzil_controller.dart';
 import 'package:nazzil/l10n/strings.dart';
@@ -28,6 +29,7 @@ LibraryItem entry(
   bool onDisk = false,
   int photoCount = 0,
   String? title,
+  String? videoKey,
 }) {
   final path = '${scratch.path}/$id.${kind == MediaKind.photo ? 'jpg' : 'mp4'}';
   if (onDisk) File(path).writeAsBytesSync([0]);
@@ -39,7 +41,7 @@ LibraryItem entry(
     quality: 'HD',
     createdAt: DateTime(2026, 11, 10),
     sourceUrl: 'https://example.com/$id',
-    videoKey: '${platform.name}:$id',
+    videoKey: videoKey ?? '${platform.name}:$id',
     paths: status == LibraryItem.statusDone ? [path] : const [],
     photoCount: photoCount,
     status: status,
@@ -421,6 +423,26 @@ void main() {
     expect(find.text('Download the video. Keep it.'), findsOneWidget);
   });
 
+  testWidgets('library sheet: Open file says so when nothing opens it, and Linux gets no Share', (tester) async {
+    await boot(tester, library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true)]);
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/url_launcher'),
+      (call) async => false,
+    );
+    await tester.tap(find.text('Library').last);
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getTopLeft(find.byType(LibraryTile)) + const Offset(12, 12));
+    await tester.pumpAndSettle();
+    // share_plus throws for files on Linux, where these tests run.
+    expect(find.text('Share'), findsNothing);
+    await tester.tap(find.text('Open file'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing on this computer could open it. The file is in Downloads/Nazzil.'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Nothing on this computer'), findsNothing);
+  });
+
   testWidgets('viewer: a missing file gets words and two ways out', (tester) async {
     final controller = await boot(tester);
     for (final kind in [MediaKind.video, MediaKind.photo]) {
@@ -437,6 +459,70 @@ void main() {
       expect(find.text('Download again'), findsOneWidget);
       expect(find.text('Original'), findsOneWidget);
     }
+  });
+
+  testWidgets('viewer: a video nothing on the computer can open says so', (tester) async {
+    final controller = await boot(tester);
+    final asked = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/url_launcher'),
+      (call) async {
+        asked.add('${(call.arguments as Map)['url']}');
+        return false;
+      },
+    );
+    final item = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+        home: ViewerScreen(controller: controller, item: item),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Nothing on this computer could open it'), findsNothing);
+    await tester.tap(find.byTooltip('Play'));
+    await tester.pumpAndSettle();
+    expect(asked.single, endsWith('/clip.mp4'));
+    expect(find.text('Nothing on this computer could open it. The file is in Downloads/Nazzil.'), findsOneWidget);
+  });
+
+  testWidgets('converting: the label says so and Pause goes, since nothing is left to pause', (tester) async {
+    final controller = await boot(tester, size: const Size(360, 1400));
+    final job = entry(
+      'job',
+      PlatformId.youtube,
+      MediaKind.video,
+      status: LibraryItem.statusDownloading,
+      videoKey: LinkParser.identityKey(sampleVideo.webpageUrl, sampleVideo.id),
+    );
+    controller
+      ..library = [job]
+      ..activeJobId = job.id
+      ..downloading = true
+      ..progress = 0.5
+      ..media = sampleVideo
+      ..selected = sampleVideo.options.first
+      ..notifyListeners();
+    await tester.pump();
+    expect(find.text('Downloading… 50%'), findsOneWidget);
+    expect(find.text('Pause'), findsOneWidget);
+
+    controller
+      ..converting = true
+      ..notifyListeners();
+    await tester.pump();
+    expect(find.text('Downloading… 50%'), findsNothing);
+    // Once in the header, once on the button.
+    expect(find.text('Converting…'), findsNWidgets(2));
+    expect(find.text('Pause'), findsNothing);
+    expect(find.text('Cancel'), findsOneWidget);
+
+    controller.goTab(1);
+    await tester.pump();
+    final tile = find.byType(LibraryTile);
+    expect(find.descendant(of: tile, matching: find.text('Converting…')), findsOneWidget);
+    expect(find.descendant(of: tile, matching: find.text('Pause')), findsNothing);
+    expect(find.descendant(of: tile, matching: find.text('Cancel')), findsOneWidget);
   });
 
   testWidgets('viewer: an album turns by button and by arrow key, not only by swipe', (tester) async {

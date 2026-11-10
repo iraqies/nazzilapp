@@ -24,6 +24,9 @@ void main() {
           Failure.unavailable,
       'This Reddit gallery is empty or removed.': Failure.unavailable,
       'This post is gone.': Failure.unavailable,
+      "VideoUnavailableException: Video 'abc' is unavailable\n"
+          "In most cases, this error indicates that the video doesn't exist, is private, or has been taken down.":
+          Failure.unavailable,
       'This X post has no video or photos.': Failure.noMedia,
       'This pin has no video or image.': Failure.noMedia,
       'No photos on this post': Failure.noMedia,
@@ -71,7 +74,7 @@ void main() {
     expect(s.failure(Failure.network), 'Connection dropped.');
     expect(s.failureLine(Failure.network), 'Connection dropped. Try again.');
     expect(s.failureLine(Failure.blocked), 'This post blocked the download. Try again later.');
-    expect(s.failureLine(Failure.unavailable), 'This post is private or was deleted.');
+    expect(s.failureLine(Failure.unavailable), 'This post may be private or deleted.');
     expect(const S('ar').failureLine(Failure.processing), 'الفيديو بعده يتجهز. جرّب بعد شوية.');
   });
 

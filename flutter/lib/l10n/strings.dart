@@ -45,6 +45,7 @@ class S {
   String get back => _t('Back', 'رجوع');
   String get ready => _t('Ready', 'جاهز');
   String get downloading => _t('Downloading…', 'قاعد ينزّل…');
+  String get converting => _t('Converting…', 'قاعد يحوّل…');
   String get downloaded => _t('Saved', 'تم التنزيل');
   String get play => _t('Play', 'شغّل');
   String get share => _t('Share', 'شارك');
@@ -93,6 +94,12 @@ class S {
       );
   String get downloadAgain => _t('Download again', 'نزّله مرة ثانية');
   String get cantPlay => _t('This video will not play here.', 'الفيديو ما يشتغل هنا.');
+  String get cantOpen => _pc
+      ? _t(
+          'Nothing on this computer could open it. The file is in Downloads/Nazzil.',
+          'ماكو برنامج بجهازك يفتحه. الملف بمجلد Nazzil بالتنزيلات.',
+        )
+      : _t('No app on this phone could open it.', 'ماكو تطبيق بتلفونك يفتحه.');
   String get photoFailed => _t('Could not load this photo.', 'ما كدرت أجيب الصورة.');
   String get deleteTitle => _t('Delete this download?', 'تحذف هذا التنزيل؟');
   String get deleteBody => _t(
@@ -151,7 +158,8 @@ class S {
         Failure.network => _t('Connection dropped.', 'النت انقطع.'),
         Failure.blocked => _t('This post blocked the download.', 'المنشور منع التنزيل.'),
         Failure.permission => _t('Gallery permission is needed to save.', 'نحتاج إذن المعرض للحفظ.'),
-        Failure.unavailable => _t('This post is private or was deleted.', 'المنشور خاص أو محذوف.'),
+        // "May be", because a site that refuses the app answers the same way.
+        Failure.unavailable => _t('This post may be private or deleted.', 'يمكن المنشور خاص أو محذوف.'),
         Failure.noMedia => _t('This post has no video or photos to save.', 'هذا المنشور ما بيه فيديو ولا صور.'),
         Failure.badLink => _t('This link does not point to a post.', 'هذا الرابط مو لمنشور.'),
         Failure.processing => _t('This video is still processing.', 'الفيديو بعده يتجهز.'),

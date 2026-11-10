@@ -21,6 +21,7 @@ class LibraryTile extends StatelessWidget {
     this.onResume,
     this.onRetry,
     this.progress,
+    this.converting = false,
   });
 
   final LibraryItem item;
@@ -32,6 +33,7 @@ class LibraryTile extends StatelessWidget {
   final VoidCallback? onResume;
   final VoidCallback? onRetry;
   final double? progress;
+  final bool converting;
 
   static const coverRatio = 0.8;
   static const _gap = 8.0;
@@ -141,7 +143,7 @@ class LibraryTile extends StatelessWidget {
           ),
         Text(
           item.status == LibraryItem.statusDownloading
-              ? s.downloading
+              ? (converting ? s.converting : s.downloading)
               : item.status == LibraryItem.statusPaused
                   ? s.paused
                   : s.queued,

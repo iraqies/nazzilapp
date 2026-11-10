@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'data/platforms.dart';
 import 'models/media.dart';
 import 'state/nazzil_controller.dart';
 import 'theme/nazzil_theme.dart';
@@ -116,11 +117,13 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
               widget.controller.dismissSheets();
               _view(done);
             },
-            onShare: () {
-              Navigator.pop(dialog);
-              widget.controller.shareItem(done);
-              widget.controller.dismissSheets();
-            },
+            onShare: Platforms.fileShare
+                ? () {
+                    Navigator.pop(dialog);
+                    widget.controller.shareItem(done);
+                    widget.controller.dismissSheets();
+                  }
+                : null,
             onClose: () {
               Navigator.pop(dialog);
               widget.controller.dismissSheets();
@@ -220,8 +223,9 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
     final s = controller.s;
     final theme = Theme.of(context);
     final working = controller.downloading || controller.loading || controller.library.any((e) => e.paused);
+    final doing = controller.converting ? s.converting : s.downloading;
     final status = controller.downloading
-        ? (controller.queuedCount > 0 ? '${s.downloading} · ${s.waitingN(controller.queuedCount)}' : s.downloading)
+        ? (controller.queuedCount > 0 ? '$doing · ${s.waitingN(controller.queuedCount)}' : doing)
         : controller.library.any((e) => e.paused)
             ? s.paused
             : controller.loading

@@ -276,37 +276,63 @@ class _AlbumVideoState extends State<_AlbumVideo> {
   }
 }
 
-class _ExternalVideo extends StatelessWidget {
+class _ExternalVideo extends StatefulWidget {
   const _ExternalVideo({required this.path, required this.s, this.onPhoto = false});
   final String path;
   final S s;
   final bool onPhoto;
 
   @override
+  State<_ExternalVideo> createState() => _ExternalVideoState();
+}
+
+class _ExternalVideoState extends State<_ExternalVideo> {
+  bool _unopened = false;
+
+  Future<void> _open() async {
+    final opened = await DownloadHost.openFile(widget.path);
+    if (mounted) setState(() => _unopened = !opened);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final onPhoto = widget.onPhoto;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: s.play,
+            tooltip: widget.s.play,
             iconSize: 88,
             color: onPhoto ? Colors.white : scheme.primary,
             icon: const Icon(Icons.play_circle),
-            onPressed: () => DownloadHost.openFile(path),
+            onPressed: _open,
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              path.split(Platform.pathSeparator).last,
+              widget.path.split(Platform.pathSeparator).last,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: onPhoto ? Colors.white : scheme.onSurfaceVariant,
-                  ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: onPhoto ? Colors.white : scheme.onSurfaceVariant,
+              ),
             ),
           ),
+          if (_unopened)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  widget.s.cantOpen,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: onPhoto ? Colors.white : scheme.error),
+                ),
+              ),
+            ),
         ],
       ),
     );

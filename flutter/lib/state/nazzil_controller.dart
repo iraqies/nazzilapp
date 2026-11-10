@@ -46,6 +46,9 @@ class NazzilController extends ChangeNotifier {
   int photoIndex = 0;
   bool loading = false;
   bool downloading = false;
+
+  /// True once the pieces are in and the file is being put together.
+  bool converting = false;
   double progress = 0;
   Failure failure = Failure.none;
   LibraryItem? doneItem;
@@ -355,7 +358,8 @@ class NazzilController extends ChangeNotifier {
 
   Future<void> pauseJob(LibraryItem item) async {
     if (item.id == activeJobId) {
-      downloadNet.pause();
+      // Nothing is on the wire while the file is being made, so there is nothing to pause.
+      if (!converting) downloadNet.pause();
       return;
     }
     if (item.status == LibraryItem.statusQueued) {
@@ -459,6 +463,7 @@ class NazzilController extends ChangeNotifier {
       _pumping = false;
       activeJobId = null;
       downloading = false;
+      converting = false;
       await DownloadHost.stop();
       notifyListeners();
     }
@@ -472,6 +477,7 @@ class NazzilController extends ChangeNotifier {
     }
     activeJobId = job.id;
     downloading = true;
+    converting = false;
     progress = 0.02;
     failure = Failure.none;
     await _patch(job.id, job.copyWith(status: LibraryItem.statusDownloading));
@@ -483,6 +489,10 @@ class NazzilController extends ChangeNotifier {
           option: job.option!,
           resumePaths: job.paths,
           completedPhotos: job.photoCount,
+          onConvert: () {
+            converting = true;
+            notifyListeners();
+          },
           onProgress: (value) {
             progress = value;
             final percent = (value * 100).round().clamp(1, 99);
@@ -633,7 +643,11 @@ class NazzilController extends ChangeNotifier {
   Future<void> shareItem(LibraryItem item) async {
     final files = item.paths.where((p) => File(p).existsSync()).map(XFile.new).toList();
     if (files.isEmpty) return;
-    await SharePlus.instance.share(ShareParams(files: files, text: item.title));
+    try {
+      await SharePlus.instance.share(ShareParams(files: files, text: item.title));
+    } catch (_) {
+      // Share is offered only where the system has a share sheet, so a failure here is rare.
+    }
   }
 
   Future<void> openOriginal(String link) async {
@@ -642,10 +656,11 @@ class NazzilController extends ChangeNotifier {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> openInGallery(LibraryItem item) async {
+  /// False when the file is gone or nothing on the device could open it.
+  Future<bool> openInGallery(LibraryItem item) async {
     final path = item.paths.where((p) => File(p).existsSync()).firstOrNull;
-    if (path == null) return;
-    await DownloadHost.openFile(path);
+    if (path == null) return false;
+    return DownloadHost.openFile(path);
   }
 
   Future<void> setLanguage(String language) async {

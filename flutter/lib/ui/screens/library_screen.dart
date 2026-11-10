@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/platforms.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
@@ -110,14 +111,17 @@ class LibraryScreen extends StatelessWidget {
                       final kept = controller.libraryStore.stillHave(item);
                       final stopped = item.status == LibraryItem.statusFailed ||
                           item.status == LibraryItem.statusCancelled;
+                      final running = item.id == controller.activeJobId;
+                      final converting = running && controller.converting;
                       return LibraryTile(
                         item: item,
                         s: s,
                         kept: kept,
-                        progress: item.id == controller.activeJobId ? controller.progress : null,
+                        progress: running ? controller.progress : null,
+                        converting: converting,
                         onOpen: () => _open(context, item),
                         onCancel: item.active ? () => controller.cancelJob(item) : null,
-                        onPause: item.status == LibraryItem.statusDownloading
+                        onPause: item.status == LibraryItem.statusDownloading && !converting
                             ? () => controller.pauseJob(item)
                             : null,
                         onResume: item.paused ? () => controller.resumeJob(item) : null,
@@ -177,19 +181,23 @@ class LibraryScreen extends StatelessWidget {
                   ListTile(
                     leading: const Icon(Icons.photo_library_outlined),
                     title: Text(s.openGallery),
-                    onTap: () {
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final motion = NazzilMotion.style(context);
                       Navigator.pop(sheet);
-                      controller.openInGallery(item);
+                      if (await controller.openInGallery(item)) return;
+                      messenger.showSnackBar(SnackBar(content: Text(s.cantOpen)), snackBarAnimationStyle: motion);
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.ios_share_rounded),
-                    title: Text(s.share),
-                    onTap: () {
-                      Navigator.pop(sheet);
-                      controller.shareItem(item);
-                    },
-                  ),
+                  if (Platforms.fileShare)
+                    ListTile(
+                      leading: const Icon(Icons.ios_share_rounded),
+                      title: Text(s.share),
+                      onTap: () {
+                        Navigator.pop(sheet);
+                        controller.shareItem(item);
+                      },
+                    ),
                 ] else
                   ListTile(
                     leading: const Icon(Icons.refresh_rounded),

@@ -168,7 +168,9 @@ class _Result extends StatelessWidget {
             const SizedBox(height: 16),
             NazzilButton(
               label: downloading
-                  ? '${s.downloading} ${(controller.progress * 100).round()}%'
+                  ? (controller.converting
+                      ? s.converting
+                      : '${s.downloading} ${(controller.progress * 100).round()}%')
                   : job?.status == LibraryItem.statusPaused
                       ? s.resume
                       : job?.status == LibraryItem.statusQueued
@@ -199,7 +201,7 @@ class _Result extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (downloading)
+                  if (downloading && !controller.converting)
                     TextButton(
                       onPressed: () => controller.pauseJob(job),
                       child: Text(s.pause),
@@ -248,7 +250,12 @@ class _Poster extends StatelessWidget {
           color: scheme.surfaceContainerHigh,
           child: url == null
               ? fallback
-              : CachedNetworkImage(imageUrl: url!, fit: BoxFit.cover, errorWidget: (_, _, _) => fallback),
+              : CachedNetworkImage(
+                  imageUrl: url!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, _) => fallback,
+                  errorWidget: (_, _, _) => fallback,
+                ),
         ),
       ),
     );

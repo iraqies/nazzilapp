@@ -37,6 +37,7 @@ class MediaDownloader {
     required MediaInfo media,
     required QualityOption option,
     required void Function(double progress) onProgress,
+    void Function()? onConvert,
     List<String> resumePaths = const [],
     int completedPhotos = 0,
   }) async {
@@ -102,7 +103,7 @@ class MediaDownloader {
     }
 
     if (option.kind == MediaKind.video && option.photoUrls.isNotEmpty) {
-      return _downloadSlideshow(option, folder, base, onProgress);
+      return _downloadSlideshow(option, folder, base, onProgress, onConvert);
     }
 
     final url = option.directUrl;
@@ -111,7 +112,7 @@ class MediaDownloader {
     }
     final audioUrl = option.audioUrl;
     if (audioUrl != null && audioUrl.isNotEmpty) {
-      return _downloadJoined(url, audioUrl, folder, base, onProgress, resumePaths);
+      return _downloadJoined(url, audioUrl, folder, base, onProgress, onConvert, resumePaths);
     }
     final isAudio = option.kind == MediaKind.audio;
     final song = LyricsClient.splitNames(media.title, media.author);
@@ -142,7 +143,7 @@ class MediaDownloader {
     onProgress(0.9);
     try {
       if (isAudio) {
-        file = await _toMp3(file, _unique(folder, songBase, 'mp3'), song);
+        file = await _toMp3(file, _unique(folder, songBase, 'mp3'), song, onConvert);
         onProgress(0.93);
         file = await _tagAudio(file, media, song);
       }
@@ -171,6 +172,7 @@ class MediaDownloader {
     Directory folder,
     String base,
     void Function(double progress) onProgress,
+    void Function()? onConvert,
     List<String> resumePaths,
   ) async {
     final video = resumePaths.isNotEmpty ? File(resumePaths[0]) : _unique(folder, '$base-video', 'mp4');
@@ -185,6 +187,7 @@ class MediaDownloader {
       rethrow;
     }
     onProgress(0.9);
+    onConvert?.call();
     final File file;
     try {
       file = await converter.join(video, audio, _unique(folder, base, 'mp4'));
@@ -207,6 +210,7 @@ class MediaDownloader {
     Directory folder,
     String base,
     void Function(double progress) onProgress,
+    void Function()? onConvert,
   ) async {
     final work = Directory(p.join(folder.path, '.slides-${DateTime.now().microsecondsSinceEpoch}'));
     await work.create(recursive: true);
@@ -242,6 +246,7 @@ class MediaDownloader {
         }
       }
       onProgress(0.72);
+      onConvert?.call();
       final video = await converter.slideshow(images, sound, _unique(folder, base, 'mp4'));
       onProgress(0.95);
       if (!await gallery.ensureAccess(images: false)) {
@@ -288,8 +293,14 @@ class MediaDownloader {
     }
   }
 
-  Future<File> _toMp3(File source, File target, ({String track, String artist}) song) async {
+  Future<File> _toMp3(
+    File source,
+    File target,
+    ({String track, String artist}) song,
+    void Function()? onConvert,
+  ) async {
     if (FfmpegArgs.isMp3(source)) return source.renameSync(target.path);
+    onConvert?.call();
     try {
       return await converter.toMp3(source, target, title: song.track, artist: song.artist);
     } finally {

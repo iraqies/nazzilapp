@@ -12,15 +12,17 @@ class DoneSheet extends StatelessWidget {
     required this.s,
     required this.photos,
     required this.onView,
-    required this.onShare,
     required this.onClose,
+    this.onShare,
   });
 
   final S s;
   final bool photos;
   final VoidCallback onView;
-  final VoidCallback onShare;
   final VoidCallback onClose;
+
+  /// Null where the system cannot share a file.
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -53,13 +55,15 @@ class DoneSheet extends StatelessWidget {
                       icon: photos ? Icons.photo_outlined : Icons.play_arrow_rounded,
                       onPressed: onView,
                     ),
-                    const SizedBox(height: 10),
-                    NazzilButton(
-                      label: s.share,
-                      icon: Icons.ios_share_rounded,
-                      secondary: true,
-                      onPressed: onShare,
-                    ),
+                    if (onShare != null) ...[
+                      const SizedBox(height: 10),
+                      NazzilButton(
+                        label: s.share,
+                        icon: Icons.ios_share_rounded,
+                        secondary: true,
+                        onPressed: onShare,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     TextButton(onPressed: onClose, child: Text(s.close)),
                   ],

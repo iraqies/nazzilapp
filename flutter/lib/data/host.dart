@@ -63,11 +63,16 @@ class DownloadHost {
 
   static Future<void> stop() => _notify('stop');
 
-  static Future<void> openFile(String path) async {
-    if (Platforms.mobile) {
-      await _ch.invokeMethod<void>('openFile', {'path': path});
-    } else {
-      await launchUrl(Uri.file(path));
+  /// False when the system had nothing to open the file with.
+  static Future<bool> openFile(String path) async {
+    try {
+      if (Platforms.mobile) {
+        await _ch.invokeMethod<void>('openFile', {'path': path});
+        return true;
+      }
+      return await launchUrl(Uri.file(path));
+    } catch (_) {
+      return false;
     }
   }
 
