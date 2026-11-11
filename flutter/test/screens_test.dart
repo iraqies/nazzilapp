@@ -437,7 +437,7 @@ void main() {
       NazzilColors.ink,
     );
 
-    // The picked quality is filled with the text colour: the user's colour stays on Download.
+    // The picked quality is filled with the text colour: Grape stays on Download.
     Color? cell(String text) =>
         tester.widget<Material>(find.ancestor(of: find.text(text), matching: find.byType(Material)).first).color;
     expect(cell('HD'), scheme.primary);
