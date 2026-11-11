@@ -98,6 +98,11 @@ def android(mark):
     write(os.path.join(drawable, 'ic_launcher_foreground.xml'), android_vector(mark, 108, scale, (INK, GRAPE)))
     # A themed icon is one colour, which the launcher picks.
     write(os.path.join(drawable, 'ic_launcher_monochrome.xml'), android_vector(mark, 108, scale, ('#000000', '#000000')))
+    # On a notification and in the status bar the phone keeps the shape of the icon and
+    # colours it itself. The launcher icon is a full square, which comes out as a blank disc,
+    # so those places get the word alone: 24 dp, with a margin of one.
+    stat = mark.scale_into(22, 22)
+    write(os.path.join(drawable, 'ic_stat_nazzil.xml'), android_vector(mark, 24, stat, ('#FFFFFF', '#FFFFFF')))
     launch(mark, scale)
 
 
