@@ -273,18 +273,15 @@ class AppSettings {
     this.language = 'system',
     // Dark is the designed default: a saved picture reads best against black.
     this.theme = 'dark',
-    this.palette = 'grape',
   });
 
   final String language;
   final String theme;
-  final String palette;
 
-  AppSettings copyWith({String? language, String? theme, String? palette}) {
+  AppSettings copyWith({String? language, String? theme}) {
     return AppSettings(
       language: language ?? this.language,
       theme: theme ?? this.theme,
-      palette: palette ?? this.palette,
     );
   }
 }

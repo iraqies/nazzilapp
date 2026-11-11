@@ -1,25 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// One of the four colours a user can pick. It fills the button that does the
-/// next step and draws the front line of an arriving picture, and nothing else.
-class NazzilPalette {
-  const NazzilPalette(this.id, this.fill);
-  final String id;
-  final Color fill;
-
-  /// The one the app starts with, by the owner's call on 2026-11-11.
-  static const grape = NazzilPalette('grape', Color(0xFF8B5CF6));
-  static const ocean = NazzilPalette('ocean', Color(0xFF2F7BFF));
-  static const emerald = NazzilPalette('emerald', Color(0xFF12B886));
-  static const sunset = NazzilPalette('sunset', Color(0xFFFF7139));
-  static const all = [grape, ocean, emerald, sunset];
-
-  static NazzilPalette byId(String id) => all.firstWhere((p) => p.id == id, orElse: () => grape);
-}
-
 abstract final class NazzilColors {
-  /// Text on the picked colour. It passes 4.5:1 on all four; white fails on all four.
+  /// The one colour of the interface. It fills the button that does the next step,
+  /// draws the front line of an arriving picture and marks the logo, and nothing else.
+  /// The app offers no other, by the owner's call on 2026-11-11.
+  static const grape = Color(0xFF8B5CF6);
+
+  /// Text on Grape. It passes 4.5:1 there, and white does not.
   static const ink = Color(0xFF0B0B0C);
 
   /// Scrim behind a tag on a picture: white on it stays above 4.5:1 even over a white photo.
@@ -121,10 +109,8 @@ class NazzilTheme {
     );
   }
 
-  static ThemeData light(NazzilPalette palette, {required bool arabic}) =>
-      _build(Brightness.light, palette, arabic: arabic);
-  static ThemeData dark(NazzilPalette palette, {required bool arabic}) =>
-      _build(Brightness.dark, palette, arabic: arabic);
+  static ThemeData light({required bool arabic}) => _build(Brightness.light, arabic: arabic);
+  static ThemeData dark({required bool arabic}) => _build(Brightness.dark, arabic: arabic);
 
   /// Status bar and navigation bar colours for a page of this [brightness].
   /// [onPicture] is for a status bar that lies over a poster and its dark fade.
@@ -140,7 +126,7 @@ class NazzilTheme {
     );
   }
 
-  static ThemeData _build(Brightness brightness, NazzilPalette palette, {required bool arabic}) {
+  static ThemeData _build(Brightness brightness, {required bool arabic}) {
     final dark = brightness == Brightness.dark;
     final text = dark ? const Color(0xFFF5F3EE) : const Color(0xFF111111);
     final muted = dark ? const Color(0xFFA8A49C) : const Color(0xFF5F5B54);
@@ -154,8 +140,8 @@ class NazzilTheme {
       // A picked choice is the text colour, lettered in the page colour.
       primary: text,
       onPrimary: page,
-      // The picked colour is kept for the button that does the next step.
-      primaryContainer: palette.fill,
+      // Grape is kept for the button that does the next step.
+      primaryContainer: NazzilColors.grape,
       onPrimaryContainer: NazzilColors.ink,
       secondary: text,
       onSecondary: page,
@@ -264,7 +250,7 @@ class NazzilTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.disabled) ? raised : palette.fill,
+            (states) => states.contains(WidgetState.disabled) ? raised : NazzilColors.grape,
           ),
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.ink,

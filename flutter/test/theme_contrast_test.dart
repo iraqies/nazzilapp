@@ -13,68 +13,64 @@ double ratio(Color a, Color b) {
 }
 
 void main() {
-  for (final palette in NazzilPalette.all) {
-    for (final brightness in Brightness.values) {
-      final theme = brightness == Brightness.dark
-          ? NazzilTheme.dark(palette, arabic: false)
-          : NazzilTheme.light(palette, arabic: false);
-      final scheme = theme.colorScheme;
-      final surfaces = {
-        'page': scheme.surface,
-        'sheet': scheme.surfaceContainerLow,
-        'raised': scheme.surfaceContainerHigh,
+  for (final brightness in Brightness.values) {
+    final theme = brightness == Brightness.dark ? NazzilTheme.dark(arabic: false) : NazzilTheme.light(arabic: false);
+    final scheme = theme.colorScheme;
+    final surfaces = {
+      'page': scheme.surface,
+      'sheet': scheme.surfaceContainerLow,
+      'raised': scheme.surfaceContainerHigh,
+    };
+
+    test('${brightness.name}: text passes 4.5:1 on every surface', () {
+      final inks = {
+        'text': scheme.onSurface,
+        'muted': scheme.onSurfaceVariant,
+        'error': scheme.error,
       };
-
-      test('${palette.id} ${brightness.name}: text passes 4.5:1 on every surface', () {
-        final inks = {
-          'text': scheme.onSurface,
-          'muted': scheme.onSurfaceVariant,
-          'error': scheme.error,
-        };
-        for (final surface in surfaces.entries) {
-          for (final ink in inks.entries) {
-            expect(
-              ratio(ink.value, surface.value),
-              greaterThanOrEqualTo(4.5),
-              reason: '${ink.key} on ${surface.key}',
-            );
-          }
+      for (final surface in surfaces.entries) {
+        for (final ink in inks.entries) {
+          expect(
+            ratio(ink.value, surface.value),
+            greaterThanOrEqualTo(4.5),
+            reason: '${ink.key} on ${surface.key}',
+          );
         }
-        // The button that does the next step is told by its words, so the
-        // words carry the contrast: ink on the picked colour.
-        expect(scheme.primaryContainer, palette.fill);
-        expect(scheme.onPrimaryContainer, NazzilColors.ink);
-        expect(ratio(scheme.onPrimaryContainer, scheme.primaryContainer), greaterThanOrEqualTo(4.5));
-        // A picked choice is filled with the text colour and written in the page colour.
-        expect(ratio(scheme.onPrimary, scheme.primary), greaterThanOrEqualTo(4.5));
-        expect(ratio(scheme.onInverseSurface, scheme.inverseSurface), greaterThanOrEqualTo(4.5));
-      });
+      }
+      // The button that does the next step is told by its words, so the
+      // words carry the contrast: ink on Grape.
+      expect(scheme.primaryContainer, NazzilColors.grape);
+      expect(scheme.onPrimaryContainer, NazzilColors.ink);
+      expect(ratio(scheme.onPrimaryContainer, scheme.primaryContainer), greaterThanOrEqualTo(4.5));
+      // A picked choice is filled with the text colour and written in the page colour.
+      expect(ratio(scheme.onPrimary, scheme.primary), greaterThanOrEqualTo(4.5));
+      expect(ratio(scheme.onInverseSurface, scheme.inverseSurface), greaterThanOrEqualTo(4.5));
+    });
 
-      test('${palette.id} ${brightness.name}: control edges and the picked choice pass 3:1', () {
-        for (final surface in surfaces.entries) {
-          expect(ratio(scheme.outline, surface.value), greaterThanOrEqualTo(3), reason: 'edge on ${surface.key}');
-          expect(ratio(scheme.primary, surface.value), greaterThanOrEqualTo(3), reason: 'picked on ${surface.key}');
-        }
-      });
+    test('${brightness.name}: control edges and the picked choice pass 3:1', () {
+      for (final surface in surfaces.entries) {
+        expect(ratio(scheme.outline, surface.value), greaterThanOrEqualTo(3), reason: 'edge on ${surface.key}');
+        expect(ratio(scheme.primary, surface.value), greaterThanOrEqualTo(3), reason: 'picked on ${surface.key}');
+      }
+    });
 
-      test('${palette.id} ${brightness.name}: the interface itself has no colour', () {
-        for (final colour in [
-          scheme.surface,
-          scheme.surfaceContainerLow,
-          scheme.surfaceContainerHigh,
-          scheme.onSurface,
-          scheme.onSurfaceVariant,
-          scheme.outline,
-          scheme.outlineVariant,
-          scheme.primary,
-          scheme.onPrimary,
-        ]) {
-          // Warm greys at most: no channel strays far from the others.
-          final channels = [colour.r, colour.g, colour.b];
-          expect(channels.reduce(math.max) - channels.reduce(math.min), lessThan(0.08), reason: '$colour');
-        }
-      });
-    }
+    test('${brightness.name}: the interface itself has no colour', () {
+      for (final colour in [
+        scheme.surface,
+        scheme.surfaceContainerLow,
+        scheme.surfaceContainerHigh,
+        scheme.onSurface,
+        scheme.onSurfaceVariant,
+        scheme.outline,
+        scheme.outlineVariant,
+        scheme.primary,
+        scheme.onPrimary,
+      ]) {
+        // Warm greys at most: no channel strays far from the others.
+        final channels = [colour.r, colour.g, colour.b];
+        expect(channels.reduce(math.max) - channels.reduce(math.min), lessThan(0.08), reason: '$colour');
+      }
+    });
   }
 
   test('white text on the photo scrim passes 4.5:1 even over a white photo', () {
@@ -104,7 +100,7 @@ void main() {
 
   test('english is set in the serif and arabic in the hand of the logo, each behind the other', () {
     for (final arabic in [false, true]) {
-      final type = NazzilTheme.dark(NazzilPalette.grape, arabic: arabic).textTheme;
+      final type = NazzilTheme.dark(arabic: arabic).textTheme;
       for (final style in stylesOf(type)) {
         final latinFirst = !arabic || style == type.displayLarge;
         final serif = style.fontSize! >= 21 ? NazzilTheme.serifDisplay : NazzilTheme.serif;
@@ -150,8 +146,8 @@ void main() {
   });
 
   test('one text size suits both scripts, and arabic stands on taller lines', () {
-    final latin = NazzilTheme.dark(NazzilPalette.grape, arabic: false).textTheme;
-    final arabic = NazzilTheme.dark(NazzilPalette.grape, arabic: true).textTheme;
+    final latin = NazzilTheme.dark(arabic: false).textTheme;
+    final arabic = NazzilTheme.dark(arabic: true).textTheme;
     for (final (a, l) in [
       (arabic.displaySmall!, latin.displaySmall!),
       (arabic.titleMedium!, latin.titleMedium!),
@@ -167,8 +163,8 @@ void main() {
   });
 
   test('a run of the other script is set as that script is, from either side', () {
-    final latin = NazzilTheme.dark(NazzilPalette.grape, arabic: false).textTheme;
-    final arabic = NazzilTheme.dark(NazzilPalette.grape, arabic: true).textTheme;
+    final latin = NazzilTheme.dark(arabic: false).textTheme;
+    final arabic = NazzilTheme.dark(arabic: true).textTheme;
     for (final (a, l) in [
       (arabic.headlineMedium!, latin.headlineMedium!),
       (arabic.bodyLarge!, latin.bodyLarge!),
@@ -193,7 +189,7 @@ void main() {
   test('the percentage counts without shaking: its figures are of one width', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
     await loadShippedTypefaces();
-    final style = NazzilTheme.dark(NazzilPalette.grape, arabic: true).textTheme.displayLarge!;
+    final style = NazzilTheme.dark(arabic: true).textTheme.displayLarge!;
     double wide(String text) {
       final painter = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr)..layout();
       final width = painter.width;

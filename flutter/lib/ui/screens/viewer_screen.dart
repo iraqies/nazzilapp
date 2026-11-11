@@ -62,10 +62,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final item = widget.item;
     final photo = item.kind == MediaKind.photo;
     // The viewer is a dark room in every theme: a picture reads best against black.
-    final theme = NazzilTheme.dark(
-      NazzilPalette.byId(widget.controller.settings.palette),
-      arabic: _s.isAr,
-    );
+    final theme = NazzilTheme.dark(arabic: _s.isAr);
     return Theme(
       data: theme,
       // The app bar sets the status bar; this sets the system bar at the bottom, in the light theme too.

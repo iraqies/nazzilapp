@@ -5,7 +5,7 @@ import 'tappable.dart';
 import 'title_text.dart';
 
 /// A few choices side by side. The picked one is filled with the text colour,
-/// which leaves the user's colour to the button that does the next step.
+/// which leaves Grape to the button that does the next step.
 class ChoiceRow<T> extends StatelessWidget {
   const ChoiceRow({
     super.key,

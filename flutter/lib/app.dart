@@ -26,12 +26,11 @@ class NazzilApp extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final s = controller.s;
-        final palette = NazzilPalette.byId(controller.settings.palette);
         return MaterialApp(
           title: s.appName,
           debugShowCheckedModeBanner: false,
-          theme: NazzilTheme.light(palette, arabic: s.isAr),
-          darkTheme: NazzilTheme.dark(palette, arabic: s.isAr),
+          theme: NazzilTheme.light(arabic: s.isAr),
+          darkTheme: NazzilTheme.dark(arabic: s.isAr),
           themeMode: controller.themeMode,
           locale: controller.locale,
           supportedLocales: const [Locale('en'), Locale('ar')],

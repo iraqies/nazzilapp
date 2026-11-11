@@ -1,9 +1,8 @@
 """The logo the owner chose on 2026-11-11: concept 13, the word نزّل in the Ruqaa hand.
 
-The letters are ink, and the two dots and the shadda take the colour. On the
-launcher icon the ground is paper and the colour is Grape, the one the app
-starts with. In the app the mark stands on the page, and its dots take the
-colour the user picked.
+The letters are ink, and the two dots and the shadda are Grape, the one colour
+the app has. On the launcher icon the ground is paper. In the app the mark
+stands on the page.
 """
 import math
 
@@ -15,7 +14,7 @@ WORD = 'نزّل'
 
 PAPER = '#F4F2EE'
 INK = '#111111'
-# NazzilPalette.grape in flutter/lib/theme/nazzil_theme.dart.
+# NazzilColors.grape in flutter/lib/theme/nazzil_theme.dart.
 GRAPE = '#8B5CF6'
 
 

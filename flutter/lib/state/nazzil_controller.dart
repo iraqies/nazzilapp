@@ -739,12 +739,6 @@ class NazzilController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setPalette(String id) async {
-    settings = settings.copyWith(palette: id);
-    await settingsStore.save(settings);
-    notifyListeners();
-  }
-
   Future<void> setTheme(String theme) async {
     settings = settings.copyWith(theme: theme);
     await settingsStore.save(settings);

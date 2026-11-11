@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../theme/nazzil_theme.dart';
 
 /// A picture that shows how much of its file is on the device: in colour
-/// where it has arrived, grey where it is still to come, and a line of the
-/// picked colour at the front. Colour arrives from the side reading starts on.
+/// where it has arrived, grey where it is still to come, and a line of Grape
+/// at the front. Colour arrives from the side reading starts on.
 class ArrivingPicture extends StatelessWidget {
   const ArrivingPicture({
     super.key,

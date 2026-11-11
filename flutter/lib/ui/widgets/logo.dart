@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'logo_outline.g.dart';
 
 /// The Nazzil logo: the name, written in the Ruqaa hand. The letters take the
-/// text colour, and the dots and the shadda take the colour the user picked.
+/// text colour, and the dots and the shadda are Grape.
 /// It is the same in both languages, as a logo is.
 class NazzilLogo extends StatelessWidget {
   const NazzilLogo({super.key, required this.height, required this.name});
