@@ -67,7 +67,7 @@ Future<NazzilController> boot(
   WidgetTester tester, {
   String language = 'en',
   String theme = 'dark',
-  String palette = 'rose',
+  String palette = 'grape',
   List<LibraryItem> library = const [],
   Size size = const Size(360, 720),
   double textScale = 1,
@@ -581,7 +581,7 @@ void main() {
     final grey = at(poster.right - 40);
     expect(grey >> 24, grey >> 16 & 0xFF);
     expect(grey >> 16 & 0xFF, grey >> 8 & 0xFF);
-    expect(at(poster.center.dx) >> 8, NazzilPalette.rose.fill.toARGB32() & 0xFFFFFF);
+    expect(at(poster.center.dx) >> 8, NazzilPalette.grape.fill.toARGB32() & 0xFFFFFF);
 
     controller
       ..converting = true
@@ -796,7 +796,7 @@ void main() {
   });
 
   for (final language in ['en', 'ar']) {
-    testWidgets('settings ($language): the five colours stand in one row on a phone', (tester) async {
+    testWidgets('settings ($language): the four colours stand in one row on a phone', (tester) async {
       final controller = await boot(tester, language: language, size: const Size(360, 780));
       await tester.tap(find.byTooltip(controller.s.settings));
       await tester.pumpAndSettle();
@@ -841,6 +841,19 @@ void main() {
     // "system" was the default before as often as it was a choice, so it moves to the new default.
     expect(await themeFrom({'nazzil.theme': 'system'}), 'dark');
     expect(await themeFrom({'nazzil.theme': 'light', 'nazzil.theme.v2': 'system'}), 'system');
+  });
+
+  test('settings store: Grape is the default, and a phone that has Rose stored gets Grape', () async {
+    Future<String> colourFrom(Map<String, Object> stored) async {
+      SharedPreferences.setMockInitialValues(stored);
+      return (await SettingsStore().load()).palette;
+    }
+
+    expect(await colourFrom({}), 'grape');
+    expect(await colourFrom({'nazzil.palette': 'rose'}), 'grape');
+    expect(await colourFrom({'nazzil.palette': 'sunset'}), 'sunset');
+    expect(NazzilPalette.all.map((palette) => palette.id), isNot(contains('rose')));
+    expect(NazzilPalette.all.first, NazzilPalette.grape);
   });
 
   testWidgets('library: counts, a tag on every picture, a filter for every app present, and both empty states', (tester) async {
@@ -981,7 +994,7 @@ void main() {
 
   testWidgets('library tile: a saved photo is its own cover, a video keeps the site picture', (tester) async {
     Widget tile(LibraryItem item) => MaterialApp(
-          theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+          theme: NazzilTheme.dark(NazzilPalette.grape, arabic: false),
           home: Scaffold(
             body: Center(
               child: SizedBox(
@@ -1213,7 +1226,7 @@ void main() {
       final item = entry('missing-${kind.name}', PlatformId.youtube, kind);
       await tester.pumpWidget(
         MaterialApp(
-          theme: NazzilTheme.light(NazzilPalette.rose, arabic: false),
+          theme: NazzilTheme.light(NazzilPalette.grape, arabic: false),
           home: ViewerScreen(controller: controller, item: item),
         ),
       );
@@ -1234,7 +1247,7 @@ void main() {
     final item = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true);
     await tester.pumpWidget(
       MaterialApp(
-        theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+        theme: NazzilTheme.dark(NazzilPalette.grape, arabic: false),
         home: ViewerScreen(controller: controller, item: item),
       ),
     );
@@ -1261,7 +1274,7 @@ void main() {
       final item = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true);
       await tester.pumpWidget(
         MaterialApp(
-          theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+          theme: NazzilTheme.dark(NazzilPalette.grape, arabic: false),
           home: ViewerScreen(controller: controller, item: item),
         ),
       );
@@ -1283,7 +1296,7 @@ void main() {
     final album = entry('album', PlatformId.tiktok, MediaKind.photo, photoCount: 3).copyWith(paths: paths);
     await tester.pumpWidget(
       MaterialApp(
-        theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+        theme: NazzilTheme.dark(NazzilPalette.grape, arabic: false),
         home: ViewerScreen(controller: controller, item: album),
       ),
     );
@@ -1315,7 +1328,7 @@ void main() {
     final single = entry('one', PlatformId.pinterest, MediaKind.photo).copyWith(paths: [paths.first]);
     await tester.pumpWidget(
       MaterialApp(
-        theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+        theme: NazzilTheme.dark(NazzilPalette.grape, arabic: false),
         home: ViewerScreen(key: const ValueKey('one'), controller: controller, item: single),
       ),
     );
@@ -1613,7 +1626,7 @@ void main() {
   testWidgets('done dialog: colour crosses the picture once, not at all under reduce motion, and the title counts the photos', (tester) async {
     final shown = await picture(tester, 'shown', 80, 60);
     Widget dialog({bool photos = false, bool onePhoto = false}) => MaterialApp(
-          theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+          theme: NazzilTheme.dark(NazzilPalette.grape, arabic: false),
           home: Scaffold(
             body: DoneSheet(
               s: const S('en'),
@@ -1680,7 +1693,7 @@ void main() {
       ('dark', 'en', 'emerald'),
       ('light', 'en', 'sunset'),
       ('dark', 'ar', 'grape'),
-      ('light', 'ar', 'rose'),
+      ('light', 'ar', 'ocean'),
     ]) {
       // A screen tall enough to show each page whole: text cut by the edge
       // of a scroll area gets measured against whatever sits beside it.
@@ -1859,18 +1872,18 @@ void main() {
         .length;
 
     // One stop for the back button, then three languages, three themes and
-    // five colours; the last stop is Grape.
+    // four colours; the last stop is Sunset.
     var ringed = 0;
-    for (var i = 0; i < 12; i++) {
+    for (var i = 0; i < 11; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
       if (rings() == 1) ringed++;
     }
-    expect(ringed, 11);
+    expect(ringed, 10);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
-    expect(controller.settings.palette, 'grape');
+    expect(controller.settings.palette, 'sunset');
   });
 
   testWidgets('keyboard: a picture on the wall shows a ring inside its edge, and Enter opens it', (tester) async {

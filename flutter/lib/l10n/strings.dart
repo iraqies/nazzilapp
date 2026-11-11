@@ -65,8 +65,7 @@ class S {
         'ocean' => _t('Ocean', 'بحري'),
         'emerald' => _t('Emerald', 'زمردي'),
         'sunset' => _t('Sunset', 'غروب'),
-        'grape' => _t('Grape', 'عنبي'),
-        _ => _t('Rose', 'وردي'),
+        _ => _t('Grape', 'عنبي'),
       };
   String get themeLight => _t('Light', 'فاتح');
   String get themeDark => _t('Dark', 'داكن');

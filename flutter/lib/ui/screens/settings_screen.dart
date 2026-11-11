@@ -49,7 +49,7 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         section(s.colour),
-        // The five stand in one row on a 360 wide phone, and fold onto a second where
+        // The four stand in one row on a 360 wide phone, and fold onto a second where
         // the screen is narrower or the text is set larger.
         Wrap(
           spacing: 4,

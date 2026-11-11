@@ -15,9 +15,13 @@ class SettingsStore {
     return AppSettings(
       language: prefs.getString(_lang) ?? 'system',
       theme: prefs.getString(_theme) ?? _carriedOver(prefs.getString(_oldTheme)),
-      palette: prefs.getString(_palette) ?? 'rose',
+      palette: _colour(prefs.getString(_palette)),
     );
   }
+
+  /// Rose was the first colour up to 2.1 and is gone since. A phone that has it stored,
+  /// picked or not, gets the colour that took its place.
+  static String _colour(String? stored) => stored == null || stored == 'rose' ? 'grape' : stored;
 
   /// Dark is the default now. Someone who picked light or dark keeps it; a
   /// stored "system" was the old default as often as a choice, so it moves to dark.

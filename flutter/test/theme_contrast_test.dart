@@ -104,7 +104,7 @@ void main() {
 
   test('english is set in the serif and arabic in the hand of the logo, each behind the other', () {
     for (final arabic in [false, true]) {
-      final type = NazzilTheme.dark(NazzilPalette.rose, arabic: arabic).textTheme;
+      final type = NazzilTheme.dark(NazzilPalette.grape, arabic: arabic).textTheme;
       for (final style in stylesOf(type)) {
         final latinFirst = !arabic || style == type.displayLarge;
         final serif = style.fontSize! >= 21 ? NazzilTheme.serifDisplay : NazzilTheme.serif;
@@ -150,8 +150,8 @@ void main() {
   });
 
   test('one text size suits both scripts, and arabic stands on taller lines', () {
-    final latin = NazzilTheme.dark(NazzilPalette.rose, arabic: false).textTheme;
-    final arabic = NazzilTheme.dark(NazzilPalette.rose, arabic: true).textTheme;
+    final latin = NazzilTheme.dark(NazzilPalette.grape, arabic: false).textTheme;
+    final arabic = NazzilTheme.dark(NazzilPalette.grape, arabic: true).textTheme;
     for (final (a, l) in [
       (arabic.displaySmall!, latin.displaySmall!),
       (arabic.titleMedium!, latin.titleMedium!),
@@ -167,8 +167,8 @@ void main() {
   });
 
   test('a run of the other script is set as that script is, from either side', () {
-    final latin = NazzilTheme.dark(NazzilPalette.rose, arabic: false).textTheme;
-    final arabic = NazzilTheme.dark(NazzilPalette.rose, arabic: true).textTheme;
+    final latin = NazzilTheme.dark(NazzilPalette.grape, arabic: false).textTheme;
+    final arabic = NazzilTheme.dark(NazzilPalette.grape, arabic: true).textTheme;
     for (final (a, l) in [
       (arabic.headlineMedium!, latin.headlineMedium!),
       (arabic.bodyLarge!, latin.bodyLarge!),
@@ -193,7 +193,7 @@ void main() {
   test('the percentage counts without shaking: its figures are of one width', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
     await loadShippedTypefaces();
-    final style = NazzilTheme.dark(NazzilPalette.rose, arabic: true).textTheme.displayLarge!;
+    final style = NazzilTheme.dark(NazzilPalette.grape, arabic: true).textTheme.displayLarge!;
     double wide(String text) {
       final painter = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr)..layout();
       final width = painter.width;

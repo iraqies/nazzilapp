@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// One of the five colours a user can pick. It fills the button that does the
+/// One of the four colours a user can pick. It fills the button that does the
 /// next step and draws the front line of an arriving picture, and nothing else.
 class NazzilPalette {
   const NazzilPalette(this.id, this.fill);
   final String id;
   final Color fill;
 
-  static const rose = NazzilPalette('rose', Color(0xFFFF4D8D));
+  /// The one the app starts with, by the owner's call on 2026-11-11.
+  static const grape = NazzilPalette('grape', Color(0xFF8B5CF6));
   static const ocean = NazzilPalette('ocean', Color(0xFF2F7BFF));
   static const emerald = NazzilPalette('emerald', Color(0xFF12B886));
   static const sunset = NazzilPalette('sunset', Color(0xFFFF7139));
-  static const grape = NazzilPalette('grape', Color(0xFF8B5CF6));
-  static const all = [rose, ocean, emerald, sunset, grape];
+  static const all = [grape, ocean, emerald, sunset];
 
-  static NazzilPalette byId(String id) => all.firstWhere((p) => p.id == id, orElse: () => rose);
+  static NazzilPalette byId(String id) => all.firstWhere((p) => p.id == id, orElse: () => grape);
 }
 
 abstract final class NazzilColors {
-  /// Text on the picked colour. It passes 4.5:1 on all five; white fails on all five.
+  /// Text on the picked colour. It passes 4.5:1 on all four; white fails on all four.
   static const ink = Color(0xFF0B0B0C);
 
   /// Scrim behind a tag on a picture: white on it stays above 4.5:1 even over a white photo.

@@ -273,7 +273,7 @@ class AppSettings {
     this.language = 'system',
     // Dark is the designed default: a saved picture reads best against black.
     this.theme = 'dark',
-    this.palette = 'rose',
+    this.palette = 'grape',
   });
 
   final String language;
