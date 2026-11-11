@@ -15,7 +15,7 @@ import tempfile
 
 from PIL import Image, ImageDraw
 
-from chosen import FIT, INK, PAPER, ROSE, TILE, Mark, lettering, tile
+from chosen import FIT, GRAPE, INK, PAPER, TILE, Mark, lettering, tile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'remake'))
@@ -95,7 +95,7 @@ def android(mark):
     <solid android:color="{PAPER}" />
 </shape>
 """)
-    write(os.path.join(drawable, 'ic_launcher_foreground.xml'), android_vector(mark, 108, scale, (INK, ROSE)))
+    write(os.path.join(drawable, 'ic_launcher_foreground.xml'), android_vector(mark, 108, scale, (INK, GRAPE)))
     # A themed icon is one colour, which the launcher picks.
     write(os.path.join(drawable, 'ic_launcher_monochrome.xml'), android_vector(mark, 108, scale, ('#000000', '#000000')))
     launch(mark, scale)
@@ -111,7 +111,7 @@ def launch(mark, scale):
     light launch screen in front of a black app is a flash every time it opens.
     """
     drawable = os.path.join(ANDROID, 'drawable')
-    write(os.path.join(drawable, 'launch_logo.xml'), android_vector(mark, 108, scale, ('@color/launch_ink', ROSE)))
+    write(os.path.join(drawable, 'launch_logo.xml'), android_vector(mark, 108, scale, ('@color/launch_ink', GRAPE)))
     for folder, page, ink in (
         ('values', NIGHT_PAPER, NIGHT_INK),
         ('values-v31', PAPER, INK),
