@@ -11,9 +11,13 @@ import 'library_tile.dart';
 import 'title_text.dart';
 
 /// Opens the sheet of a library item: its title, where it stands, and every
-/// action for it. [context] is the page under the sheet, which the actions
-/// go on using after the sheet has closed.
+/// action for it. [context] is the page the sheet is opened from.
 Future<void> showItemSheet(BuildContext context, NazzilController controller, LibraryItem item) {
+  // The actions go on after the sheet has closed: a viewer to open, a question to ask, a
+  // line to show. The page cannot carry them. A share from another app, or a tap on a
+  // notification, changes the tab under an open sheet, and the page is gone by then.
+  // What holds the pages is still there.
+  final above = Navigator.of(context).context;
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -25,15 +29,17 @@ Future<void> showItemSheet(BuildContext context, NazzilController controller, Li
       builder: (_, _) {
         final now = controller.library.where((e) => e.id == item.id).firstOrNull;
         if (now == null) return const SizedBox(width: double.infinity, height: 24);
-        return _ItemSheet(page: context, sheet: sheet, controller: controller, item: now);
+        return _ItemSheet(above: above, sheet: sheet, controller: controller, item: now);
       },
     ),
   );
 }
 
 class _ItemSheet extends StatelessWidget {
-  const _ItemSheet({required this.page, required this.sheet, required this.controller, required this.item});
-  final BuildContext page;
+  const _ItemSheet({required this.above, required this.sheet, required this.controller, required this.item});
+
+  /// Where the actions go on once the sheet has closed. It outlives the page under the sheet.
+  final BuildContext above;
   final BuildContext sheet;
   final NazzilController controller;
   final LibraryItem item;
@@ -158,8 +164,8 @@ class _ItemSheet extends StatelessWidget {
                 () {
                   _close();
                   Navigator.push(
-                    page,
-                    NazzilMotion.route<void>(page, (_) => ViewerScreen(controller: controller, item: item)),
+                    above,
+                    NazzilMotion.route<void>(above, (_) => ViewerScreen(controller: controller, item: item)),
                   );
                 },
               ),
@@ -168,8 +174,8 @@ class _ItemSheet extends StatelessWidget {
                 Platforms.desktop ? Icons.open_in_new_rounded : Icons.photo_library_outlined,
                 s.openGallery,
                 () async {
-                  final messenger = ScaffoldMessenger.of(page);
-                  final motion = NazzilMotion.style(page);
+                  final messenger = ScaffoldMessenger.of(above);
+                  final motion = NazzilMotion.style(above);
                   _close();
                   if (await controller.openInGallery(item)) return;
                   messenger.showSnackBar(SnackBar(content: Text(s.cantOpen)), snackBarAnimationStyle: motion);
@@ -196,7 +202,7 @@ class _ItemSheet extends StatelessWidget {
             if (!item.active)
               row(Icons.delete_outline, s.delete, color: scheme.error, () {
                 _close();
-                deleteItem(page, controller, item);
+                deleteItem(above, controller, item);
               }),
           ],
         ),

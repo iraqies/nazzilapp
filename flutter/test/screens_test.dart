@@ -1131,6 +1131,51 @@ void main() {
       expect(find.text(line), findsOneWidget);
       await tester.tapAt(const Offset(180, 40));
       await tester.pumpAndSettle();
+  testWidgets('library sheet: its rows go on working when the page under it has changed', (tester) async {
+    final controller = await boot(
+      tester,
+      library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'A clip')],
+    );
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/url_launcher'),
+      (call) async => call.method != 'canLaunch',
+    );
+    // A share from another app takes the app to Home, and a tap on a notification to the
+    // Library, whatever sheet is open at the time.
+    Future<void> openThenLeave() async {
+      controller.goTab(1);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(LibraryTile).first);
+      await tester.pumpAndSettle();
+      controller.goTab(0);
+      await tester.pumpAndSettle();
+      expect(find.byType(LinkFrame), findsOneWidget, reason: 'Home is under the sheet now');
+      expect(find.widgetWithText(ListTile, 'Delete'), findsOneWidget, reason: 'and the sheet is still up');
+    }
+
+    await openThenLeave();
+    await tester.tap(find.text('Open in gallery'));
+    await tester.pumpAndSettle();
+    expect(find.text('No app on this phone could open it.'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+
+    await openThenLeave();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this download?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(controller.library, hasLength(1));
+
+    await openThenLeave();
+    await tester.tap(find.text('Play'));
+    // No video player exists in a test, so the viewer never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(ViewerScreen), findsOneWidget);
+  });
+
     }
 
     await facts(0, 'Reddit · Video · HD');
