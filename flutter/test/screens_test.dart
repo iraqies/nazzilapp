@@ -111,12 +111,18 @@ Future<String> picture(WidgetTester tester, String name, int width, int height, 
   return path;
 }
 
-/// Reading and decoding a picture run in real time, one stage per turn of the fake clock.
+/// Lets the pictures on the page arrive, or fail. Reading and decoding run in
+/// real time, one stage per turn of the fake clock: a quick machine is done
+/// in a few turns, a slow one gets ten seconds.
 Future<void> pictures(WidgetTester tester) async {
-  for (var i = 0; i < 6; i++) {
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+  final cache = PaintingBinding.instance.imageCache;
+  final clock = Stopwatch()..start();
+  var turns = 0;
+  do {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
     await tester.pump(const Duration(milliseconds: 120));
-  }
+    turns++;
+  } while ((turns < 3 || cache.pendingImageCount > 0) && clock.elapsed < const Duration(seconds: 10));
   await tester.pumpAndSettle();
 }
 
@@ -299,6 +305,10 @@ void main() {
     );
     // No network in tests: a picture comes from a file a test names, or fails at once.
     LocalPictures.serve();
+    // Flutter keeps decoded pictures, and the ones still loading, from one test to the next.
+    PaintingBinding.instance.imageCache
+      ..clear()
+      ..clearLiveImages();
   });
   tearDown(() => scratch.deleteSync(recursive: true));
 
