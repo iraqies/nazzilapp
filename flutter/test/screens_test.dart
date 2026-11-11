@@ -40,6 +40,7 @@ LibraryItem entry(
   String? title,
   String? videoKey,
   String? thumbnail,
+  String quality = 'HD',
 }) {
   final path = '${scratch.path}/$id.${kind == MediaKind.photo ? 'jpg' : 'mp4'}';
   if (onDisk) File(path).writeAsBytesSync([0]);
@@ -48,7 +49,7 @@ LibraryItem entry(
     title: title ?? 'Saved item $id',
     platform: platform,
     kind: kind,
-    quality: 'HD',
+    quality: quality,
     createdAt: DateTime(2026, 11, 10),
     sourceUrl: 'https://example.com/$id',
     videoKey: videoKey ?? '${platform.name}:$id',
@@ -961,7 +962,7 @@ void main() {
     await tester.tap(find.byType(LibraryTile));
     await tester.pumpAndSettle();
     expect(find.text('A clip'), findsOneWidget);
-    expect(find.text('Reddit · Video'), findsOneWidget);
+    expect(find.text('Reddit · Video · HD'), findsOneWidget, reason: 'two saves of one video differ only in the quality');
     expect(
       [for (final row in tester.widgetList<ListTile>(find.byType(ListTile))) (row.title! as Text).data],
       ['Play', 'Open in gallery', 'Share', 'Original', 'Delete'],
@@ -981,6 +982,41 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.textContaining('No app on this phone'), findsNothing);
+  });
+
+  testWidgets('library sheet: a video says which quality it was saved in, in the words of the quality buttons', (tester) async {
+    final controller = await boot(
+      tester,
+      size: const Size(360, 1200),
+      library: [
+        entry('hd', PlatformId.reddit, MediaKind.video, onDisk: true),
+        entry('sd', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'SD'),
+        entry('gif', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'GIF'),
+        entry('show', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'Video'),
+        entry('sound', PlatformId.reddit, MediaKind.audio, onDisk: true, quality: 'Audio'),
+      ],
+    );
+    await tester.tap(tab('Library'));
+    await tester.pumpAndSettle();
+    Future<void> facts(int tile, String line) async {
+      await tester.tap(find.byType(LibraryTile).at(tile));
+      await tester.pumpAndSettle();
+      expect(find.text(line), findsOneWidget);
+      await tester.tapAt(const Offset(180, 40));
+      await tester.pumpAndSettle();
+    }
+
+    await facts(0, 'Reddit · Video · HD');
+    await facts(1, 'Reddit · Video · SD');
+    await facts(2, 'Reddit · Video · GIF');
+    await facts(3, 'Reddit · Video');
+    await facts(4, 'Reddit · Audio');
+
+    await controller.setLanguage('ar');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(LibraryTile).first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('جودة عالية'), findsOneWidget);
   });
 
   testWidgets(

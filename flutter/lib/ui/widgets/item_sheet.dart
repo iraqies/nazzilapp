@@ -64,6 +64,14 @@ class _ItemSheet extends StatelessWidget {
         MediaKind.audio => s.audio,
         MediaKind.video => duration != null && duration > 0 ? s.clock(duration) : s.video,
       },
+      // Two saves of one video differ in nothing else.
+      if (item.kind == MediaKind.video)
+        switch (item.quality) {
+          'HD' => s.hd,
+          'SD' => s.sd,
+          'Video' => '',
+          final other => other,
+        },
     ].where((fact) => fact.isNotEmpty).join(' · ');
 
     Widget row(IconData icon, String label, VoidCallback onTap, {Color? color}) => ListTile(
