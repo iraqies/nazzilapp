@@ -143,6 +143,7 @@ class NazzilController extends ChangeNotifier {
       onResume: resumeCurrent,
       onCancel: cancelCurrent,
     );
+    unawaited(DownloadHost.words(s.hostWords));
     notifyListeners();
     _shareSub = InboundShare.stream().listen(ingest);
     final initial = await InboundShare.initial();
@@ -699,6 +700,7 @@ class NazzilController extends ChangeNotifier {
   Future<void> setLanguage(String language) async {
     settings = settings.copyWith(language: language);
     await settingsStore.save(settings);
+    unawaited(DownloadHost.words(s.hostWords));
     notifyListeners();
   }
 

@@ -60,6 +60,22 @@ void main() {
     expect(const S('en').percent(8), '8%');
   });
 
+  test('the notification gets every word Android asks for, in the language of the app', () {
+    final notifier = File('android/app/src/main/kotlin/com/nazzil/nazzil/DownloadNotifier.kt').readAsStringSync();
+    final asked = {
+      for (final match in RegExp(r'word\(context, "(\w+)", "([^"]*)"\)').allMatches(notifier))
+        match.group(1)!: match.group(2)!,
+    };
+    expect(asked, isNotEmpty);
+    // Until the app has sent its words, Android shows the English ones it carries.
+    expect(const S('en').hostWords, asked);
+    final arabic = const S('ar').hostWords;
+    expect(arabic.keys.toSet(), asked.keys.toSet());
+    for (final word in arabic.values) {
+      expect(word, matches(RegExp(r'^[\u0600-\u06FF\s…]+$')), reason: word);
+    }
+  });
+
   // The owner's call on 2026-11-11: standard Arabic, not Iraqi dialect.
   test('the Arabic is standard Arabic: no word of the Iraqi dialect is in it', () {
     final source = File('lib/l10n/strings.dart').readAsStringSync();

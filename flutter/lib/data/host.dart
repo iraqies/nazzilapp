@@ -50,6 +50,9 @@ class DownloadHost {
     } catch (_) {}
   }
 
+  /// The notification is drawn by the system, so it is told the words in the app's language.
+  static Future<void> words(Map<String, String> words) => _notify('words', words);
+
   static Future<void> start({String title = 'Nazzil', int percent = 1}) =>
       _notify('start', {'title': title, 'percent': percent});
 

@@ -20,7 +20,7 @@ MOTION 2: motion reports the download. Colour moves across the poster as the fil
 
 Nazzil, نزّل, is Arabic for "download", said as a command. The app keeps that tone: buttons are short commands (الصق, اجلب, نزّل, استأنف, أغلق), and statuses are one or two words.
 
-The Arabic is standard Arabic (فصحى), by the owner's call on 2026-11-11. Before that the app spoke Iraqi dialect. A count takes the form its number asks for (صورتان, 3 صور, 11 صورة). A test in `flutter/test/strings_test.dart` fails if a dialect word comes back.
+The Arabic is standard Arabic (فصحى), by the owner's call on 2026-11-11. Before that the app spoke Iraqi dialect. A count takes the form its number asks for (صورتان, 3 صور, 11 صورة). A test in `flutter/test/strings_test.dart` fails if a dialect word comes back. The download notification on Android is drawn by the system, and the app hands it the same words in its own language, so an Arabic app on an English phone still gets an Arabic notification.
 
 The motif is colour arriving. A fetched post shows in colour, as it looks where it came from. When its download starts the picture goes grey, and colour comes back across it from the leading edge as the file arrives, with a thin line of the picked colour at the front. The same grey marks everything that was asked for and is not on the device: a waiting, paused, failed or removed item is grey, and a saved one is in colour. The user reads the state of a download from the picture before reading a word.
 

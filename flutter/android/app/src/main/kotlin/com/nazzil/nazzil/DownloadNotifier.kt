@@ -21,13 +21,30 @@ object DownloadNotifier {
     const val EXTRA_RESUME = "resume_download"
     const val EXTRA_CANCEL = "cancel_download"
 
+    private const val WORDS = "nazzil_words"
+
+    // The app sends its words in its own language, which can differ from the phone's.
+    // They are kept, because the service can start before the app has sent them again.
+    fun setWords(context: Context, words: Map<*, *>?) {
+        if (words == null) return
+        val edit = context.getSharedPreferences(WORDS, Context.MODE_PRIVATE).edit()
+        for ((key, value) in words) {
+            if (key is String && value is String && value.isNotBlank()) edit.putString(key, value)
+        }
+        edit.apply()
+        ensureChannel(context)
+    }
+
+    private fun word(context: Context, key: String, fallback: String): String =
+        context.getSharedPreferences(WORDS, Context.MODE_PRIVATE).getString(key, null) ?: fallback
+
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < 26) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL,
-                "Downloads",
+                word(context, "channel", "Downloads"),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 setShowBadge(false)
@@ -41,7 +58,7 @@ object DownloadNotifier {
         val shown = percent.coerceIn(0, 100)
         return NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Downloading…")
+            .setContentTitle(word(context, "downloading", "Downloading…"))
             .setContentText("$shown%  ·  $title")
             .setProgress(100, shown, shown <= 1)
             .setOngoing(true)
@@ -50,12 +67,12 @@ object DownloadNotifier {
             .setContentIntent(openApp(context, library = false))
             .addAction(
                 android.R.drawable.ic_media_pause,
-                "Pause",
+                word(context, "pause", "Pause"),
                 serviceAction(context, DownloadService.ACTION_PAUSE, 11),
             )
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Cancel",
+                word(context, "cancel", "Cancel"),
                 serviceAction(context, DownloadService.ACTION_CANCEL, 12),
             )
             .build()
@@ -70,7 +87,7 @@ object DownloadNotifier {
         val shown = percent.coerceIn(0, 100)
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Paused")
+            .setContentTitle(word(context, "paused", "Paused"))
             .setContentText("$shown%  ·  $title")
             .setProgress(100, shown, false)
             .setOngoing(false)
@@ -80,12 +97,12 @@ object DownloadNotifier {
             .setContentIntent(openApp(context, library = true))
             .addAction(
                 android.R.drawable.ic_media_play,
-                "Resume",
+                word(context, "resume", "Resume"),
                 resumeApp(context),
             )
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Cancel",
+                word(context, "cancel", "Cancel"),
                 openApp(context, library = true, cancel = true),
             )
             .build()
@@ -96,7 +113,7 @@ object DownloadNotifier {
         ensureChannel(context)
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Saved")
+            .setContentTitle(word(context, "saved", "Saved"))
             .setContentText(title)
             .setAutoCancel(true)
             .setOngoing(false)
@@ -110,7 +127,7 @@ object DownloadNotifier {
         ensureChannel(context)
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Download failed")
+            .setContentTitle(word(context, "failed", "Download failed"))
             .setContentText(message)
             .setAutoCancel(true)
             .setOngoing(false)
@@ -184,7 +201,7 @@ object DownloadNotifier {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                val chooser = Intent.createChooser(view, "Open")
+                val chooser = Intent.createChooser(view, word(context, "open", "Open"))
                 chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 return PendingIntent.getActivity(
                     context,

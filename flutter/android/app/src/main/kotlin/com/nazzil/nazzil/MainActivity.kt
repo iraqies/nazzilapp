@@ -63,6 +63,10 @@ class MainActivity : FlutterActivity() {
                         pendingResume = false
                         pendingCancel = false
                     }
+                    "words" -> {
+                        DownloadNotifier.setWords(this, call.arguments as? Map<*, *>)
+                        result.success(null)
+                    }
                     "start" -> {
                         val title = call.argument<String>("title") ?: "Nazzil"
                         val percent = call.argument<Int>("percent") ?: 1
@@ -88,7 +92,7 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "failed" -> {
-                        DownloadNotifier.failed(this, call.argument<String>("message") ?: "Download failed")
+                        DownloadNotifier.failed(this, call.argument<String>("message") ?: "")
                         result.success(null)
                     }
                     "stop" -> {

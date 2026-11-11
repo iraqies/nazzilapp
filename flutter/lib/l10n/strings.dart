@@ -128,6 +128,19 @@ class S {
   String get albumSaved => _t('Photos saved', 'تم حفظ الصور');
   String get photoSaved => _t('Photo saved', 'تم حفظ الصورة');
   String get view => _t('View', 'اعرض');
+  /// What the download notification says. Android draws it outside Flutter, so the app hands it these.
+  Map<String, String> get hostWords => {
+        'channel': _t('Downloads', 'التنزيلات'),
+        'downloading': downloading,
+        'pause': pause,
+        'cancel': cancel,
+        'paused': paused,
+        'resume': resume,
+        'saved': downloaded,
+        'failed': downloadFailed,
+        'open': _t('Open', 'افتح'),
+      };
+
   String get youtube => _t('YouTube', 'يوتيوب');
   String get tiktok => _t('TikTok', 'تيك توك');
   String get instagram => _t('Instagram', 'إنستغرام');
