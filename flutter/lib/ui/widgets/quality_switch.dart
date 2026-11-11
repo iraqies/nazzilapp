@@ -26,6 +26,7 @@ class QualitySwitch extends StatelessWidget {
       'Photos' => option.photoUrls.length == 1 ? s.photo : s.photos,
       'Album' => s.album,
       'Video' => s.video,
+      'GIF file' => s.gifFile,
       _ => option.label,
     };
   }

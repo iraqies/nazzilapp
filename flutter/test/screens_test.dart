@@ -1323,6 +1323,31 @@ void main() {
     expect(find.byTooltip('Next'), findsNothing, reason: 'one photo needs no counter');
   });
 
+  testWidgets('home: the choices of a GIF post are worded in the app\'s language', (tester) async {
+    final controller = await boot(tester, language: 'ar');
+    const post = MediaInfo(
+      id: 'gif',
+      title: 'Toyota AE86',
+      webpageUrl: 'https://www.reddit.com/comments/1xr9o61',
+      platform: PlatformId.reddit,
+      photos: ['https://example.com/1.gif'],
+      options: [
+        QualityOption(id: 'rd-gif', label: 'GIF', ext: 'mp4', kind: MediaKind.video, directUrl: 'https://example.com/1.mp4'),
+        QualityOption(id: 'rd-gif-file', label: 'GIF file', ext: 'gif', kind: MediaKind.photo, photoUrls: ['https://example.com/1.gif']),
+      ],
+    );
+    controller
+      ..media = post
+      ..selected = post.options.first
+      ..notifyListeners();
+    await tester.pump();
+    await pictures(tester);
+    // GIF is the name of a format and stays as it is written everywhere.
+    expect(find.text('GIF'), findsOneWidget);
+    expect(find.text('ملف GIF'), findsOneWidget);
+    expect(find.text('GIF file'), findsNothing);
+  });
+
   testWidgets('home: an album preview turns by button too, and a photo that fails to load says so', (tester) async {
     final controller = await boot(tester);
     LocalPictures.serve({'https://pictures.example/1.png': await picture(tester, 'one', 300, 200)});

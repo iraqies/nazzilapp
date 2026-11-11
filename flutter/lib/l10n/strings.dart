@@ -42,6 +42,7 @@ class S {
   String get audio => _t('Audio', 'صوت');
   String get hd => _t('HD', 'جودة عالية');
   String get sd => _t('SD', 'جودة عادية');
+  String get gifFile => _t('GIF file', 'ملف GIF');
   String get home => _t('Home', 'الرئيسية');
   String get library => _t('Library', 'التنزيلات');
   String get settings => _t('Settings', 'الإعدادات');
