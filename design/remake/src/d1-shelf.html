@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Nazzil remake, direction 1: Shelf</title>
+<!--icons:rounded-->
+<link rel="stylesheet" href="../src/fonts.css">
+<link rel="stylesheet" href="../src/board.css">
+<style>
+  body { font-family: 'Fustat', sans-serif; }
+  .bhead h1 { font-weight: 800; letter-spacing: -0.01em; }
+  .bhead .num { font-weight: 800; }
+
+  /* Shelf: paper, ink and one line that the covers stand on. */
+  .s {
+    --page: #F3F0E8; --sheet: #FFFFFF; --ink: #17150F; --muted: #6B665C; --line: #D8D2C4;
+    --edge: #8E887B; --accent: #12B886; --on-accent: #0B0B0C; --accent-text: #0B6E4F; --scrim: rgba(23, 21, 15, .5);
+    background: var(--page); color: var(--ink); font-family: 'Fustat', sans-serif; font-size: 15px; line-height: 1.35;
+  }
+  .s.dark {
+    --page: #131210; --sheet: #1E1C18; --ink: #F2EEE6; --muted: #A49E92; --line: #34312A;
+    --edge: #7A7468; --accent-text: #3DD6A5; --scrim: rgba(0, 0, 0, .62);
+  }
+  .s .top { display: flex; align-items: center; justify-content: space-between; padding: 44px 8px 0 20px; height: 100px; }
+  .s[dir=rtl] .top { padding: 44px 20px 0 8px; }
+  .s .brand { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; }
+  .s .status { font-size: 13px; font-weight: 600; color: var(--accent-text); margin-top: 1px; }
+  .s .iconbtn { width: 48px; height: 48px; display: grid; place-items: center; font-size: 24px; color: var(--ink); }
+
+  .s .filters { display: flex; align-items: center; gap: 20px; height: 48px; padding: 0 20px; font-size: 15px; font-weight: 500; color: var(--muted); }
+  .s .filters span { height: 48px; display: flex; align-items: center; }
+  .s .filters .on { color: var(--ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--ink); }
+  .s .filters .apps { margin-inline-start: auto; gap: 2px; color: var(--ink); font-weight: 600; }
+  .s .filters .apps .i { font-size: 20px; }
+
+  .s .day { padding: 14px 20px 0; }
+  .s .day + .day { padding-top: 22px; }
+  .s .day header { display: flex; align-items: baseline; justify-content: space-between; height: 30px; }
+  .s .day h2 { font-size: 15px; font-weight: 700; }
+  .s .day header span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .s .covers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: end; height: 165px; padding: 0 2px; }
+  .s .cv { border-radius: 6px 6px 0 0; overflow: hidden; background: var(--line); }
+  .s .cv img { width: 100%; height: 100%; object-fit: cover; }
+  .s .cv.tall { aspect-ratio: 2 / 3; }
+  .s .cv.photo { aspect-ratio: 4 / 5; }
+  .s .cv.sq { aspect-ratio: 1; }
+  .s .cv.wide { aspect-ratio: 3 / 2; }
+  .s .cv.busy img { opacity: .34; }
+  .s .cv img.cat { object-position: 80% 60%; }
+  .s[dir=rtl] .titles b { text-align: right; }
+  /* The shelf line. Under a download it doubles as that item's progress bar. */
+  .s .shelf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 0 2px; height: 2px; background: var(--ink); position: relative; }
+  .s .shelf i { display: block; height: 4px; margin-top: -1px; }
+  .s .shelf i.run { background: linear-gradient(to right, var(--accent) 62%, var(--page) 62%); outline: 1px solid var(--ink); }
+  .s[dir=rtl] .shelf i.run { background: linear-gradient(to left, var(--accent) 62%, var(--page) 62%); }
+  .s .shelf i.wait { background: var(--page); outline: 1px solid var(--ink); }
+  .s .titles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 8px 2px 0; }
+  .s .titles b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; line-height: 1.25; font-weight: 600; text-align: start; unicode-bidi: plaintext; }
+  .s .titles small { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .s .titles small.live { color: var(--accent-text); font-weight: 600; }
+
+  .s .dock { position: absolute; inset: auto 0 0 0; height: 106px; background: var(--page); border-top: 1px solid var(--line); padding: 12px 12px 0; }
+  .s .linkbar { display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 8px 0 16px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 16px; }
+  .s[dir=rtl] .linkbar { padding: 0 16px 0 8px; }
+  .s .linkbar .ph { flex: 1; font-size: 16px; color: var(--muted); }
+  .s .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 18px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 16px; font-weight: 700; }
+  .s .btn .i { font-size: 20px; }
+
+  .s .scrim { position: absolute; inset: 0; background: var(--scrim); }
+  .s .sheet { position: absolute; inset: auto 0 0 0; background: var(--sheet); border-radius: 20px 20px 0 0; padding: 10px 20px 26px; }
+  .s .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 16px; }
+  .s .found { display: flex; gap: 16px; align-items: flex-end; }
+  .s .found .cv { width: 118px; border-radius: 8px; }
+  .s .found .meta { font-size: 13px; color: var(--muted); }
+  .s .found h3 { font-size: 23px; line-height: 1.15; font-weight: 800; letter-spacing: -0.01em; margin-top: 4px; }
+  .s .found p { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .s .choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px; }
+  .s .choice span { height: 48px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1.5px solid var(--edge); border-radius: 10px; font-size: 15px; font-weight: 600; }
+  .s .choice span .i { font-size: 20px; }
+  .s .choice .on { background: var(--ink); border-color: var(--ink); color: var(--page); }
+  .s .sheet .btn { width: 100%; height: 56px; border-radius: 12px; font-size: 17px; margin-top: 12px; }
+  .s .sheet .quiet { display: flex; align-items: center; justify-content: center; height: 48px; margin-top: 4px; font-size: 15px; font-weight: 600; color: var(--ink); }
+</style>
+
+<header class="bhead">
+  <div class="num">1</div>
+  <div>
+    <h1>Shelf</h1>
+    <p>The library is the home screen. Covers stand on a line like books, and the link bar sits under your thumb. Calm, light, one colour.</p>
+  </div>
+  <div class="note">Mockup with sample posts. <br>Colour shown: Emerald. All five stay.</div>
+</header>
+
+<main class="phones">
+  <figure>
+    <div class="bezel" data-shot="1"><div class="phone s" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="filters"><span class="on">All</span><span>Videos</span><span>Photos</span><span>Audio</span><span class="apps">All apps[[expand_more]]</span></div>
+      <section class="day">
+        <header><h2>Today</h2><span>3</span></header>
+        <div class="covers">
+          <div class="cv tall"><img src="../img/walle.jpg" alt=""></div>
+          <div class="cv photo"><img src="../img/pasta.jpg" alt=""></div>
+          <div class="cv sq"><img src="../img/skillet.jpg" alt=""></div>
+        </div>
+        <div class="shelf"></div>
+        <div class="titles">
+          <div><b>Best WALL-E cosplay ever</b><small>TikTok · 0:43</small></div>
+          <div><b>Creamy Parmesan Garlic Beef Bowtie Pasta</b><small>TikTok · Photo</small></div>
+          <div><b>Food Network - Skillet Chicken</b><small>YouTube · Audio</small></div>
+        </div>
+      </section>
+      <section class="day">
+        <header><h2>Yesterday</h2><span>3</span></header>
+        <div class="covers">
+          <div class="cv tall"><img src="../img/cheesecake.jpg" alt=""></div>
+          <div class="cv wide"><img src="../img/ae86.jpg" alt=""></div>
+          <div class="cv tall"><img class="cat" src="../img/cat.jpg" alt=""></div>
+        </div>
+        <div class="shelf"></div>
+        <div class="titles">
+          <div><b>Classic Cheesecake Recipe</b><small>Pinterest · Photo</small></div>
+          <div><b>Toyota AE86</b><small>Pinterest · Video</small></div>
+          <div><b>Typical orange cat behavior</b><small>YouTube · Video</small></div>
+        </div>
+      </section>
+      <div class="dock"><div class="linkbar"><span class="ph">Paste a link</span><span class="btn">[[content_paste]]Paste</span></div></div>
+    </div></div>
+    <figcaption><b>Home is the library.</b> Newest on top, grouped by day. Paste from the bar at the bottom.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="2"><div class="phone s" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="filters"><span class="on">All</span><span>Videos</span><span>Photos</span><span>Audio</span><span class="apps">All apps[[expand_more]]</span></div>
+      <section class="day">
+        <header><h2>Today</h2><span>2</span></header>
+        <div class="covers">
+          <div class="cv photo"><img src="../img/pasta.jpg" alt=""></div>
+          <div class="cv sq"><img src="../img/skillet.jpg" alt=""></div>
+          <div></div>
+        </div>
+        <div class="shelf"></div>
+        <div class="titles">
+          <div><b>Creamy Parmesan Garlic Beef Bowtie Pasta</b><small>TikTok · Photo</small></div>
+          <div><b>Food Network - Skillet Chicken</b><small>YouTube · Audio</small></div>
+          <div></div>
+        </div>
+      </section>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="found">
+          <div class="cv tall"><img src="../img/walle.jpg" alt=""></div>
+          <div>
+            <div class="meta">TikTok · 0:43</div>
+            <h3>Best WALL-E cosplay ever</h3>
+          </div>
+        </div>
+        <div class="choice"><span class="on">HD</span><span>SD</span><span>Audio</span></div>
+        <div class="btn">[[download]]Download</div>
+        <div class="quiet">Cancel</div>
+      </div>
+    </div></div>
+    <figcaption><b>A link was pasted.</b> The post slides up with its choices. One button is coloured: the next step.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="3"><div class="phone s" lang="en" dir="ltr">
+      <div class="top"><div><div class="brand">Nazzil</div><div class="status">Downloading… · 1 waiting</div></div><div class="iconbtn">[[settings]]</div></div>
+      <div class="filters"><span class="on">All</span><span>Videos</span><span>Photos</span><span>Audio</span><span class="apps">All apps[[expand_more]]</span></div>
+      <section class="day">
+        <header><h2>Today</h2><span>4</span></header>
+        <div class="covers">
+          <div class="cv tall busy"><img src="../img/walle.jpg" alt=""></div>
+          <div class="cv tall busy"><img class="cat" src="../img/cat.jpg" alt=""></div>
+          <div class="cv photo"><img src="../img/pasta.jpg" alt=""></div>
+        </div>
+        <div class="shelf"><i class="run"></i><i class="wait"></i><i></i></div>
+        <div class="titles">
+          <div><b>Best WALL-E cosplay ever</b><small class="live">Downloading… 62%</small></div>
+          <div><b>Typical orange cat behavior</b><small>Waiting</small></div>
+          <div><b>Creamy Parmesan Garlic Beef Bowtie Pasta</b><small>TikTok · Photo</small></div>
+        </div>
+      </section>
+      <section class="day">
+        <header><h2>Yesterday</h2><span>3</span></header>
+        <div class="covers">
+          <div class="cv tall"><img src="../img/cheesecake.jpg" alt=""></div>
+          <div class="cv wide"><img src="../img/ae86.jpg" alt=""></div>
+          <div class="cv sq"><img src="../img/skillet.jpg" alt=""></div>
+        </div>
+        <div class="shelf"></div>
+        <div class="titles">
+          <div><b>Classic Cheesecake Recipe</b><small>Pinterest · Photo</small></div>
+          <div><b>Toyota AE86</b><small>Pinterest · Video</small></div>
+          <div><b>Food Network - Skillet Chicken</b><small>YouTube · Audio</small></div>
+        </div>
+      </section>
+      <div class="dock"><div class="linkbar"><span class="ph">Paste a link</span><span class="btn">[[content_paste]]Paste</span></div></div>
+    </div></div>
+    <figcaption><b>Downloading.</b> The new item is already on the shelf, and the line under it is its progress. The bar is free for the next link.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="4"><div class="phone s dark" lang="ar" dir="rtl">
+      <div class="top"><div><div class="brand">نزل</div><div class="status">قاعد ينزّل… · 1 بالانتظار</div></div><div class="iconbtn">[[settings]]</div></div>
+      <div class="filters"><span class="on">الكل</span><span>فيديو</span><span>صور</span><span>صوت</span><span class="apps">كل التطبيقات[[expand_more]]</span></div>
+      <section class="day">
+        <header><h2>اليوم</h2><span>4</span></header>
+        <div class="covers">
+          <div class="cv tall busy"><img src="../img/walle.jpg" alt=""></div>
+          <div class="cv tall busy"><img class="cat" src="../img/cat.jpg" alt=""></div>
+          <div class="cv photo"><img src="../img/pasta.jpg" alt=""></div>
+        </div>
+        <div class="shelf"><i class="run"></i><i class="wait"></i><i></i></div>
+        <div class="titles">
+          <div><b>Best WALL-E cosplay ever</b><small class="live">قاعد ينزّل… 62%</small></div>
+          <div><b>Typical orange cat behavior</b><small>بالانتظار</small></div>
+          <div><b>Creamy Parmesan Garlic Beef Bowtie Pasta</b><small>تيك توك · صورة</small></div>
+        </div>
+      </section>
+      <section class="day">
+        <header><h2>البارحة</h2><span>3</span></header>
+        <div class="covers">
+          <div class="cv tall"><img src="../img/cheesecake.jpg" alt=""></div>
+          <div class="cv wide"><img src="../img/ae86.jpg" alt=""></div>
+          <div class="cv sq"><img src="../img/skillet.jpg" alt=""></div>
+        </div>
+        <div class="shelf"></div>
+        <div class="titles">
+          <div><b>Classic Cheesecake Recipe</b><small>بنترست · صورة</small></div>
+          <div><b>Toyota AE86</b><small>بنترست · فيديو</small></div>
+          <div><b>Food Network - Skillet Chicken</b><small>YouTube · صوت</small></div>
+        </div>
+      </section>
+      <div class="dock"><div class="linkbar"><span class="ph">الصق رابط</span><span class="btn">[[content_paste]]لصّق</span></div></div>
+    </div></div>
+    <figcaption><b>Arabic, dark.</b> The same screen mirrored, in the same typeface.</figcaption>
+  </figure>
+</main>
+</html>

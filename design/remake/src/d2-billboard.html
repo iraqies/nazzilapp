@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Nazzil remake, direction 2: Billboard</title>
+<!--icons:sharp-->
+<link rel="stylesheet" href="../src/fonts.css">
+<link rel="stylesheet" href="../src/board.css">
+<style>
+  body { font-family: 'Readex Pro', sans-serif; }
+  .bhead h1 { font-family: 'Lalezar'; font-weight: 400; font-size: 66px; line-height: .9; }
+  .bhead .num { font-family: 'Lalezar'; font-size: 52px; padding-top: 6px; }
+
+  /* Billboard: one flat field of the picked colour, ink rules, and the command set as a headline. */
+  .b {
+    --field: #FF4D8D; --ink: #0B0B0C; --paper: #F6F1E7; --on: var(--ink); --soft: rgba(11, 11, 12, .68);
+    background: var(--field); color: var(--on); font-family: 'Readex Pro', sans-serif; font-size: 15.5px; line-height: 1.45;
+  }
+  .b.dark { --on: var(--paper); --soft: rgba(246, 241, 231, .72); background: var(--ink); }
+  .b .disp { font-family: 'Lalezar'; font-weight: 400; }
+  .b .pad { padding: 0 24px; }
+  .b .top { display: flex; align-items: center; justify-content: space-between; height: 100px; padding: 44px 12px 0 24px; }
+  .b[dir=rtl] .top { padding: 44px 24px 0 12px; }
+  .b .brand { font-family: 'Lalezar'; font-size: 28px; line-height: 1; padding-top: 4px; }
+  .b .iconbtn { width: 48px; height: 48px; display: grid; place-items: center; font-size: 26px; }
+
+  .b h2.shout { font-family: 'Lalezar'; font-weight: 400; font-size: 80px; line-height: .88; letter-spacing: -0.01em; margin-top: 20px; }
+  .b[lang=ar] h2.shout { font-size: 86px; line-height: 1.02; letter-spacing: 0; margin-top: 6px; }
+  .b.dark h2.shout { color: var(--field); }
+  .b .sub { margin-top: 16px; max-width: 320px; }
+  .b .slot { display: flex; align-items: stretch; height: 64px; margin-top: 26px; border: 3px solid var(--on); }
+  .b .slot .ph { flex: 1; display: flex; align-items: center; padding: 0 16px; font-size: 17px; font-weight: 500; }
+  .b .slot .act { display: flex; align-items: center; gap: 8px; padding: 0 16px; border-inline-start: 3px solid var(--on); font-size: 16px; font-weight: 700; }
+  .b .slot .act .i { font-size: 22px; }
+  .b .slab { display: flex; align-items: center; justify-content: center; height: 80px; margin-top: 12px; background: var(--ink); color: var(--field); font-family: 'Lalezar'; font-size: 40px; line-height: 1; padding-top: 6px; }
+  .b.dark .slab { background: var(--field); color: var(--ink); }
+  .b .hint { margin-top: 16px; font-size: 14.5px; color: var(--on); max-width: 330px; }
+
+  .b .nav { position: absolute; inset: auto 0 0 0; height: 88px; display: grid; grid-template-columns: 1fr 1fr; border-top: 3px solid var(--on); background: var(--field); padding-bottom: 20px; }
+  .b.dark .nav { background: var(--ink); }
+  .b .nav span { display: grid; place-items: center; font-family: 'Lalezar'; font-size: 25px; line-height: 1; color: var(--soft); }
+  .b .nav span b { font-weight: 400; padding: 8px 2px 4px; }
+  .b .nav .on { color: var(--on); }
+  .b .nav .on b { box-shadow: inset 0 -5px 0 var(--on); }
+  .b.dark .nav .on b { box-shadow: inset 0 -5px 0 var(--field); }
+
+  .b .poster { position: relative; height: 198px; margin-top: 6px; border: 3px solid var(--ink); background: var(--ink); }
+  .b .poster img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; }
+  .b .tag { position: absolute; inset: auto auto 0 0; background: var(--ink); color: var(--paper); font-size: 13px; font-weight: 600; padding: 5px 10px; }
+  .b h3 { font-family: 'Lalezar'; font-weight: 400; font-size: 37px; line-height: .98; margin-top: 16px; }
+  .b .keys { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 16px; border: 3px solid var(--ink); }
+  .b .keys span { height: 50px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 16px; font-weight: 700; }
+  .b .keys span + span { border-inline-start: 3px solid var(--ink); }
+  .b .keys span .i { font-size: 22px; }
+  .b .keys .on { background: var(--ink); color: var(--field); }
+  .b .count { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 14px; }
+  .b .count .n { font-family: 'Lalezar'; font-size: 132px; line-height: .78; letter-spacing: -0.02em; padding-top: 14px; }
+  .b .count .say { font-size: 16px; font-weight: 600; padding-bottom: 6px; }
+  .b .bar { height: 18px; margin-top: 12px; border: 3px solid var(--ink); }
+  .b .bar i { display: block; height: 100%; width: 62%; background: var(--ink); }
+  .b .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .b .two span { height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 3px solid var(--ink); font-size: 16px; font-weight: 700; }
+  .b .two span .i { font-size: 22px; }
+
+  .b.lib { background: var(--paper); }
+  .b .band { background: var(--field); border-bottom: 3px solid var(--ink); padding-bottom: 18px; }
+  .b .band h2 { font-family: 'Lalezar'; font-weight: 400; font-size: 80px; line-height: .88; margin-top: 6px; }
+  .b .band p { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .b .words { display: flex; align-items: center; gap: 16px; height: 62px; font-family: 'Lalezar'; font-size: 23px; color: var(--soft); }
+  .b .words span { padding: 8px 0 3px; line-height: 1; }
+  .b .words .on { color: var(--ink); box-shadow: inset 0 -5px 0 var(--ink); }
+  .b .words .apps { margin-inline-start: auto; display: flex; align-items: center; gap: 2px; white-space: nowrap; padding: 0; box-shadow: none; font-family: 'Readex Pro'; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .b .words .apps .i { font-size: 22px; }
+  .b .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
+  .b .tile .pic { position: relative; aspect-ratio: 1; border: 3px solid var(--ink); background: var(--ink); }
+  .b .tile .pic img { width: 100%; height: 100%; object-fit: cover; }
+  .b .tile b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.3; font-weight: 700; margin-top: 8px; }
+</style>
+
+<header class="bhead">
+  <div class="num">2</div>
+  <div>
+    <h1>Billboard</h1>
+    <p>The screen is a poster. One flat colour, heavy ink lines, and the command set as big as a shop sign. Loud on purpose.</p>
+  </div>
+  <div class="note">Mockup with sample posts. <br>Colour shown: Rose. All five stay.</div>
+</header>
+
+<main class="phones">
+  <figure>
+    <div class="bezel" data-shot="1"><div class="phone b" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <h2 class="shout">Download the video. Keep it.</h2>
+        <p class="sub">Videos, TikTok photos, Instagram carousels. Straight into your gallery.</p>
+        <div class="slot"><span class="ph">Paste a link</span><span class="act">[[content_paste]]Paste</span></div>
+        <div class="slab">Fetch</div>
+        <p class="hint">Share a post to Nazzil from any app, or paste its link here.</p>
+      </div>
+      <div class="nav"><span class="on"><b>Home</b></span><span><b>Library</b></span></div>
+    </div></div>
+    <figcaption><b>Home.</b> The whole screen is the picked colour. The headline is the app's own line, set as big as it goes.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="2"><div class="phone b" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <div class="poster"><img src="../img/walle.jpg" alt=""><span class="tag">TikTok · 0:43</span></div>
+        <h3>Best WALL-E cosplay ever</h3>
+        <div class="keys"><span class="on">HD</span><span>SD</span><span>Audio</span></div>
+        <div class="count"><span class="n">62%</span><span class="say">Downloading…</span></div>
+        <div class="bar"><i></i></div>
+        <div class="two"><span>[[pause]]Pause</span><span>[[close]]Cancel</span></div>
+      </div>
+      <div class="nav"><span class="on"><b>Home</b></span><span><b>Library</b></span></div>
+    </div></div>
+    <figcaption><b>Downloading.</b> The percentage is the biggest thing on the screen, readable from across a room.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="3"><div class="phone b lib" lang="en" dir="ltr">
+      <div class="band">
+        <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+        <div class="pad"><h2>Library</h2><p>6 items</p></div>
+      </div>
+      <div class="pad">
+        <div class="words"><span class="on">All</span><span>Photos</span><span>Videos</span><span>Audio</span><span class="apps">All apps[[expand_more]]</span></div>
+        <div class="grid">
+          <div class="tile"><div class="pic"><img src="../img/walle.jpg" alt=""><span class="tag">TikTok · 0:43</span></div><b>Best WALL-E cosplay ever</b></div>
+          <div class="tile"><div class="pic"><img src="../img/pasta.jpg" alt=""><span class="tag">TikTok · Photo</span></div><b>Creamy Parmesan Garlic Beef Bowtie Pasta</b></div>
+          <div class="tile"><div class="pic"><img src="../img/cheesecake.jpg" alt=""><span class="tag">Pinterest · Photo</span></div><b>Classic Cheesecake Recipe</b></div>
+          <div class="tile"><div class="pic"><img src="../img/skillet.jpg" alt=""><span class="tag">YouTube · Audio</span></div><b>Food Network - Skillet Chicken</b></div>
+        </div>
+      </div>
+      <div class="nav"><span><b>Home</b></span><span class="on"><b>Library</b></span></div>
+    </div></div>
+    <figcaption><b>Library.</b> Paper under the covers so their own colours stay true. The colour keeps to the header and the tabs.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="4"><div class="phone b dark" lang="ar" dir="rtl">
+      <div class="top"><div class="brand">نزل</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <h2 class="shout">نزّل الفيديو. خليه عندك.</h2>
+        <p class="sub">فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالمعرض.</p>
+        <div class="slot"><span class="ph">الصق رابط</span><span class="act">[[content_paste]]لصّق</span></div>
+        <div class="slab">جيب</div>
+        <p class="hint">شارك المنشور ويّا نزل من أي تطبيق، أو الصق الرابط هنا.</p>
+      </div>
+      <div class="nav"><span class="on"><b>الرئيسية</b></span><span><b>التحميلات</b></span></div>
+    </div></div>
+    <figcaption><b>Arabic, dark.</b> At night the field goes ink and the colour moves into the words.</figcaption>
+  </figure>
+</main>
+</html>

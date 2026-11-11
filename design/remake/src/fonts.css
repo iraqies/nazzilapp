@@ -1,0 +1,11 @@
+@font-face { font-family: 'Fustat'; src: url('../fonts/Fustat.ttf'); font-weight: 200 800; }
+@font-face { font-family: 'Lalezar'; src: url('../fonts/Lalezar.ttf'); font-weight: 400; }
+@font-face { font-family: 'Readex Pro'; src: url('../fonts/ReadexPro.ttf'); font-weight: 160 700; }
+@font-face { font-family: 'Archivo'; src: url('../fonts/Archivo.ttf'); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: 'Changa'; src: url('../fonts/Changa.ttf'); font-weight: 200 800; }
+@font-face { font-family: 'Handjet'; src: url('../fonts/Handjet.ttf'); font-weight: 100 900; }
+@font-face { font-family: 'IBM Plex Sans'; src: url('../fonts/IBMPlexSans.ttf'); font-weight: 100 700; font-stretch: 75% 100%; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; src: url('../fonts/PlexArabic-Regular.ttf'); font-weight: 400; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; src: url('../fonts/PlexArabic-Medium.ttf'); font-weight: 500; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; src: url('../fonts/PlexArabic-SemiBold.ttf'); font-weight: 600; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; src: url('../fonts/PlexArabic-Bold.ttf'); font-weight: 700; }

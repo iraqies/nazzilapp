@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Nazzil remake, direction 3: Cinema</title>
+<!--icons:rounded-->
+<link rel="stylesheet" href="../src/fonts.css">
+<link rel="stylesheet" href="../src/board.css">
+<style>
+  body { font-family: 'Archivo', 'Changa', sans-serif; }
+  .bhead h1 { font-weight: 800; font-stretch: 75%; font-size: 64px; }
+  .bhead .num { font-weight: 800; font-stretch: 75%; }
+
+  /* Cinema: the interface is black and white, the picture is the colour. */
+  .c {
+    --page: #000000; --text: #F5F3EE; --muted: #A8A49C; --line: #2E2E2E; --frame: #777777;
+    --accent: #2F7BFF; --on-accent: #0B0B0C; --pick: #F5F3EE; --on-pick: #000000;
+    background: var(--page); color: var(--text); font-family: 'Archivo', 'Changa', sans-serif; font-size: 15px; line-height: 1.4;
+  }
+  .c.light { --page: #F4F2EE; --text: #111111; --muted: #5F5B54; --line: #D5D0C6; --frame: #8A857B; --pick: #111111; --on-pick: #F4F2EE; }
+  .c .pad { padding: 0 20px; }
+  .c .top { display: flex; align-items: center; justify-content: space-between; height: 100px; padding: 44px 8px 0 20px; }
+  .c .brand { font-size: 21px; font-weight: 800; font-stretch: 87.5%; }
+  .c .iconbtn { width: 48px; height: 48px; display: grid; place-items: center; font-size: 24px; }
+
+  .c .frame { height: 225px; margin-top: 26px; border: 1.5px dashed var(--frame); border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .c .frame .i { font-size: 32px; color: var(--muted); }
+  .c .frame b { font-size: 26px; font-weight: 800; font-stretch: 75%; margin-top: 10px; line-height: 1.1; }
+  .c .frame small { font-size: 14.5px; color: var(--muted); margin-top: 6px; }
+  .c .btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 56px; margin-top: 16px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: 17px; font-weight: 700; }
+  .c .btn .i { font-size: 22px; }
+  .c .apps { margin-top: 16px; font-size: 13.5px; color: var(--muted); text-align: center; text-wrap: balance; word-spacing: 5px; }
+  .c .recent { position: absolute; inset: 508px 0 auto 0; }
+  .c .recent header { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 8px 0 20px; }
+  .c .recent h2 { font-size: 17px; font-weight: 800; font-stretch: 87.5%; }
+  .c .recent header span { display: flex; align-items: center; height: 48px; padding: 0 6px; font-size: 14.5px; font-weight: 600; color: var(--text); }
+  .c .recent header span .i { font-size: 22px; }
+  .c .strip { display: flex; gap: 3px; padding-inline-start: 20px; overflow: hidden; }
+  .c .strip img { flex: none; width: 108px; height: 162px; object-fit: cover; border-radius: 2px; }
+
+  .c .nav { position: absolute; inset: auto 0 0 0; height: 84px; display: grid; grid-template-columns: 1fr 1fr; padding-bottom: 20px; background: var(--page); border-top: 1px solid var(--line); }
+  .c .nav span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .c .nav span .i { font-size: 25px; }
+  .c .nav .on { color: var(--text); }
+
+  /* The picture arrives in colour from the leading edge. The grey part is what is still to come. */
+  .c .screen { position: relative; height: 500px; background: #111; overflow: hidden; }
+  .c .screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 35%; }
+  .c .screen .todo { filter: grayscale(1) brightness(.42); }
+  .c .screen .done { clip-path: inset(0 38% 0 0); }
+  .c[dir=rtl] .screen .done { clip-path: inset(0 0 0 38%); }
+  .c .screen .edge { position: absolute; inset: 0 auto 0 62%; width: 2px; background: var(--accent); }
+  .c[dir=rtl] .screen .edge { inset: 0 62% 0 auto; }
+  .c .screen .x { position: absolute; inset: 50px auto auto 12px; width: 48px; height: 48px; border-radius: 24px; background: #000; color: #F5F3EE; display: grid; place-items: center; font-size: 24px; }
+  .c[dir=rtl] .screen .x { inset: 50px 12px auto auto; }
+  .c .screen .pc { position: absolute; inset: auto auto 0 0; background: #000; color: #F5F3EE; font-size: 88px; line-height: .8; font-weight: 800; font-stretch: 62.5%; padding: 14px 16px 8px 20px; font-variant-numeric: tabular-nums; }
+  .c[dir=rtl] .screen .pc { inset: auto 0 0 auto; padding: 14px 20px 8px 16px; }
+  .c.light .screen .pc { background: var(--page); color: var(--text); }
+  .c .meta { margin-top: 16px; font-size: 14px; color: var(--muted); }
+  .c h3 { font-size: 33px; line-height: 1.04; font-weight: 800; font-stretch: 75%; margin-top: 4px; }
+  .c .choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .c .choice span { height: 48px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1.5px solid var(--frame); border-radius: 8px; font-size: 15px; font-weight: 700; }
+  .c .choice span .i { font-size: 21px; }
+  .c .choice .on { background: var(--pick); border-color: var(--pick); color: var(--on-pick); }
+  .c .run { display: flex; align-items: center; height: 48px; margin-top: 10px; font-size: 15px; font-weight: 600; }
+  .c .run .acts { margin-inline-start: auto; display: flex; gap: 6px; }
+  .c .run .acts span { display: flex; align-items: center; gap: 5px; height: 48px; padding: 0 10px; font-weight: 700; }
+  .c .run .acts span .i { font-size: 22px; }
+
+  .c .lhead { display: flex; align-items: baseline; justify-content: space-between; padding: 0 20px; }
+  .c .lhead h2 { font-size: 42px; line-height: 1.05; font-weight: 800; font-stretch: 75%; }
+  .c .lhead span { font-size: 14px; color: var(--muted); }
+  .c .tabs { display: flex; align-items: center; gap: 22px; height: 52px; padding: 0 20px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .c .tabs span { display: flex; align-items: center; height: 52px; white-space: nowrap; }
+  .c .tabs .on { color: var(--text); font-weight: 700; box-shadow: inset 0 -2px 0 var(--text); }
+  .c .tabs .more { margin-inline-start: auto; gap: 2px; color: var(--text); }
+  .c .tabs .more .i { font-size: 21px; }
+  .c .wall { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .c .wall div { position: relative; aspect-ratio: 3 / 4; background: #161616; }
+  .c .wall img { width: 100%; height: 100%; object-fit: cover; }
+  .c .wall .cat { object-position: 80% 60%; }
+  .c .wall em { position: absolute; inset: auto auto 6px 6px; display: flex; align-items: center; gap: 4px; padding: 3px 7px 3px 5px; border-radius: 4px; background: rgba(0, 0, 0, .72); color: #FFFFFF; font-style: normal; font-size: 12px; font-weight: 600; }
+  .c .wall em .i { font-size: 15px; }
+</style>
+
+<header class="bhead">
+  <div class="num">3</div>
+  <div>
+    <h1>Cinema</h1>
+    <p>Dark, and the picture gets the screen. The interface is black and white, so the only colour is the post you are saving.</p>
+  </div>
+  <div class="note">Mockup with sample posts. <br>Colour shown: Ocean. All five stay.</div>
+</header>
+
+<main class="phones">
+  <figure>
+    <div class="bezel" data-shot="1"><div class="phone c" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <div class="frame">[[content_paste]]<b>Paste a link</b><small>or share a post to Nazzil from any app</small></div>
+        <div class="btn">[[content_paste]]Paste</div>
+        <p class="apps">YouTube TikTok Instagram Facebook Reddit X Pinterest</p>
+      </div>
+      <div class="recent">
+        <header><h2>Recent</h2><span>Library[[chevron_right]]</span></header>
+        <div class="strip"><img src="../img/pasta.jpg" alt=""><img src="../img/cheesecake.jpg" alt=""><img src="../img/skillet.jpg" alt=""><img src="../img/ae86.jpg" alt=""></div>
+      </div>
+      <div class="nav"><span class="on">[[home*]]Home</span><span>[[photo_library]]Library</span></div>
+    </div></div>
+    <figcaption><b>Home.</b> An empty frame waits for a picture. Your last saves run along the bottom like a film strip.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="2"><div class="phone c" lang="en" dir="ltr">
+      <div class="screen">
+        <img class="todo" src="../img/walle.jpg" alt="">
+        <img class="done" src="../img/walle.jpg" alt="">
+        <i class="edge"></i>
+        <span class="x">[[close]]</span>
+        <span class="pc">62%</span>
+      </div>
+      <div class="pad">
+        <div class="meta">TikTok · 0:43</div>
+        <h3>Best WALL-E cosplay ever</h3>
+        <div class="choice"><span class="on">HD</span><span>SD</span><span>Audio</span></div>
+        <div class="run">Downloading…<span class="acts"><span>[[pause]]Pause</span><span>[[close]]Cancel</span></span></div>
+      </div>
+      <div class="nav"><span class="on">[[home*]]Home</span><span>[[photo_library]]Library</span></div>
+    </div></div>
+    <figcaption><b>Downloading.</b> The poster is the progress bar. It turns from grey to colour as the file arrives.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="3"><div class="phone c" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="lhead"><h2>Library</h2><span>6 items</span></div>
+      <div class="tabs"><span class="on">All</span><span>Photos</span><span>Videos</span><span>Audio</span><span class="more">All apps[[expand_more]]</span></div>
+      <div class="wall">
+        <div><img src="../img/walle.jpg" alt=""><em>[[videocam*]]0:43</em></div>
+        <div><img src="../img/pasta.jpg" alt=""><em>[[image*]]Photo</em></div>
+        <div><img src="../img/cheesecake.jpg" alt=""><em>[[image*]]Photo</em></div>
+        <div><img class="cat" src="../img/cat.jpg" alt=""><em>[[videocam*]]Video</em></div>
+        <div><img src="../img/skillet.jpg" alt=""><em>[[graphic_eq]]Audio</em></div>
+        <div><img src="../img/ae86.jpg" alt=""><em>[[videocam*]]Video</em></div>
+      </div>
+      <div class="nav"><span>[[home]]Home</span><span class="on">[[photo_library*]]Library</span></div>
+    </div></div>
+    <figcaption><b>Library.</b> A wall of pictures, edge to edge. Titles and actions open when you tap one.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="4"><div class="phone c light" lang="ar" dir="rtl">
+      <div class="screen">
+        <img class="todo" src="../img/walle.jpg" alt="">
+        <img class="done" src="../img/walle.jpg" alt="">
+        <i class="edge"></i>
+        <span class="x">[[close]]</span>
+        <span class="pc">62%</span>
+      </div>
+      <div class="pad">
+        <div class="meta">تيك توك · 0:43</div>
+        <h3 dir="auto" style="text-align:right">Best WALL-E cosplay ever</h3>
+        <div class="choice"><span class="on">جودة عالية</span><span>جودة عادية</span><span>صوت</span></div>
+        <div class="run">قاعد ينزّل…<span class="acts"><span>[[pause]]وقّف</span><span>[[close]]ألغِ</span></span></div>
+      </div>
+      <div class="nav"><span class="on">[[home*]]الرئيسية</span><span>[[photo_library]]التحميلات</span></div>
+    </div></div>
+    <figcaption><b>Arabic, light.</b> Dark is the default because pictures look best on it. Light is there for daylight, and the colour arrives from the right.</figcaption>
+  </figure>
+</main>
+</html>

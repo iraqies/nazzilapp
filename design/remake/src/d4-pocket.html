@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Nazzil remake, direction 4: Pocket</title>
+<!--icons:rounded-->
+<link rel="stylesheet" href="../src/fonts.css">
+<link rel="stylesheet" href="../src/board.css">
+<style>
+  body { font-family: 'IBM Plex Sans', 'IBM Plex Sans Arabic', sans-serif; }
+  .bhead h1 { font-family: 'Handjet'; font-weight: 800; font-size: 78px; line-height: .8; }
+  .bhead .num { font-family: 'Handjet'; font-weight: 800; font-size: 60px; }
+
+  /* Pocket: a small device. A display says what is going on, and keys do the work. */
+  .p {
+    --body: #E7E2D6; --slot: #D9D3C5; --key: #F6F3EC; --key-down: #E9E4D9; --key-edge: #7F796A; --key-line: #C4BDAD; --slot-line: #7F796A; --rule: #C4BDAD;
+    --text: #1B1A17; --muted: #5A554A;
+    --lcd: #BFC8A8; --lcd-ink: #1F2A1C; --lcd-dim: rgba(31, 42, 28, .17); --lcd-edge: #8F997B;
+    --accent: #FF7139; --accent-edge: #C24E1E; --on-accent: #0B0B0C;
+    background: var(--body); color: var(--text); font-family: 'IBM Plex Sans', 'IBM Plex Sans Arabic', sans-serif; font-size: 15px; line-height: 1.4;
+  }
+  .p.dark {
+    --body: #18181A; --slot: #101011; --key: #2B2B2E; --key-down: #222224; --key-edge: #08080A; --key-line: #66666C; --slot-line: #66666C; --rule: #3D3D41;
+    --text: #F1EEE8; --muted: #A9A49B;
+    --lcd: #0B120D; --lcd-ink: #9FF0B8; --lcd-dim: rgba(159, 240, 184, .15); --lcd-edge: #27322B;
+  }
+  .p .pad { padding: 0 20px; }
+  .p .top { display: flex; align-items: center; justify-content: space-between; height: 100px; padding: 44px 8px 0 20px; }
+  .p[dir=rtl] .top { padding: 44px 20px 0 8px; }
+  .p .brand { font-size: 18px; font-weight: 600; }
+  .p .iconbtn { width: 48px; height: 48px; display: grid; place-items: center; font-size: 24px; }
+
+  .p .lcd { height: 330px; padding: 12px 18px 14px; border-radius: 14px; background: var(--lcd); border: 2px solid var(--lcd-edge); color: var(--lcd-ink); font-family: 'Handjet', 'IBM Plex Sans Arabic'; font-variation-settings: 'ELGR' 1, 'ELSH' 2; display: flex; flex-direction: column; }
+  .p .lcd .r1 { display: flex; align-items: center; justify-content: space-between; font-size: 24px; font-weight: 600; line-height: 1; height: 30px; }
+  .p .lcd .r1 em { font-style: normal; border: 2px solid var(--lcd-ink); padding: 1px 7px 0; font-size: 21px; }
+  .p .lcd .say { font-size: 100px; font-weight: 700; line-height: .8; margin-top: auto; }
+  .p .lcd .num { font-size: 176px; font-weight: 800; line-height: .74; margin-top: auto; font-variant-numeric: tabular-nums; }
+  .p .lcd .blocks { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; height: 18px; margin-top: 12px; }
+  .p .lcd .blocks i { background: var(--lcd-dim); }
+  .p .lcd .blocks i.f { background: var(--lcd-ink); }
+  .p .lcd .r3 { display: flex; justify-content: space-between; gap: 12px; font-size: 21px; font-weight: 500; line-height: 1.1; margin-top: 12px; text-wrap: balance; }
+  .p .lcd.small { height: 92px; padding-bottom: 16px; flex-direction: row; align-items: flex-end; justify-content: space-between; }
+  .p .lcd.small b { font-size: 54px; font-weight: 700; line-height: .8; }
+  .p .lcd.small span { font-size: 26px; font-weight: 600; line-height: .9; }
+
+  .p .slot { display: flex; align-items: center; height: 52px; margin-top: 14px; padding: 0 16px; border-radius: 10px; background: var(--slot); border: 1.5px solid var(--slot-line); font-size: 15.5px; color: var(--muted); }
+  .p .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; align-items: end; }
+  .p .keys.four { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+  .p .key { position: relative; height: 64px; display: flex; align-items: center; justify-content: center; gap: 7px; border-radius: 12px; background: var(--key); border: 1.5px solid var(--key-line); border-bottom: 5px solid var(--key-edge); font-size: 17px; font-weight: 600; }
+  .p .keys.four .key { height: 54px; font-size: 14.5px; padding-top: 8px; }
+  .p .keys.four .key::before { inset: 6px auto auto 7px; width: 7px; height: 7px; }
+  .p .key .i { font-size: 21px; }
+  .p .key::before { content: ''; position: absolute; inset: 8px auto auto 9px; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); }
+  .p[dir=rtl] .key::before { inset: 8px 9px auto auto; }
+  .p .key.on { height: 60.5px; border: 2px solid var(--text); background: var(--key-down); }
+  .p .keys.four .key.on { height: 50.5px; }
+  .p .key.on::before { background: var(--accent); border-color: var(--text); }
+  .p .main { display: flex; gap: 10px; margin-top: 14px; }
+  .p .big { flex: 1.7; height: 84px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 16px; background: var(--accent); border-bottom: 6px solid var(--accent-edge); color: var(--on-accent); font-size: 22px; font-weight: 700; }
+  .p .big .i { font-size: 27px; }
+  .p .side { flex: 1; height: 84px; display: flex; align-items: center; justify-content: center; gap: 7px; border-radius: 16px; background: var(--key); border: 1.5px solid var(--key-line); border-bottom: 6px solid var(--key-edge); font-size: 17px; font-weight: 600; }
+  .p .side .i { font-size: 22px; }
+  .p .help { margin-top: 12px; font-size: 14px; color: var(--muted); }
+  .p .deck { position: absolute; inset: auto 20px 98px 20px; }
+  .p .deck .keys { margin-top: 0; }
+
+  .p .now { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .p .now img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; object-position: 50% 30%; }
+  .p .now b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 16px; line-height: 1.25; font-weight: 600; }
+
+  .p .rocker { position: absolute; inset: auto 20px 22px 20px; height: 56px; display: grid; grid-template-columns: 1fr 1fr; border-radius: 14px; background: var(--key); border: 1.5px solid var(--key-line); border-bottom: 5px solid var(--key-edge); overflow: hidden; }
+  .p .rocker span { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .p .rocker span .i { font-size: 21px; }
+  .p .rocker .on { background: var(--key-down); color: var(--text); box-shadow: inset 0 3px 0 var(--key-edge); }
+
+  .p .list { margin-top: 8px; }
+  .p .item { display: flex; align-items: center; gap: 12px; height: 74px; border-bottom: 1px solid var(--rule); }
+  .p .item:last-child { border-bottom: 0; }
+  .p .item img { flex: none; width: 54px; height: 54px; border-radius: 8px; object-fit: cover; }
+  .p .item img.cat { object-position: 80% 60%; }
+  .p .item div { flex: 1; min-width: 0; }
+  .p .item b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15.5px; font-weight: 600; }
+  .p .item small { display: block; font-size: 13.5px; color: var(--muted); margin-top: 1px; }
+  .p .item .more { flex: none; width: 40px; height: 48px; display: grid; place-items: center; font-size: 22px; margin-inline-end: -10px; }
+</style>
+
+<header class="bhead">
+  <div class="num">4</div>
+  <div>
+    <h1>Pocket</h1>
+    <p>Nazzil as a small gadget. A display on top says what is happening, and chunky keys below do the work. Playful, and nothing else looks like it.</p>
+  </div>
+  <div class="note">Mockup with sample posts. <br>Colour shown: Sunset. All five stay.</div>
+</header>
+
+<main class="phones">
+  <figure>
+    <div class="bezel" data-shot="1"><div class="phone p" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <div class="lcd">
+          <div class="r1"><span>Ready</span><em>HD</em></div>
+          <div class="say">Paste<br>a link</div>
+          <div class="r3"><span>YouTube TikTok Instagram Facebook Reddit X Pinterest</span></div>
+        </div>
+        <div class="slot">Paste or type a link</div>
+        <p class="help">Share a post to Nazzil from any app, or paste its link here.</p>
+      </div>
+      <div class="deck">
+        <div class="keys"><span class="key on">HD</span><span class="key">SD</span><span class="key">Audio</span></div>
+        <div class="main"><span class="big">[[content_paste]]Paste</span></div>
+      </div>
+      <div class="rocker"><span class="on">[[home*]]Home</span><span>[[photo_library]]Library</span></div>
+    </div></div>
+    <figcaption><b>Home.</b> The display asks for a link. The big key always does the next step: paste, then fetch, then download.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="2"><div class="phone p" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <div class="lcd">
+          <div class="r1"><span>Downloading…</span><em>HD</em></div>
+          <div class="num">62%</div>
+          <div class="blocks"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="r3"><span>TikTok · 0:43</span><span>1 waiting</span></div>
+        </div>
+        <div class="now"><img src="../img/walle.jpg" alt=""><b>Best WALL-E cosplay ever</b></div>
+      </div>
+      <div class="deck">
+        <div class="keys"><span class="key on">HD</span><span class="key">SD</span><span class="key">Audio</span></div>
+        <div class="main"><span class="big">[[pause]]Pause</span><span class="side">[[close]]Cancel</span></div>
+      </div>
+      <div class="rocker"><span class="on">[[home*]]Home</span><span>[[photo_library]]Library</span></div>
+    </div></div>
+    <figcaption><b>Downloading.</b> The display counts up and fills block by block. The lit dot on a key shows which quality is picked.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="3"><div class="phone p" lang="en" dir="ltr">
+      <div class="top"><div class="brand">Nazzil</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <div class="lcd small"><b>Library</b><span>6 items</span></div>
+        <div class="keys four"><span class="key on">All</span><span class="key">Photos</span><span class="key">Videos</span><span class="key">Audio</span></div>
+        <div class="list">
+          <div class="item"><img src="../img/walle.jpg" alt=""><div><b>Best WALL-E cosplay ever</b><small>TikTok · Video · 0:43</small></div><span class="more">[[more_vert]]</span></div>
+          <div class="item"><img src="../img/pasta.jpg" alt=""><div><b>Creamy Parmesan Garlic Beef Bowtie Pasta</b><small>TikTok · Photo</small></div><span class="more">[[more_vert]]</span></div>
+          <div class="item"><img src="../img/cheesecake.jpg" alt=""><div><b>Classic Cheesecake Recipe</b><small>Pinterest · Photo</small></div><span class="more">[[more_vert]]</span></div>
+          <div class="item"><img class="cat" src="../img/cat.jpg" alt=""><div><b>Typical orange cat behavior</b><small>YouTube · Video</small></div><span class="more">[[more_vert]]</span></div>
+          <div class="item"><img src="../img/skillet.jpg" alt=""><div><b>Food Network - Skillet Chicken</b><small>YouTube · Audio</small></div><span class="more">[[more_vert]]</span></div>
+          <div class="item"><img src="../img/ae86.jpg" alt=""><div><b>Toyota AE86</b><small>Pinterest · Video</small></div><span class="more">[[more_vert]]</span></div>
+        </div>
+      </div>
+      <div class="rocker"><span>[[home]]Home</span><span class="on">[[photo_library*]]Library</span></div>
+    </div></div>
+    <figcaption><b>Library.</b> A list, like tracks on a player: the whole title, where it came from and what it is.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="bezel" data-shot="4"><div class="phone p dark" lang="ar" dir="rtl">
+      <div class="top"><div class="brand">نزل</div><div class="iconbtn">[[settings]]</div></div>
+      <div class="pad">
+        <div class="lcd">
+          <div class="r1"><span>قاعد ينزّل…</span><em>HD</em></div>
+          <div class="num">62%</div>
+          <div class="blocks"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="r3"><span>تيك توك · 0:43</span><span>1 بالانتظار</span></div>
+        </div>
+        <div class="now"><img src="../img/walle.jpg" alt=""><b dir="auto">Best WALL-E cosplay ever</b></div>
+      </div>
+      <div class="deck">
+        <div class="keys"><span class="key on">جودة عالية</span><span class="key">جودة عادية</span><span class="key">صوت</span></div>
+        <div class="main"><span class="big">[[pause]]وقّف</span><span class="side">[[close]]ألغِ</span></div>
+      </div>
+      <div class="rocker"><span class="on">[[home*]]الرئيسية</span><span>[[photo_library]]التحميلات</span></div>
+    </div></div>
+    <figcaption><b>Arabic, dark.</b> At night the display is backlit: light letters on a dark screen.</figcaption>
+  </figure>
+</main>
+</html>
