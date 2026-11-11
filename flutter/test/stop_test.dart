@@ -69,6 +69,9 @@ class _Downloader extends MediaDownloader {
   final entered = Completer<void>();
   final gate = Completer<void>();
 
+  /// What the download reports before it waits at the gate.
+  List<double> steps = const [];
+
   @override
   Future<DownloadResult> download({
     required MediaInfo media,
@@ -81,6 +84,7 @@ class _Downloader extends MediaDownloader {
   }) async {
     runs += 1;
     ran.add(media.title);
+    steps.forEach(onProgress);
     if (!entered.isCompleted) entered.complete();
     await gate.future;
     return DownloadResult(files: [for (final path in resumePaths) File(path)], photoCount: 0);
@@ -266,6 +270,24 @@ void main() {
     await until(job.controller, () => !job.controller.downloading);
     expect(job.controller.library.single.status, LibraryItem.statusDone);
     expect(job.downloader.runs, 1);
+  });
+
+  test('the percentage does not step back when the first bytes arrive', () async {
+    final job = await pausedJob('steps');
+    job.downloader.steps = [0, 0.004, 0.03, 0.5];
+    final shown = <int>[];
+    job.controller.addListener(() {
+      if (job.controller.downloading) shown.add((job.controller.progress * 100).round());
+    });
+    await job.controller.resumeJob(job.controller.library.single);
+    job.extractor.gate.complete();
+    await job.downloader.entered.future;
+    expect(shown, isNotEmpty);
+    expect(shown.first, 2, reason: 'a download opens on a mark that can be seen');
+    expect([...shown]..sort(), shown, reason: 'the number only goes up');
+    expect(shown.last, 50);
+    job.downloader.gate.complete();
+    await until(job.controller, () => !job.controller.downloading);
   });
 
   test('a resumed download keeps its place in the library, and the one resumed last runs next', () async {

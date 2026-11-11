@@ -495,6 +495,9 @@ class NazzilController extends ChangeNotifier {
     }
   }
 
+  /// What a download shows before its first bytes: enough for the line to be seen.
+  static const _started = 0.02;
+
   Future<void> _runJob(LibraryItem queued) async {
     var job = queued;
     if (job.option == null) {
@@ -506,12 +509,12 @@ class NazzilController extends ChangeNotifier {
     final stopMark = downloadNet.generation;
     downloading = true;
     converting = false;
-    progress = 0.02;
+    progress = _started;
     failure = Failure.none;
     // Kept in step with the library, so a later copy of it does not put "queued" back.
     job = job.copyWith(status: LibraryItem.statusDownloading);
     await _patch(job.id, job);
-    await DownloadHost.start(title: job.title, percent: 2);
+    await DownloadHost.start(title: job.title, percent: (_started * 100).round());
     var lastPercent = -1;
     var lastSent = DateTime.fromMillisecondsSinceEpoch(0);
     Future<DownloadResult> attempt() => downloader.download(
@@ -525,8 +528,10 @@ class NazzilController extends ChangeNotifier {
             notifyListeners();
           },
           onProgress: (value) {
-            progress = value;
-            final percent = (value * 100).round().clamp(1, 99);
+            // The first bytes report less than the mark the download opened on,
+            // and a number that steps back reads as something going wrong.
+            progress = value < _started ? _started : value;
+            final percent = (progress * 100).round().clamp(1, 99);
             final now = DateTime.now();
             // Android drops notification updates beyond about 5 a second.
             if (percent != lastPercent && now.difference(lastSent) >= const Duration(seconds: 1)) {
