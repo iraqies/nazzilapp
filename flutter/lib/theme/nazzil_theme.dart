@@ -78,18 +78,19 @@ abstract final class NazzilMotion {
 }
 
 class NazzilTheme {
-  /// English is set in Anthropic Sans, which the owner chose: this cut at reading sizes,
-  static const sans = 'Anthropic Sans Text';
+  /// English is set in Fraunces, a serif picked to go with the Arabic: strokes that swell
+  /// and thin as a pen's do, soft ends, and as dark on the page. This cut at reading sizes,
+  static const serif = 'Fraunces Text';
 
   /// and this one for headings and the percentage.
-  static const sansDisplay = 'Anthropic Sans Display';
+  static const serifDisplay = 'Fraunces Display';
 
   /// Arabic is set in Aref Ruqaa, the hand the logo is written in. The app's copy holds
   /// Arabic only and is drawn to the size of the Latin, so one text size suits both
   /// scripts and each falls through to the other's typeface (design/type/build.py).
   static const ruqaa = 'Aref Ruqaa';
 
-  /// What is set strong. Anthropic Sans has this weight, and Ruqaa answers it with its bold.
+  /// What is set strong. Fraunces has this weight, and Ruqaa answers it with its bold.
   static const strong = FontWeight.w600;
 
   /// The app's Ruqaa draws its letters this much larger than a text size says, which is
@@ -191,7 +192,7 @@ class NazzilTheme {
       bool digits = false,
     }) {
       final base = TextStyle(
-        fontFamily: display ? sansDisplay : sans,
+        fontFamily: display ? serifDisplay : serif,
         fontFamilyFallback: const [ruqaa],
         fontSize: size,
         fontWeight: bold ? strong : FontWeight.w400,

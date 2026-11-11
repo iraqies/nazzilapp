@@ -795,6 +795,18 @@ void main() {
     expect(tester.getSemantics(logo).label, 'نزّل');
   });
 
+  for (final language in ['en', 'ar']) {
+    testWidgets('settings ($language): the five colours stand in one row on a phone', (tester) async {
+      final controller = await boot(tester, language: language, size: const Size(360, 780));
+      await tester.tap(find.byTooltip(controller.s.settings));
+      await tester.pumpAndSettle();
+      final tops = {
+        for (final palette in NazzilPalette.all) tester.getTopLeft(find.text(controller.s.paletteName(palette.id))).dy,
+      };
+      expect(tops, hasLength(1), reason: 'a colour alone on a second row reads as a different kind of choice');
+    });
+  }
+
   test('settings store: dark is the default, and a choice of light made before is kept', () async {
     Future<String> themeFrom(Map<String, Object> stored) async {
       SharedPreferences.setMockInitialValues(stored);
@@ -1744,7 +1756,7 @@ void main() {
     tester.view.physicalSize = const Size(720, 800);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    const style = TextStyle(fontFamily: NazzilTheme.sans, fontSize: 15, decoration: TextDecoration.none);
+    const style = TextStyle(fontFamily: NazzilTheme.serif, fontSize: 15, decoration: TextDecoration.none);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,

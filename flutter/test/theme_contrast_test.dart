@@ -102,16 +102,16 @@ void main() {
         type.labelSmall!,
       ];
 
-  test('english is set in Anthropic Sans and arabic in the hand of the logo, each behind the other', () {
+  test('english is set in the serif and arabic in the hand of the logo, each behind the other', () {
     for (final arabic in [false, true]) {
       final type = NazzilTheme.dark(NazzilPalette.rose, arabic: arabic).textTheme;
       for (final style in stylesOf(type)) {
         final latinFirst = !arabic || style == type.displayLarge;
-        final sans = style.fontSize! >= 21 ? NazzilTheme.sansDisplay : NazzilTheme.sans;
+        final serif = style.fontSize! >= 21 ? NazzilTheme.serifDisplay : NazzilTheme.serif;
         // A word in the other script falls through to the other typeface, so neither is ever
         // left to whatever the phone has.
-        expect(style.fontFamily, latinFirst ? sans : NazzilTheme.ruqaa);
-        expect(style.fontFamilyFallback, [latinFirst ? NazzilTheme.ruqaa : sans]);
+        expect(style.fontFamily, latinFirst ? serif : NazzilTheme.ruqaa);
+        expect(style.fontFamilyFallback, [latinFirst ? NazzilTheme.ruqaa : serif]);
         expect(style.fontWeight, anyOf(FontWeight.w400, NazzilTheme.strong));
         // Spacing between letters breaks the joins of Arabic.
         expect(style.letterSpacing, 0);
@@ -122,11 +122,11 @@ void main() {
 
   test('the app ships the typefaces it sets, in the weights it sets them', () {
     final shipped = shippedTypefaces();
-    expect(shipped.keys, unorderedEquals([NazzilTheme.sans, NazzilTheme.sansDisplay, NazzilTheme.ruqaa]));
+    expect(shipped.keys, unorderedEquals([NazzilTheme.serif, NazzilTheme.serifDisplay, NazzilTheme.ruqaa]));
     Set<int> weights(String family) => {for (final file in shipped[family]!) typefaceFacts(file).weight};
     // A weight that is not shipped would be faked by the screen, by smearing the letters.
-    expect(weights(NazzilTheme.sans), {400, NazzilTheme.strong.value});
-    expect(weights(NazzilTheme.sansDisplay), {NazzilTheme.strong.value});
+    expect(weights(NazzilTheme.serif), {400, NazzilTheme.strong.value});
+    expect(weights(NazzilTheme.serifDisplay), {NazzilTheme.strong.value});
     // Ruqaa has a regular and a bold, and the bold answers for what is set strong.
     expect(weights(NazzilTheme.ruqaa), {400, 700});
     expect(NazzilTheme.strong.value, greaterThan(500), reason: 'at 500 or less a screen picks the regular');
@@ -134,7 +134,7 @@ void main() {
 
   test('the two typefaces stand on one line: the same size of letter, the same middle', () {
     final shipped = shippedTypefaces();
-    final latin = [...shipped[NazzilTheme.sans]!, ...shipped[NazzilTheme.sansDisplay]!].map(typefaceFacts);
+    final latin = [...shipped[NazzilTheme.serif]!, ...shipped[NazzilTheme.serifDisplay]!].map(typefaceFacts);
     final arabic = shipped[NazzilTheme.ruqaa]!.map(typefaceFacts);
     double middle(({int weight, int body, int above, int below}) f) => (f.above - f.below) / 2 / f.body;
     for (final a in arabic) {
@@ -188,5 +188,21 @@ void main() {
       expect(NazzilTheme.inScript(l, arabic: false), same(l));
       expect(NazzilTheme.inScript(a, arabic: true), same(a));
     }
+  });
+
+  test('the percentage counts without shaking: its figures are of one width', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    await loadShippedTypefaces();
+    final style = NazzilTheme.dark(NazzilPalette.rose, arabic: true).textTheme.displayLarge!;
+    double wide(String text) {
+      final painter = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr)..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    // The serif draws a 1 narrower than a 0. Left so, every step would push the sign along.
+    expect({for (var figure = 0; figure <= 9; figure++) wide('$figure')}, hasLength(1));
+    expect(wide('11%'), wide('80%'));
   });
 }

@@ -49,9 +49,10 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         section(s.colour),
-        // Five 58 wide swatches and four gaps fit one row on a 360 wide phone.
+        // The five stand in one row on a 360 wide phone, and fold onto a second where
+        // the screen is narrower or the text is set larger.
         Wrap(
-          spacing: 6,
+          spacing: 4,
           runSpacing: 12,
           children: [
             for (final palette in NazzilPalette.all)
@@ -121,7 +122,7 @@ class _Swatch extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 58),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

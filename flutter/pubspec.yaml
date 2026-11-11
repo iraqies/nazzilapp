@@ -38,14 +38,14 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   fonts:
-    - family: Anthropic Sans Text
+    - family: Fraunces Text
       fonts:
-        - asset: assets/fonts/AnthropicSans-Text-Regular-Static.otf
-        - asset: assets/fonts/AnthropicSans-Text-Semibold-Static.otf
+        - asset: assets/fonts/Fraunces-Text-Regular.ttf
+        - asset: assets/fonts/Fraunces-Text-SemiBold.ttf
           weight: 600
-    - family: Anthropic Sans Display
+    - family: Fraunces Display
       fonts:
-        - asset: assets/fonts/AnthropicSans-Display-Semibold-Static.otf
+        - asset: assets/fonts/Fraunces-Display-SemiBold.ttf
           weight: 600
     - family: Aref Ruqaa
       fonts:
