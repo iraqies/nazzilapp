@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nazzil/l10n/strings.dart';
 
@@ -35,6 +36,28 @@ void main() {
     expect([s.itemsN(0), s.itemsN(1), s.itemsN(2)], ['0 items', '1 item', '2 items']);
     expect([s.photosN(1), s.photosN(12)], ['1 photo', '12 photos']);
     expect([s.waitingN(1), s.waitingN(3)], ['1 waiting', '3 waiting']);
+  });
+
+  test('a percentage shows its sign on the same side after Arabic words as it does alone', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const s = S('ar');
+    // How far right of the digit the sign is drawn, in a line that runs right to left.
+    double signPastDigit(String line) {
+      final painter = TextPainter(
+        text: TextSpan(text: line, style: const TextStyle(fontSize: 20)),
+        textDirection: TextDirection.rtl,
+      )..layout();
+      double left(String char) {
+        final at = line.indexOf(char);
+        return painter.getBoxesForSelection(TextSelection(baseOffset: at, extentOffset: at + 1)).first.left;
+      }
+
+      return left('%') - left('8');
+    }
+
+    expect(signPastDigit(s.percent(8)), greaterThan(0));
+    expect(signPastDigit('${s.downloading} ${s.percent(8)}'), greaterThan(0));
+    expect(const S('en').percent(8), '8%');
   });
 
   // The owner's call on 2026-11-11: standard Arabic, not Iraqi dialect.

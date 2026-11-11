@@ -185,6 +185,10 @@ class S {
       ? _arCount(n, none: 'لا عناصر', one: 'عنصر واحد', two: 'عنصران', few: 'عناصر', many: 'عنصرًا', other: 'عنصر')
       : (n == 1 ? '1 item' : '$n items');
 
+  /// "8%", sign last, wherever it stands. After Arabic words the sign would jump to the other side
+  /// of the number, so the Arabic one starts with a left-to-right mark that keeps the two together.
+  String percent(int n) => isAr ? '\u200E$n%' : '$n%';
+
   String waitingN(int n) => isAr ? '$n قيد الانتظار' : (n == 1 ? '1 waiting' : '$n waiting');
 
   /// An Arabic count. One and two have words of their own, three to ten take

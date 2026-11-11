@@ -19,7 +19,7 @@ import 'tappable.dart';
     if (converting) return (icon: Icons.sync_rounded, text: s.converting);
     return (
       icon: Icons.download_rounded,
-      text: progress == null ? s.downloading : '${(progress * 100).round()}%',
+      text: progress == null ? s.downloading : s.percent((progress * 100).round()),
     );
   }
   if (item.status == LibraryItem.statusQueued) return (icon: Icons.schedule_rounded, text: s.queued);
