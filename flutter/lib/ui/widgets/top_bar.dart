@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../state/nazzil_controller.dart';
+import 'logo.dart';
 
-/// The name of the app, what it is downloading, and the way in and out of Settings.
+/// The logo, what the app is downloading, and the way in and out of Settings.
 class TopBar extends StatelessWidget {
   const TopBar({super.key, required this.controller, required this.onSettings, this.settingsOpen = false});
   final NazzilController controller;
@@ -29,11 +30,7 @@ class TopBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // The name is set as text: no logo has been drawn for Nazzil.
-                    MediaQuery.withClampedTextScaling(
-                      maxScaleFactor: 1.3,
-                      child: Text(s.appName, style: theme.textTheme.titleLarge),
-                    ),
+                    NazzilLogo(height: 34, name: s.appName),
                     Semantics(
                       liveRegion: true,
                       child: status.isEmpty

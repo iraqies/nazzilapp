@@ -9,11 +9,12 @@ class S {
   bool get rtl => isAr;
   bool get _pc => Platforms.desktop;
 
-  String get appName => _t('Nazzil', 'نزل');
+  // The Arabic name is written as the logo writes it, with its shadda.
+  String get appName => _t('Nazzil', 'نزّل');
   String get framePrompt => _t('Paste a link', 'الصق رابطًا');
   String get frameHint => _pc
       ? _t('or drop it on this window', 'أو اسحبه إلى هذه النافذة')
-      : _t('or share a post to Nazzil from any app', 'أو شارك منشورًا مع نزل من أي تطبيق');
+      : _t('or share a post to Nazzil from any app', 'أو شارك منشورًا مع نزّل من أي تطبيق');
   String get recent => _t('Recent', 'آخر التنزيلات');
   String get linkLabel => _t('Link', 'الرابط');
   String get pasteHint =>
@@ -74,8 +75,8 @@ class S {
             ? 'Nazzil saves videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest into Downloads/Nazzil. Paste or drop a link, pick a quality, download.'
             : 'Nazzil saves videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest into your gallery. Paste a link, pick a quality, download.',
         _pc
-            ? 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في مجلد Nazzil داخل مجلد التنزيلات. الصق الرابط أو اسحبه، ثم اختر الجودة ونزّل.'
-            : 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في المعرض. الصق الرابط، ثم اختر الجودة ونزّل.',
+            ? 'نزّل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في مجلد Nazzil داخل مجلد التنزيلات. الصق الرابط أو اسحبه، ثم اختر الجودة ونزّل.'
+            : 'نزّل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في المعرض. الصق الرابط، ثم اختر الجودة ونزّل.',
       );
   String get credits => _t('Credits', 'حقوق');
   String get version => _t('Version', 'الإصدار');
@@ -90,7 +91,7 @@ class S {
       _t(_pc ? 'This file is still on this computer.' : 'This file is still on your phone.', 'الملف ما زال على جهازك.');
   // Nazzil tracks only its own copy, so these say nothing about the gallery or Downloads.
   String get missingFile => _t('File was removed', 'حُذف الملف');
-  String get fileGone => _t("Nazzil's copy of this file is gone.", 'نسخة نزل من هذا الملف لم تعد موجودة.');
+  String get fileGone => _t("Nazzil's copy of this file is gone.", 'نسخة نزّل من هذا الملف لم تعد موجودة.');
   String get downloadAgain => _t('Download again', 'نزّله مرة أخرى');
   String get cantPlay => _t('This video will not play here.', 'لا يمكن تشغيل هذا الفيديو هنا.');
   String get cantOpen => _pc
@@ -105,11 +106,11 @@ class S {
   String get deleteBody => _pc
       ? _t(
           'Nazzil deletes its own copy. Downloads/Nazzil is left as it is.',
-          'نزل يحذف نسخته فقط. مجلد Nazzil داخل مجلد التنزيلات يبقى كما هو.',
+          'نزّل يحذف نسخته فقط. مجلد Nazzil داخل مجلد التنزيلات يبقى كما هو.',
         )
       : _t(
           'Nazzil deletes its own copy. Your gallery and files are left as they are.',
-          'نزل يحذف نسخته فقط. المعرض وملفاتك تبقى كما هي.',
+          'نزّل يحذف نسخته فقط. المعرض وملفاتك تبقى كما هي.',
         );
   String get queued => _t('Waiting', 'قيد الانتظار');
   String get clipOffer => _t('A supported link is on your clipboard', 'في الحافظة رابط مدعوم');

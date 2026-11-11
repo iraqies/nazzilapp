@@ -21,6 +21,7 @@ import 'package:nazzil/ui/widgets/arriving.dart';
 import 'package:nazzil/ui/widgets/done_sheet.dart';
 import 'package:nazzil/ui/widgets/library_tile.dart';
 import 'package:nazzil/ui/widgets/link_frame.dart';
+import 'package:nazzil/ui/widgets/logo.dart';
 import 'package:nazzil/ui/widgets/title_text.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -329,6 +330,9 @@ void main() {
 
   /// The tab at the bottom of a phone: after the page in the tree, so the last match.
   Finder tab(String label) => find.text(label).last;
+  /// The logo in the header. It is drawn, so it is found by what it is and not by its letters.
+  final logo = find.byType(NazzilLogo);
+
 
   double scrolled(WidgetTester tester) => tester
       .state<ScrollableState>(
@@ -346,7 +350,8 @@ void main() {
     );
     addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
 
-    expect(find.text('Nazzil'), findsOneWidget);
+    expect(logo, findsOneWidget);
+    expect(tester.getSemantics(logo).label, 'Nazzil', reason: 'a screen reader says the name the logo writes');
     expect(find.text('Paste a link'), findsOneWidget);
     expect(find.text('or share a post to Nazzil from any app'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
@@ -421,7 +426,7 @@ void main() {
     expect(find.text('YouTube'), findsNothing);
     expect(find.byIcon(Icons.hd_outlined), findsNothing);
     expect(find.byType(LinkFrame), findsNothing, reason: 'the poster takes the place of the frame');
-    expect(find.text('Nazzil'), findsNothing, reason: 'and of the header');
+    expect(logo, findsNothing, reason: 'and of the header');
 
     final scheme = Theme.of(tester.element(find.text('Download'))).colorScheme;
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
@@ -499,7 +504,7 @@ void main() {
     final media = pictured('https://pictures.example/photo.png');
     Brightness? clock() => SystemChrome.latestStyle?.statusBarIconBrightness;
 
-    expect(tester.getRect(find.text('Nazzil')).top, greaterThanOrEqualTo(30), reason: 'the empty Home starts below the bar');
+    expect(tester.getRect(logo).top, greaterThanOrEqualTo(30), reason: 'the empty Home starts below the bar');
     expect(clock(), Brightness.dark);
 
     controller
@@ -766,7 +771,7 @@ void main() {
     await tester.tap(find.byTooltip('رجوع'));
     await tester.pumpAndSettle();
     expect(find.text('الصق رابطًا'), findsOneWidget);
-    expect(find.text('نزل'), findsOneWidget);
+    expect(tester.getSemantics(logo).label, 'نزّل');
   });
 
   test('settings store: dark is the default, and a choice of light made before is kept', () async {
@@ -1100,9 +1105,9 @@ void main() {
 
   testWidgets('header: it says what is downloading, and nothing when nothing is', (tester) async {
     final controller = await boot(tester);
-    final header = find.ancestor(of: find.text('Nazzil'), matching: find.byType(Column)).first;
+    final header = find.ancestor(of: logo, matching: find.byType(Column)).first;
     Iterable<String?> lines() => tester.widgetList<Text>(find.descendant(of: header, matching: find.byType(Text))).map((t) => t.data);
-    expect(lines(), ['Nazzil']);
+    expect(lines(), isEmpty);
 
     controller
       ..library = [
@@ -1114,14 +1119,14 @@ void main() {
       ..progress = 0.3
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(lines(), ['Nazzil', 'Downloading… · 1 waiting']);
+    expect(lines(), ['Downloading… · 1 waiting']);
     expect(find.descendant(of: find.byType(LibraryTile).first, matching: find.text('30%')), findsOneWidget);
 
     controller
       ..converting = true
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(lines(), ['Nazzil', 'Converting… · 1 waiting']);
+    expect(lines(), ['Converting… · 1 waiting']);
 
     controller
       ..converting = false
@@ -1130,7 +1135,7 @@ void main() {
       ..library = [entry('j1', PlatformId.youtube, MediaKind.video, status: LibraryItem.statusPaused)]
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(lines(), ['Nazzil', 'Paused']);
+    expect(lines(), ['Paused']);
 
     // Reading a link is said on the button, once.
     controller
@@ -1138,7 +1143,7 @@ void main() {
       ..loading = true
       ..setUrl('https://www.tiktok.com/@someone/video/1');
     await tester.pump();
-    expect(lines(), ['Nazzil']);
+    expect(lines(), isEmpty);
     expect(find.text('Reading the link…'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
     controller
@@ -1505,7 +1510,7 @@ void main() {
       expect(find.text('6 items'), findsOneWidget);
       expect(find.text('Home'), findsNothing);
       expect(find.text('Recent'), findsNothing, reason: 'the library itself is in view');
-      expect(find.text('Nazzil'), findsOneWidget, reason: 'one header for both panes');
+      expect(logo, findsOneWidget, reason: 'one header for both panes');
       final first = tester.getTopLeft(find.byType(LibraryTile).at(0));
       final fourth = tester.getTopLeft(find.byType(LibraryTile).at(3));
       expect(fourth.dy, first.dy, reason: 'at least four tiles share the first row');
@@ -1517,9 +1522,9 @@ void main() {
         ..selected = sampleVideo.options.first
         ..notifyListeners();
       await tester.pumpAndSettle();
-      expect(find.text('Nazzil'), findsOneWidget);
+      expect(logo, findsOneWidget);
       expect(find.byTooltip('Settings'), findsOneWidget);
-      expect(tester.getRect(find.byTooltip('Clear')).top, greaterThan(tester.getRect(find.text('Nazzil')).bottom));
+      expect(tester.getRect(find.byTooltip('Clear')).top, greaterThan(tester.getRect(logo).bottom));
       expect(tester.getRect(find.text('Download')).right, lessThan(first.dx));
     },
     variant: linux,
