@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
@@ -16,10 +17,18 @@ import java.io.File
 object DownloadNotifier {
     const val CHANNEL = "nazzil_download"
     const val ID = 41
+
+    /**
+     * What a download ended on (saved, paused, failed) is a notification of its own. A service
+     * that stops takes the one it holds away with it, so under [ID] the ending was gone a
+     * moment after it was shown.
+     */
+    private const val ENDING_ID = 42
     const val ACTION_OPEN = "com.nazzil.app.OPEN_DOWNLOAD"
     const val EXTRA_OPEN_LIBRARY = "open_library"
     const val EXTRA_RESUME = "resume_download"
     const val EXTRA_CANCEL = "cancel_download"
+    private const val EXTRA_IS_PAUSED = "nazzil.paused"
 
     private const val WORDS = "nazzil_words"
 
@@ -105,8 +114,28 @@ object DownloadNotifier {
                 word(context, "cancel", "Cancel"),
                 openApp(context, library = true, cancel = true),
             )
+            .addExtras(Bundle().apply { putBoolean(EXTRA_IS_PAUSED, true) })
             .build()
-        notify(context, notification)
+        ending(context, notification)
+    }
+
+    /**
+     * Takes the notification of a paused download away, once nothing is paused any more:
+     * its Resume would resume nothing. An ending that says something else is left.
+     */
+    fun clearPaused(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val paused = runCatching {
+            manager.activeNotifications.any {
+                it.id == ENDING_ID && it.notification.extras.getBoolean(EXTRA_IS_PAUSED)
+            }
+        }.getOrDefault(false)
+        if (paused) clearEnding(context)
+    }
+
+    /** A download that starts or carries on makes the last ending old news. */
+    fun clearEnding(context: Context) {
+        runCatching { NotificationManagerCompat.from(context).cancel(ENDING_ID) }
     }
 
     fun done(context: Context, title: String, path: String?) {
@@ -120,7 +149,7 @@ object DownloadNotifier {
             .setProgress(0, 0, false)
             .setContentIntent(openFileOrApp(context, path, library = true))
             .build()
-        notify(context, notification)
+        ending(context, notification)
     }
 
     fun failed(context: Context, message: String) {
@@ -134,7 +163,7 @@ object DownloadNotifier {
             .setProgress(0, 0, false)
             .setContentIntent(openApp(context, library = true))
             .build()
-        notify(context, notification)
+        ending(context, notification)
     }
 
     fun cancel(context: Context) {
@@ -235,5 +264,9 @@ object DownloadNotifier {
 
     private fun notify(context: Context, notification: Notification) {
         runCatching { NotificationManagerCompat.from(context).notify(ID, notification) }
+    }
+
+    private fun ending(context: Context, notification: Notification) {
+        runCatching { NotificationManagerCompat.from(context).notify(ENDING_ID, notification) }
     }
 }

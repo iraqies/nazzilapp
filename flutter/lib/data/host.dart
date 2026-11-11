@@ -70,6 +70,10 @@ class DownloadHost {
 
   static Future<void> stop() => _notify('stop');
 
+  /// Takes the notification of a paused download away. Its Resume would resume nothing
+  /// once no download is paused any more.
+  static Future<void> clearPaused() => _notify('clearPaused');
+
   /// False when the system had nothing to open the file with.
   static Future<bool> openFile(String path) async {
     try {

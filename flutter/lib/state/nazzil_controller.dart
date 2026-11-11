@@ -466,15 +466,22 @@ class NazzilController extends ChangeNotifier {
     ];
     await libraryStore.save(library);
     notifyListeners();
+    if (item.paused && !library.any((entry) => entry.paused)) await DownloadHost.clearPaused();
   }
 
+  /// Cancel pressed on the notification. A paused download has one too, and the app may
+  /// have been opened by it with no post on Home, so it falls to a paused download as Resume does.
   Future<void> cancelCurrent() async {
     final active = _byId(activeJobId ?? '');
     if (active != null) {
       await cancelJob(active);
       return;
     }
-    final job = jobForCurrent();
+    final job = jobForCurrent() ??
+        library.cast<LibraryItem?>().firstWhere(
+              (e) => e?.paused == true,
+              orElse: () => null,
+            );
     if (job != null) await cancelJob(job);
   }
 

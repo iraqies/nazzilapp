@@ -40,13 +40,15 @@ class DownloadService : Service() {
     }
 
     override fun onDestroy() {
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+        // The progress goes with the service. How the download ended is another notification.
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         releaseWakeLock()
         super.onDestroy()
     }
 
     private fun startForegroundNow(title: String, percent: Int) {
         DownloadNotifier.ensureChannel(this)
+        DownloadNotifier.clearEnding(this)
         val notification = DownloadNotifier.progressNotification(this, title, percent)
         if (Build.VERSION.SDK_INT >= 34) {
             ServiceCompat.startForeground(

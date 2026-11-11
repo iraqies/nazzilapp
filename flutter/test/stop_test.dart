@@ -295,6 +295,15 @@ void main() {
     expect(calledFor, everyElement(isTrue), reason: 'a tap meant for Cancel must not find Download with no dialog over it');
   });
 
+  test("Cancel on a paused download's notification cancels it, with no post on Home", () async {
+    final job = await pausedJob('shade');
+    final controller = job.controller;
+    expect(controller.media, isNull, reason: 'the notification can open the app with nothing fetched');
+    await controller.cancelCurrent();
+    expect(controller.library.single.status, LibraryItem.statusCancelled);
+    expect(job.partial.existsSync(), isFalse, reason: 'what was kept of the file goes with it');
+  });
+
   test('the percentage does not step back when the first bytes arrive', () async {
     final job = await pausedJob('steps');
     job.downloader.steps = [0, 0.004, 0.03, 0.5];
