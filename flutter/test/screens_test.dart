@@ -1035,6 +1035,48 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  for (final language in ['en', 'ar']) {
+    testWidgets("library tile: on the narrow frames of Home's strip no word of a tag is cut in two ($language)", (tester) async {
+      // What a download can end on, with the failure lines whose words are the longest.
+      final ends = [
+        entry('stopped', PlatformId.tiktok, MediaKind.video, status: LibraryItem.statusCancelled),
+        entry('held', PlatformId.tiktok, MediaKind.video, status: LibraryItem.statusPaused),
+        entry('dropped', PlatformId.tiktok, MediaKind.video, status: LibraryItem.statusFailed, error: Failure.network.name),
+        entry('refused', PlatformId.tiktok, MediaKind.video, status: LibraryItem.statusFailed, error: Failure.permission.name),
+        entry('unmade', PlatformId.tiktok, MediaKind.video, status: LibraryItem.statusFailed, error: Failure.convert.name),
+        entry('removed', PlatformId.tiktok, MediaKind.video),
+      ];
+      // Wide enough for the six to be on screen at once, and still a phone's one column.
+      await boot(tester, language: language, size: const Size(800, 720), library: ends);
+      final tiles = find.byType(LibraryTile);
+      expect(tiles, findsNWidgets(ends.length));
+      final said = <String>[];
+      for (var i = 0; i < ends.length; i++) {
+        final words = find.descendant(of: tiles.at(i), matching: find.byType(Text));
+        final text = tester.widget<Text>(words).data!;
+        said.add(text);
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.descendant(of: words, matching: find.byType(RichText)),
+        );
+        for (final word in RegExp(r'\S+').allMatches(text)) {
+          // Each box as high as its line: a full stop set in the other typeface is not a line of its own.
+          final lines = paragraph
+              .getBoxesForSelection(
+                TextSelection(baseOffset: word.start, extentOffset: word.end),
+                boxHeightStyle: ui.BoxHeightStyle.max,
+              )
+              .map((box) => box.top)
+              .toSet();
+          expect(lines.length, lessThan(2), reason: '"${word[0]}" of "$text" is cut in two');
+        }
+      }
+      if (language == 'en') {
+        expect(said.take(2), ['Cancelled', 'Paused']);
+        expect(said.last, 'File was removed');
+      }
+    });
+  }
+
   testWidgets('library sheet on a phone: gallery and share, and a line when no app opens the file', (tester) async {
     await boot(tester, library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'A clip')]);
     // Only the question beforehand tells whether an app exists for the file.

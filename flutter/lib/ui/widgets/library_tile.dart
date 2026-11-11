@@ -119,8 +119,35 @@ class PictureTag extends StatelessWidget {
   final IconData icon;
   final String text;
 
+  /// The words are not set smaller than this share of their size. Past it a long word breaks.
+  static const _smallest = 0.7;
+
+  /// A word wider than the line is cut in two wherever the line ends, and on the narrow
+  /// frames of Home's strip "Cancelled" is that wide. There the words are set a little smaller.
+  TextStyle _fitted(BuildContext context, TextStyle style, double room) {
+    final size = style.fontSize;
+    if (size == null || !room.isFinite) return style;
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    var widest = 0.0;
+    for (final word in text.split(RegExp(r'\s+'))) {
+      painter
+        ..text = TextSpan(text: word, style: style)
+        ..layout();
+      if (painter.width > widest) widest = painter.width;
+    }
+    painter.dispose();
+    if (widest <= room) return style;
+    // A hair under the exact share, so that rounding does not leave the last letter over.
+    return style.copyWith(fontSize: size * (room / widest * 0.98).clamp(_smallest, 1.0));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(color: NazzilColors.onPhoto);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: NazzilColors.photoScrim,
@@ -138,11 +165,13 @@ class PictureTag extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Flexible(
-              child: Text(
-                text,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: NazzilColors.onPhoto),
+              child: LayoutBuilder(
+                builder: (context, box) => Text(
+                  text,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: style == null ? null : _fitted(context, style, box.maxWidth),
+                ),
               ),
             ),
           ],
