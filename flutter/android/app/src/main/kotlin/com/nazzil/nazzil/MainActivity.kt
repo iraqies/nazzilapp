@@ -161,6 +161,21 @@ class MainActivity : FlutterActivity() {
         maybeOpenFromNotification(intent)
     }
 
+    /**
+     * The page goes, and the app's code goes with it: the app swiped away from the recent apps,
+     * or ended by the phone. A download stops there. The service must not outlive it, or its
+     * notification would stay on a percentage with a Pause and a Cancel that reach no one,
+     * holding the phone awake. A page opened since has the channel, and the service is its own.
+     */
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        if (HostBridge.channel === host) {
+            HostBridge.channel = null
+            DownloadService.stop(this)
+        }
+        host = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         maybeOpenFromNotification(intent)
