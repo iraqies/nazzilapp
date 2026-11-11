@@ -26,7 +26,7 @@ The motif is colour arriving. A fetched post shows in colour, as it looks where 
 
 The second motif is the frame. Home opens on an empty dashed frame that asks for a link. The fetched post fills it. The library is frames edge to edge, and the last saves run along the bottom of Home as a strip.
 
-The name is set as text in the header. There is no logo in the app yet. The letter N tile of the earlier design is gone, and the launcher icon is unchanged. The owner asked for logo concepts on 2026-11-11, and twenty-five are in `design/logo/` (the sheets are in `design/logo/boards/`). None is chosen, so none is in the app.
+The logo is the word نزّل written in the Ruqaa hand, with its two dots and its shadda in colour. The owner chose it on 2026-11-11 out of twenty-five concepts (number 13; the sheets are in `design/logo/boards/`). In the app it stands in the header where the name used to be set as text: the letters take the text colour and the dots take the colour the user picked. On the launcher icon the ground is paper `#F4F2EE`, the letters are ink `#111111` and the dots are Rose. Both are drawn from the outlines of the typeface by `design/logo/export.py`, which writes the header's outline and the icons of every platform, so the logo is never redrawn by hand. While the app starts, the phone shows the same word on the page colour: ink letters on paper, or light letters on black when the phone is set dark.
 
 ## Colour
 
@@ -44,11 +44,17 @@ Dark is the default theme, because a saved video or photo reads best against bla
 
 ## Type
 
-Archivo sets Latin text. Its narrow cuts are the lettering of film posters and title cards, and one variable file holds both the regular width for reading and the narrow width for titles. Titles, the percentage and the header use width 62 to 88 at weight 800. Everything else is regular width.
+Two typefaces, one for each script. Arabic is in the lettering of the logo, which the owner asked for on 2026-11-11. English is in Fraunces, a serif picked the same day to go with it, when he asked for an English typeface that matches the Arabic one.
 
-Changa sets Arabic. Archivo has no Arabic letters, so Arabic falls through to it, while a Latin title inside the Arabic app still shows in Archivo. Changa is drawn with the same sturdy, squared shapes and goes up to weight 800, so an Arabic heading carries the same weight as an English one. Arabic lines are set taller for the marks above and below the letters, and letter spacing is always zero in Arabic because spacing breaks the joins.
+Fraunces sets English, and every digit and Latin name in the Arabic app too. Nineteen typefaces were set next to the Arabic at the app's sizes, and Fraunces came closest in three ways that can be seen. Its strokes swell and thin the way a broad pen's do and end soft and round, as the Ruqaa hand does. It is as dark on the page: a line of it carries about nine tenths of the ink a line of Ruqaa does, where most serifs carry far less and look faint beside it. And it has one cut for reading sizes and another for headings. The Text cut sets reading sizes, in Regular and SemiBold. The Display cut sets headings, post titles and the percentage, in SemiBold. Those three files are the ones in the app. Nothing is set in italics or in a third weight.
 
-The scale: percentage 88, screen heading 42 (36 in Arabic), post title 30, frame prompt 26, dialog title 21, section label 17, body 16 and 15, small 14 and 13.5, tab label 12.5. Sizes follow the system font size. The large sizes follow it up to 1.3 times, since they are already large.
+Aref Ruqaa sets Arabic. It is the hand the logo is written in, so the name in the header and the words under it are one lettering. It has a regular and a bold, and the bold stands where English is SemiBold.
+
+The app carries neither typeface as released. `design/type/build.py` makes its copies from the releases in `design/type/upstream/`, and checks that no letter, join or space is redrawn. The copies of Fraunces are three fixed cuts of the one file it is released as, all with its soft ends. Their letters are drawn a ninth larger on the body, which puts the small letters a little over half the text size tall, as a phone's own typeface has them. They also carry a second set of figures, all of one width, which the percentage uses so that it does not shake as it counts. The copies of Ruqaa hold Arabic only, so Latin letters and digits fall through to Fraunces. Their letters are drawn a third larger on the body, because Ruqaa is small for its size and would read smaller than the English beside it. The middle of a line is in the same place in both typefaces, so a line holding both scripts is no taller than a line holding one.
+
+Each language sets its own typeface first and the other behind it. A run of the other script (an English title in the Arabic app, a link, a language named in its own letters) is turned round, so it gets its own typeface first and its own lines.
+
+One size suits both scripts. The scale: percentage 88, screen heading 40, post title 28, frame prompt 26, dialog title 21, section label 17, button 17.5, body 16 and 15, labels 15, small 14 and 13.5, tab label 12.5. Arabic lines stand taller, for the letters Ruqaa stacks and hangs below the line. Letter spacing is always zero, because spacing breaks the joins of Arabic. Sizes follow the system font size. The large sizes follow it up to 1.3 times, since they are already large.
 
 ## Shape, surface and spacing
 
@@ -64,11 +70,11 @@ Anything tappable is at least 48 high.
 
 On a phone each screen is one column, at most 640 wide, with two tabs at the bottom: Home and Library. Settings opens from the header and takes the place of both.
 
-The header holds the name and the way into Settings. Under the name it says what is going on, on every screen: downloading or converting, how many wait behind it, or that something is paused. With nothing going on it says nothing.
+The header holds the logo and the way into Settings. Under the logo it says what is going on, on every screen: downloading or converting, how many wait behind it, or that something is paused. With nothing going on it says nothing.
 
 Home, with nothing fetched: the header, the frame, one button, the list of supported apps, and the strip of last saves along the bottom. The frame takes the room the rest leaves and is never flatter than 16 to 9. It is also the link field: tapping it lets the user type or edit a link. The button names the next step, so it reads Paste while the frame is empty and Fetch once it holds a link.
 
-Home, with a post fetched: the poster runs from the top edge of the screen, in the shape of the picture. It is never flatter than 16 to 9, and never taller than 62% of the screen or than what leaves 300 for the controls under it. Under it sit where the post is from, its title, the choices and one Download button. While it downloads, the button gives way to a status line with Pause and Cancel, and the percentage stands on the poster. The close button on the poster empties the frame again.
+Home, with a post fetched: the poster runs from the top edge of the screen, in the shape of the picture. It is never flatter than 16 to 9, and never taller than 62% of the screen or than what leaves the words and controls under it the room they need at their tallest. Under it sit where the post is from, its title, the choices and one Download button. While it downloads, the button gives way to a status line with Pause and Cancel, and the percentage stands on the poster. The close button on the poster empties the frame again.
 
 Library: the heading and count, the kind filters as text tabs, the app filter as a menu, then the wall. Tiles are 3 by 4, two across on a phone and more as the width allows, no wider than 220. A tile carries one tag (what it is, or what state it is in) and no title. Tapping a tile opens a sheet with its title and every action for it. The picture gets the space because it is how people recognise a download.
 
@@ -92,7 +98,9 @@ Dark (the default), light, or follow the system. The tests in `flutter/test/` me
 
 ## Open to the owner
 
-Every Arabic line was rewritten in standard Arabic by the agent on 2026-11-11, at the owner's request, and is his to correct. Three choices in it are his to confirm. Buttons stay commands (نزّل, الصق, احذف) and are not the nouns phone systems use (تنزيل, لصق, حذف). The name is written نزل in the app, without its shadda, as it was before. The library is called التنزيلات, from the same root as نزّل, where it was التحميلات. تحميل is kept for a picture that fails to load.
+Every Arabic line was rewritten in standard Arabic by the agent on 2026-11-11, at the owner's request, and is his to correct. Two choices in it are his to confirm. Buttons stay commands (نزّل, الصق, احذف) and are not the nouns phone systems use (تنزيل, لصق, حذف). The library is called التنزيلات, from the same root as نزّل, where it was التحميلات. تحميل is kept for a picture that fails to load. The name is written نزّل, with its shadda, as the logo writes it.
+
+English is set in Fraunces, which the agent picked on 2026-11-11 when the owner asked for a typeface that matches the Arabic. The sheet he was sent with it shows five others set the same way: Newsreader, Alegreya, Lora, Playfair Display, and the English letters Aref Ruqaa itself carries. Putting one of them in its place is a change to `design/type/build.py`, which makes the app's copies, to `flutter/pubspec.yaml`, and to two names in `flutter/lib/theme/nazzil_theme.dart`. Fraunces and Aref Ruqaa are both under the SIL Open Font License, which lets a public app ship them, and the licence of each lies next to its files. The Anthropic Sans files he sent first are out of the app. They carry no licence, and they are still in the history of this repository, which matters only if the repository is ever made public.
 
 The app locks to portrait (`flutter/lib/main.dart`). Whether tablets should rotate is his call.
 
