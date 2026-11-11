@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -73,6 +74,15 @@ class DownloadHost {
   /// Takes the notification of a paused download away. Its Resume would resume nothing
   /// once no download is paused any more.
   static Future<void> clearPaused() => _notify('clearPaused');
+
+  /// Puts the app behind whatever is under it and leaves it running, as the phone's Home
+  /// does. Android only: no other system has a Back that reaches the first page.
+  static Future<void> toBack() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _ch.invokeMethod<void>('toBack');
+    } catch (_) {}
+  }
 
   /// False when the system had nothing to open the file with.
   static Future<bool> openFile(String path) async {

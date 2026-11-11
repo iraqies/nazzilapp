@@ -108,6 +108,10 @@ class MainActivity : FlutterActivity() {
                         DownloadNotifier.clearPaused(this)
                         result.success(null)
                     }
+                    "toBack" -> {
+                        moveTaskToBack(true)
+                        result.success(null)
+                    }
                     "openFile" -> {
                         val path = call.argument<String>("path")
                         if (path.isNullOrBlank()) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'data/host.dart';
 import 'data/platforms.dart';
 import 'models/media.dart';
 import 'state/nazzil_controller.dart';
@@ -245,10 +246,17 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
       value: NazzilTheme.overlay(theme.brightness, theme.colorScheme.surface),
       // Settings is drawn in this page's place and is no route of its own, so the
       // phone's Back has to be told about it, or it would leave the app from there.
+      // On the first page Back puts the app behind and leaves it running. Left to
+      // the phone, Back ends an app that a share opened, and a download with it.
       child: PopScope<Object?>(
-        canPop: !_settings,
+        canPop: false,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _settings) _toggleSettings();
+          if (didPop) return;
+          if (_settings) {
+            _toggleSettings();
+          } else {
+            DownloadHost.toBack();
+          }
         },
         child: DesktopInput(
           controller: controller,

@@ -786,35 +786,61 @@ void main() {
     expect(tester.getSemantics(logo).label, 'نزّل');
   });
 
-  testWidgets("settings: the phone's Back closes Settings, and only then leaves the app", (tester) async {
-    await boot(tester);
-    var left = 0;
+  testWidgets("the phone's Back closes Settings, and on the first page puts the app behind without ending it",
+      (tester) async {
+    var ended = 0;
     // Android 13 and later hand Back to the app only while the app says it has a use for it.
     final asked = <bool>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'SystemNavigator.pop') left++;
+      if (call.method == 'SystemNavigator.pop') ended++;
       if (call.method == 'SystemNavigator.setFrameworkHandlesBack') asked.add(call.arguments as bool);
       return null;
     });
     addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    final toPhone = <String>[];
+    const host = MethodChannel('nazzil/host');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(host, (call) async {
+      toPhone.add(call.method);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(host, null));
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pumpAndSettle();
+    await boot(tester);
+    expect(asked, isNotEmpty);
+    expect(asked, everyElement(isTrue), reason: 'the app asks the phone for Back from its first page on');
 
     await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('Theme'), findsOneWidget);
-    expect(asked.last, isTrue, reason: 'in Settings the app asks the phone for Back');
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Theme'), findsNothing);
     expect(find.text('Paste a link'), findsOneWidget);
-    expect(left, 0, reason: 'Back in Settings goes back, and the app stays open');
-    expect(asked.last, isFalse, reason: "out of Settings, Back is the phone's again");
+    expect(toPhone, isEmpty, reason: 'Back in Settings goes back to the page, and the app stays in front');
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(left, 1, reason: 'with nothing to go back from, Back leaves the app');
+    expect(toPhone, ['toBack'], reason: 'on the first page Back puts the app behind');
+    expect(find.text('Paste a link'), findsOneWidget);
+    expect(ended, 0, reason: 'Back never ends the app: a running download would end with it');
+    expect(asked, everyElement(isTrue));
+  });
+
+  testWidgets("a desktop has no Back of the phone's kind, and is asked nothing", variant: linux, (tester) async {
+    final toPhone = <String>[];
+    const host = MethodChannel('nazzil/host');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(host, (call) async {
+      toPhone.add(call.method);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(host, null));
+    await boot(tester, size: const Size(1320, 920));
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(toPhone, isEmpty);
+    expect(find.text('Paste a link'), findsOneWidget);
   });
 
   for (final earlier in ['sunset', 'rose']) {
