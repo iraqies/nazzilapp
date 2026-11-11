@@ -53,6 +53,10 @@ class DownloadHost {
   /// The notification is drawn by the system, so it is told the words in the app's language.
   static Future<void> words(Map<String, String> words) => _notify('words', words);
 
+  /// The phone draws the launch screen before the app runs, so it is told beforehand which
+  /// theme the app is set to: "light", "dark", or "system" for the phone's own.
+  static Future<void> theme(String theme) => _notify('theme', {'theme': theme});
+
   static Future<void> start({String title = 'Nazzil', int percent = 1}) =>
       _notify('start', {'title': title, 'percent': percent});
 

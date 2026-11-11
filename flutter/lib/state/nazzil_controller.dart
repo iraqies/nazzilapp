@@ -136,6 +136,7 @@ class NazzilController extends ChangeNotifier {
     try {
       settings = await settingsStore.load();
     } catch (_) {}
+    unawaited(DownloadHost.theme(settings.theme));
     notifyListeners();
   }
 
@@ -725,6 +726,7 @@ class NazzilController extends ChangeNotifier {
   Future<void> setTheme(String theme) async {
     settings = settings.copyWith(theme: theme);
     await settingsStore.save(settings);
+    unawaited(DownloadHost.theme(theme));
     notifyListeners();
   }
 

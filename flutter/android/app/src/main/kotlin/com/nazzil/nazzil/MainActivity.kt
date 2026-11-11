@@ -1,5 +1,6 @@
 package com.nazzil.nazzil
 
+import android.app.UiModeManager
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -65,6 +66,10 @@ class MainActivity : FlutterActivity() {
                     }
                     "words" -> {
                         DownloadNotifier.setWords(this, call.arguments as? Map<*, *>)
+                        result.success(null)
+                    }
+                    "theme" -> {
+                        followTheme(call.argument<String>("theme"))
                         result.success(null)
                     }
                     "start" -> {
@@ -178,6 +183,26 @@ class MainActivity : FlutterActivity() {
             pendingOpenLibrary = library || pendingOpenLibrary
             pendingResume = resume || pendingResume
             pendingCancel = cancel || pendingCancel
+        }
+    }
+
+    /**
+     * The phone draws the launch screen before the app runs, so it has to be told beforehand
+     * whether the app is set light or dark. Android 12 is the first that can be told; before
+     * it the launch screen is the dark one (res/values).
+     */
+    private fun followTheme(theme: String?) {
+        if (Build.VERSION.SDK_INT < 31) return
+        val phone = getSystemService(UiModeManager::class.java) ?: return
+        runCatching {
+            phone.setApplicationNightMode(
+                when (theme) {
+                    "light" -> UiModeManager.MODE_NIGHT_NO
+                    "dark" -> UiModeManager.MODE_NIGHT_YES
+                    // Nothing of the app's own: day and night as the phone has them.
+                    else -> UiModeManager.MODE_NIGHT_AUTO
+                },
+            )
         }
     }
 
