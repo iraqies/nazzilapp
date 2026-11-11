@@ -37,7 +37,9 @@ class _PhotoFilmState extends State<PhotoFilm> {
   @override
   void initState() {
     super.initState();
-    _pages = PageController(initialPage: widget.index);
+    // The page is [index] and nothing else. Left to keep its own place, it would come back on the
+    // photo it was last left on while the count and Save this photo meant the first one.
+    _pages = PageController(initialPage: widget.index, keepPage: false);
   }
 
   @override

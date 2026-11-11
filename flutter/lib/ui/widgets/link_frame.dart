@@ -119,6 +119,8 @@ class _LinkFrameState extends State<LinkFrame> {
               child: Semantics(
                 label: s.linkLabel,
                 child: TextField(
+                  // A long link scrolls inside the frame. Named, that place is not the page's.
+                  key: const PageStorageKey('link'),
                   controller: _text,
                   focusNode: _focus,
                   onChanged: widget.controller.setUrl,

@@ -1299,6 +1299,81 @@ void main() {
     expect(controller.photoIndex, 0);
   });
 
+  testWidgets('home: an album fetched again shows its first photo, not the one it was left on', (tester) async {
+    final controller = await boot(tester);
+    const urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg', 'https://example.com/3.jpg'];
+    const album = MediaInfo(
+      id: 'alb',
+      title: 'Weekend in Erbil',
+      webpageUrl: 'https://www.tiktok.com/@someone/photo/1',
+      platform: PlatformId.tiktok,
+      photos: urls,
+      options: [QualityOption(id: 'photos', label: 'Photos', ext: 'jpg', kind: MediaKind.photo, photoUrls: urls)],
+    );
+    Future<void> fetched() async {
+      controller
+        ..media = album
+        ..selected = album.options.first
+        ..photoIndex = 0
+        ..notifyListeners();
+      await tester.pumpAndSettle();
+    }
+
+    double page() => tester.widget<PageView>(find.byType(PageView)).controller!.page!;
+
+    await fetched();
+    await tester.tap(find.byTooltip('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 of 3'), findsOneWidget);
+    expect(page(), 2);
+
+    controller
+      ..media = null
+      ..selected = null
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    await fetched();
+    expect(find.text('1 of 3'), findsOneWidget);
+    expect(page(), 0, reason: 'the photo on show is the one the count and Save this photo mean');
+  });
+
+  testWidgets('home: the page, the link in the frame and the strip of last saves each keep their own place', (tester) async {
+    final controller = await boot(
+      tester,
+      size: const Size(320, 480),
+      textScale: 2,
+      library: [
+        for (var i = 0; i < 14; i++) entry('r$i', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'Clip number $i'),
+      ],
+    );
+    double link() => tester
+        .state<ScrollableState>(find.descendant(of: find.byType(EditableText), matching: find.byType(Scrollable)))
+        .position
+        .pixels;
+    double strip() => Scrollable.of(tester.element(find.byType(LibraryTile).first)).position.pixels;
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    final place = scrolled(tester);
+    expect(place, greaterThan(0));
+    await tester.drag(find.byType(LibraryTile).first, const Offset(-90, 0));
+    await tester.pumpAndSettle();
+    final along = strip();
+    expect(along, greaterThan(0));
+    expect(along, isNot(place));
+
+    controller.goTab(1);
+    await tester.pumpAndSettle();
+    controller.goTab(0);
+    await tester.pump();
+    expect(link(), 0, reason: 'the link does not start where the page or the strip was left');
+    await tester.pumpAndSettle();
+    expect(scrolled(tester), place);
+    expect(strip(), along);
+  });
+
   testWidgets('home: one photo gets one save button and singular words', (tester) async {
     final controller = await boot(tester);
     const urls = ['https://example.com/1.jpg'];

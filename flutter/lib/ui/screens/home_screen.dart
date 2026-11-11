@@ -252,6 +252,8 @@ class _Recent extends StatelessWidget {
         SizedBox(
           height: _height,
           child: ListView.separated(
+            // Its own place: unnamed, it would share the one the page keeps and each would move the other.
+            key: const PageStorageKey('recent'),
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: items.length,
