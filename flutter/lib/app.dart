@@ -244,14 +244,22 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
     }
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: NazzilTheme.overlay(theme.brightness, theme.colorScheme.surface),
-      child: DesktopInput(
-        controller: controller,
-        child: Scaffold(
-          // The tabs sit in this slot so a snack bar floats above them, not over them.
-          bottomNavigationBar: _settings || wide
-              ? null
-              : FocusTraversalGroup(child: _Tabs(controller: controller)),
-          body: page,
+      // Settings is drawn in this page's place and is no route of its own, so the
+      // phone's Back has to be told about it, or it would leave the app from there.
+      child: PopScope<Object?>(
+        canPop: !_settings,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _settings) _toggleSettings();
+        },
+        child: DesktopInput(
+          controller: controller,
+          child: Scaffold(
+            // The tabs sit in this slot so a snack bar floats above them, not over them.
+            bottomNavigationBar: _settings || wide
+                ? null
+                : FocusTraversalGroup(child: _Tabs(controller: controller)),
+            body: page,
+          ),
         ),
       ),
     );

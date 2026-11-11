@@ -795,6 +795,37 @@ void main() {
     expect(tester.getSemantics(logo).label, 'نزّل');
   });
 
+  testWidgets("settings: the phone's Back closes Settings, and only then leaves the app", (tester) async {
+    await boot(tester);
+    var left = 0;
+    // Android 13 and later hand Back to the app only while the app says it has a use for it.
+    final asked = <bool>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'SystemNavigator.pop') left++;
+      if (call.method == 'SystemNavigator.setFrameworkHandlesBack') asked.add(call.arguments as bool);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Colour'), findsOneWidget);
+    expect(asked.last, isTrue, reason: 'in Settings the app asks the phone for Back');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Colour'), findsNothing);
+    expect(find.text('Paste a link'), findsOneWidget);
+    expect(left, 0, reason: 'Back in Settings goes back, and the app stays open');
+    expect(asked.last, isFalse, reason: "out of Settings, Back is the phone's again");
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(left, 1, reason: 'with nothing to go back from, Back leaves the app');
+  });
+
   for (final language in ['en', 'ar']) {
     testWidgets('settings ($language): the four colours stand in one row on a phone', (tester) async {
       final controller = await boot(tester, language: language, size: const Size(360, 780));
