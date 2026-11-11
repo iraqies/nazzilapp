@@ -62,7 +62,7 @@ class NazzilController extends ChangeNotifier {
   LibraryItem? doneItem;
   LibraryItem? duplicate;
   RemoteVersion? remote;
-  String localVersion = '1.3';
+  String localVersion = '2.0';
   int tab = 0;
   String? clipOffer;
   String libraryKind = 'all';

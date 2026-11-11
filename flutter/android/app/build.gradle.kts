@@ -27,8 +27,8 @@ android {
         applicationId = "com.nazzil.app"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
-        versionCode = 22
-        versionName = "1.3"
+        versionCode = 23
+        versionName = "2.0"
         ndk {
             // -PnazzilAbis=x86_64 gives an emulator build that runs FFmpeg natively.
             abiFilters += (findProperty("nazzilAbis") as String? ?: "arm64-v8a").split(",")
@@ -78,8 +78,8 @@ flutter {
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.forEach { output ->
-            output.versionCode.set(22)
-            output.versionName.set("1.3")
+            output.versionCode.set(23)
+            output.versionName.set("2.0")
         }
     }
 }
