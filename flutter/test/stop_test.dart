@@ -278,6 +278,23 @@ void main() {
     expect(job.downloader.runs, 1);
   });
 
+  test('the Saved dialog is called for no later than the page hears that the file is done', () async {
+    final job = await pausedJob('saved');
+    final controller = job.controller;
+    // From the word that the file is done, the page offers Download again in place of Cancel.
+    final calledFor = <bool>[];
+    controller.addListener(() {
+      if (controller.library.single.done) calledFor.add(controller.doneItem != null);
+    });
+    await controller.resumeJob(controller.library.single);
+    job.extractor.gate.complete();
+    await job.downloader.entered.future;
+    job.downloader.gate.complete();
+    await until(controller, () => !controller.downloading);
+    expect(calledFor, isNotEmpty);
+    expect(calledFor, everyElement(isTrue), reason: 'a tap meant for Cancel must not find Download with no dialog over it');
+  });
+
   test('the percentage does not step back when the first bytes arrive', () async {
     final job = await pausedJob('steps');
     job.downloader.steps = [0, 0.004, 0.03, 0.5];

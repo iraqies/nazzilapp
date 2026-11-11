@@ -335,6 +335,8 @@ class NazzilController extends ChangeNotifier {
     );
     if (existing != null) {
       if (existing.done) {
+        // The Saved dialog of this very file is up or on its way up, and says as much.
+        if (doneItem?.id == existing.id) return;
         duplicate = existing;
         notifyListeners();
         return;
@@ -587,12 +589,14 @@ class NazzilController extends ChangeNotifier {
         photoCount: result.photoCount,
         thumbnail: job.thumbnail ?? (result.files.isNotEmpty ? result.files.first.path : null),
       );
+      // The page offers Download again once the library says the file is done. The Saved
+      // dialog is called for with that same word, and not two calls to the phone later:
+      // a tap meant for Cancel would land on Download in between.
+      final last = libraryStore.nextQueued(library) == null;
+      if (last) doneItem = done;
       await _patch(job.id, done);
       HapticFeedback.mediumImpact();
-      if (libraryStore.nextQueued(library) == null) {
-        doneItem = done;
-        await DownloadHost.done(done.title, path: done.primaryPath);
-      }
+      if (last) await DownloadHost.done(done.title, path: done.primaryPath);
     } on PausedException catch (paused) {
       final current = _byId(job.id);
       if (current == null || current.status == LibraryItem.statusCancelled) return;

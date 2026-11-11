@@ -1698,6 +1698,32 @@ void main() {
     expect(controller.doneItem, isNull);
   });
 
+  testWidgets('done dialog: a tap that lands on Download as the download ends gets the Saved dialog alone', (tester) async {
+    final key = LinkParser.identityKey(sampleVideo.webpageUrl, sampleVideo.id);
+    final controller = await boot(
+      tester,
+      library: [entry('abc', PlatformId.youtube, MediaKind.video, onDisk: true, videoKey: key)],
+    );
+    controller
+      ..media = sampleVideo
+      ..selected = sampleVideo.options.first
+      // The download has just ended: Download is back on the page, and the dialog is not up yet.
+      ..doneItem = controller.library.first
+      ..notifyListeners();
+    await controller.download();
+    await tester.pumpAndSettle();
+    expect(find.text('Saved'), findsOneWidget);
+    expect(find.text('You already have this'), findsNothing, reason: 'the Saved dialog says as much');
+
+    // With that dialog put away, Download answers that the file is there.
+    await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Download'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved'), findsNothing);
+    expect(find.text('You already have this'), findsOneWidget);
+  });
+
   testWidgets('accessibility guidelines: tap targets, labels and text contrast', (tester) async {
     final handle = tester.ensureSemantics();
     final shown = await picture(tester, 'shown', 300, 200, color: const Color(0xFFE8E0D0));
