@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/nazzil_theme.dart';
+
 /// The direction a piece of text reads in, taken from its first letter.
 /// Null when it has none to go by, as with a bare number or an emoji.
 TextDirection? directionOf(String text) {
@@ -21,6 +23,15 @@ TextDirection? directionOf(String text) {
   return null;
 }
 
+/// [style] as [text] is set in it where the layout reads in [layout]. Words in
+/// the other script, such as an English name in the Arabic app, take that
+/// script's typeface and lines.
+TextStyle styleIn(String text, TextStyle style, TextDirection layout) {
+  final own = directionOf(text);
+  if (own == null || own == layout) return style;
+  return NazzilTheme.inScript(style, arabic: own == TextDirection.rtl);
+}
+
 /// A title from a post. It reads in its own direction, so an English title
 /// is cut at its end in the Arabic app too, and lines up with the layout.
 class TitleText extends StatelessWidget {
@@ -33,15 +44,10 @@ class TitleText extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = Directionality.of(context);
     final own = directionOf(text);
-    var style = this.style;
-    // An Arabic title in the English app still needs the taller lines Arabic gets.
-    final height = style?.height;
-    if (own == TextDirection.rtl && layout == TextDirection.ltr && height != null) {
-      style = style!.copyWith(height: height + 0.2);
-    }
+    final style = this.style;
     return Text(
       text,
-      style: style,
+      style: style == null ? null : styleIn(text, style, layout),
       maxLines: maxLines,
       overflow: maxLines == null ? null : TextOverflow.ellipsis,
       textDirection: own ?? layout,

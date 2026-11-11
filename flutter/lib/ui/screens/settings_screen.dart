@@ -6,6 +6,7 @@ import '../../theme/nazzil_theme.dart';
 import '../widgets/choice_row.dart';
 import '../widgets/heading.dart';
 import '../widgets/tappable.dart';
+import '../widgets/title_text.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.controller});
@@ -91,10 +92,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _credit(BuildContext context, String title, String handle, String url) {
+    final theme = Theme.of(context);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      title: Text(title),
-      subtitle: Text(handle),
+      // Names and addresses in Latin letters, set as Latin in the Arabic app too.
+      title: TitleText(title, style: theme.textTheme.titleSmall),
+      subtitle: TitleText(handle, style: theme.textTheme.bodySmall),
       trailing: const Icon(Icons.open_in_new_rounded, size: 18),
       onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
     );

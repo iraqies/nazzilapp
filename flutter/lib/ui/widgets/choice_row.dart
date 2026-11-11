@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'tappable.dart';
+import 'title_text.dart';
 
 /// A few choices side by side. The picked one is filled with the text colour,
 /// which leaves the user's colour to the button that does the next step.
@@ -33,7 +34,7 @@ class ChoiceRow<T> extends StatelessWidget {
           for (final option in options)
             () {
               final painter = TextPainter(
-                text: TextSpan(text: option.$2, style: style),
+                text: TextSpan(text: option.$2, style: styleIn(option.$2, style, direction)),
                 textDirection: direction,
                 textScaler: scaler,
                 maxLines: 1,
@@ -99,7 +100,9 @@ class ChoiceRow<T> extends StatelessWidget {
             child: Text(
               option.$2,
               textAlign: TextAlign.center,
-              style: style.copyWith(color: active ? scheme.onPrimary : scheme.onSurface),
+              // A language is named in its own letters, in the typeface those letters are set in.
+              style: styleIn(option.$2, style, Directionality.of(context))
+                  .copyWith(color: active ? scheme.onPrimary : scheme.onSurface),
             ),
           ),
         ),

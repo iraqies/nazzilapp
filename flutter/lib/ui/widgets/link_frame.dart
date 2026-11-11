@@ -129,9 +129,9 @@ class _LinkFrameState extends State<LinkFrame> {
                   textInputAction: TextInputAction.go,
                   autocorrect: false,
                   maxLines: null,
-                  // A link reads left to right in the Arabic app too.
+                  // A link reads left to right in the Arabic app too, on the lines Latin is set on.
                   textDirection: TextDirection.ltr,
-                  style: theme.textTheme.bodyLarge,
+                  style: NazzilTheme.inScript(theme.textTheme.bodyLarge!, arabic: false),
                   decoration: InputDecoration(
                     hintText: asking ? null : s.pasteHint,
                     hintMaxLines: 8,

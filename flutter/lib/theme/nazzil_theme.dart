@@ -78,10 +78,47 @@ abstract final class NazzilMotion {
 }
 
 class NazzilTheme {
-  static const family = 'Archivo';
+  /// English is set in Anthropic Sans, which the owner chose: this cut at reading sizes,
+  static const sans = 'Anthropic Sans Text';
 
-  /// Archivo holds no Arabic, so Arabic falls through to Changa and Latin keeps one face.
-  static const fallback = ['Changa'];
+  /// and this one for headings and the percentage.
+  static const sansDisplay = 'Anthropic Sans Display';
+
+  /// Arabic is set in Aref Ruqaa, the hand the logo is written in. The app's copy holds
+  /// Arabic only and is drawn to the size of the Latin, so one text size suits both
+  /// scripts and each falls through to the other's typeface (design/type/build.py).
+  static const ruqaa = 'Aref Ruqaa';
+
+  /// What is set strong. Anthropic Sans has this weight, and Ruqaa answers it with its bold.
+  static const strong = FontWeight.w600;
+
+  /// The app's Ruqaa draws its letters this much larger than a text size says, which is
+  /// what brings them to the size of the Latin. Lines are counted in text sizes, so an
+  /// Arabic line needs as much more.
+  static const arabicScale = 4 / 3;
+
+  /// Ruqaa stacks its letters and hangs them below the line, so Arabic lines stand this
+  /// much taller again.
+  static const arabicLead = 0.15;
+
+  /// [style] as it is set for Arabic words, or for Latin ones: that script's typeface
+  /// first, and its lines. A theme sets its own language, so this is for a run of the
+  /// other one: an Arabic title in the English app, a link in the Arabic app.
+  static TextStyle inScript(TextStyle style, {required bool arabic}) {
+    final first = style.fontFamily;
+    final next = style.fontFamilyFallback;
+    if (first == null || next == null || next.isEmpty || (first == ruqaa) == arabic) return style;
+    final height = style.height;
+    return style.copyWith(
+      fontFamily: next.first,
+      fontFamilyFallback: [first, ...next.skip(1)],
+      height: height == null
+          ? null
+          : arabic
+              ? (height + arabicLead) * arabicScale
+              : height / arabicScale - arabicLead,
+    );
+  }
 
   static ThemeData light(NazzilPalette palette, {required bool arabic}) =>
       _build(Brightness.light, palette, arabic: arabic);
@@ -143,44 +180,46 @@ class NazzilTheme {
       onInverseSurface: page,
     );
 
-    // [width] is Archivo's width axis: 100 is the regular cut, 62 the narrowest.
-    // Changa has one width, needs taller lines, and letter spacing would break its joins.
-    TextStyle style({
-      required double size,
-      FontWeight weight = FontWeight.w400,
-      double width = 100,
+    // One size suits both scripts. Letter spacing stays at zero because it would break
+    // the joins of Arabic.
+    TextStyle style(
+      double size, {
+      bool bold = false,
       double height = 1.3,
       Color? color,
-      bool latinOnly = false,
+      bool display = false,
+      bool digits = false,
     }) {
-      return TextStyle(
-        fontFamily: family,
-        fontFamilyFallback: fallback,
+      final base = TextStyle(
+        fontFamily: display ? sansDisplay : sans,
+        fontFamilyFallback: const [ruqaa],
         fontSize: size,
-        fontWeight: weight,
-        fontVariations: [FontVariation('wght', weight.value.toDouble()), FontVariation('wdth', width)],
-        height: arabic && !latinOnly ? height + 0.2 : height,
+        fontWeight: bold ? strong : FontWeight.w400,
+        height: height,
+        // The room a line has to spare goes above and below it in equal parts.
+        leadingDistribution: TextLeadingDistribution.even,
         letterSpacing: 0,
         color: color ?? text,
       );
+      return arabic && !digits ? inScript(base, arabic: true) : base;
     }
 
     final type = TextTheme(
-      // The percentage on a poster: digits only, so it keeps Latin line metrics in Arabic too.
-      displayLarge: style(size: 88, weight: FontWeight.w800, width: 62.5, height: 0.86, latinOnly: true)
+      // The percentage on a poster: digits only, so it is the same in both languages.
+      displayLarge: style(88, bold: true, height: 0.86, display: true, digits: true)
           .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      displaySmall: style(size: arabic ? 36 : 42, weight: FontWeight.w800, width: 75, height: 1.05),
-      headlineMedium: style(size: 30, weight: FontWeight.w800, width: 75, height: 1.06),
-      headlineSmall: style(size: 26, weight: FontWeight.w800, width: 75, height: 1.1),
-      titleLarge: style(size: 21, weight: FontWeight.w800, width: 87.5, height: 1.2),
-      titleMedium: style(size: 17, weight: FontWeight.w800, width: 87.5, height: 1.25),
-      titleSmall: style(size: 16, weight: FontWeight.w600, height: 1.25),
-      bodyLarge: style(size: 16, height: 1.45),
-      bodyMedium: style(size: 15, height: 1.45),
-      bodySmall: style(size: 14, height: 1.4, color: muted),
-      labelLarge: style(size: 15, weight: FontWeight.w700, height: 1.2),
-      labelMedium: style(size: 13.5, weight: FontWeight.w500, height: 1.35, color: muted),
-      labelSmall: style(size: 12.5, weight: FontWeight.w600, height: 1.2),
+      displaySmall: style(40, bold: true, height: 1.1, display: true),
+      headlineMedium: style(28, bold: true, height: 1.15, display: true),
+      headlineSmall: style(26, bold: true, height: 1.15, display: true),
+      titleLarge: style(21, bold: true, height: 1.2, display: true),
+      titleMedium: style(17, bold: true, height: 1.25),
+      titleSmall: style(16, bold: true, height: 1.25),
+      bodyLarge: style(16, height: 1.45),
+      bodyMedium: style(15, height: 1.45),
+      bodySmall: style(14, height: 1.4, color: muted),
+      labelLarge: style(15, bold: true, height: 1.2),
+      labelMedium: style(13.5, height: 1.35, color: muted),
+      labelSmall: style(12.5, bold: true, height: 1.2),
     );
 
     BorderSide? focusRing(Set<WidgetState> states) => states.contains(WidgetState.focused)
@@ -238,9 +277,7 @@ class NazzilTheme {
           minimumSize: const WidgetStatePropertyAll(Size(64, 56)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
           shape: WidgetStateProperty.resolveWith(control),
-          textStyle: WidgetStatePropertyAll(
-            style(size: 17, weight: FontWeight.w700, height: 1.2),
-          ),
+          textStyle: WidgetStatePropertyAll(style(17.5, bold: true, height: 1.2)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

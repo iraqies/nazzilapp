@@ -27,6 +27,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/pictures.dart';
+import 'support/typefaces.dart';
 
 late Directory scratch;
 
@@ -318,21 +319,19 @@ void main() {
     // The icons ship with Flutter, beside the program that runs the tests.
     // Without them every icon is a plain square, which measures the same.
     final icons = File('${File(Platform.resolvedExecutable).parent.parent.parent.path}/material_fonts/MaterialIcons-Regular.otf');
-    for (final (family, file) in [
-      ('Archivo', File('assets/fonts/Archivo.ttf')),
-      ('Changa', File('assets/fonts/Changa.ttf')),
-      if (icons.existsSync()) ('MaterialIcons', icons),
-    ]) {
-      final loader = FontLoader(family)..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
+    await loadShippedTypefaces();
+    if (icons.existsSync()) {
+      final loader = FontLoader('MaterialIcons')
+        ..addFont(Future.value(ByteData.sublistView(icons.readAsBytesSync())));
       await loader.load();
     }
   });
 
-  /// The tab at the bottom of a phone: after the page in the tree, so the last match.
-  Finder tab(String label) => find.text(label).last;
   /// The logo in the header. It is drawn, so it is found by what it is and not by its letters.
   final logo = find.byType(NazzilLogo);
 
+  /// The tab at the bottom of a phone: after the page in the tree, so the last match.
+  Finder tab(String label) => find.text(label).last;
 
   double scrolled(WidgetTester tester) => tester
       .state<ScrollableState>(
@@ -480,12 +479,28 @@ void main() {
       closeTo(360 * 9 / 16, 0.01),
       reason: 'never flatter than a film frame',
     );
-    expect(
-      await posterOf(pictured('https://pictures.example/tall.png', id: 't')),
-      closeTo(room - 300, 0.01),
-      reason: 'never so tall that the controls leave the screen',
-    );
+    final tallPost = pictured('https://pictures.example/tall.png', id: 't');
+    final tall = await posterOf(tallPost);
+    expect(tall, greaterThan(360 * 9 / 16));
+    expect(tall, lessThanOrEqualTo(room * 0.62));
     expect(tester.getRect(find.text('Download')).bottom, lessThan(room));
+    // What it leaves is the room the words and controls need at their tallest, which is
+    // a paused download: Resume, and under it the line that cancels.
+    controller
+      ..library = [jobFor(tallPost, LibraryItem.statusPaused)]
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(ArrivingPicture)).height, tall, reason: 'one height, whatever the download is doing');
+    expect(find.text('Resume'), findsOneWidget);
+    expect(
+      tester.getRect(find.widgetWithText(TextButton, 'Cancel')).bottom,
+      inInclusiveRange(room - 2, room),
+      reason: 'never so tall that the controls leave the screen, and no taller room than they need',
+    );
+    controller
+      ..library = []
+      ..notifyListeners();
+    await tester.pumpAndSettle();
 
     // With no picture to go by, a plain block stands in.
     controller
@@ -723,6 +738,9 @@ void main() {
 
         await tester.drag(find.byType(CustomScrollView), const Offset(0, 5000));
         await tester.pumpAndSettle();
+        // At this size the heading and filters can fill the screen, so the tile is scrolled up to.
+        await tester.ensureVisible(find.byType(LibraryTile).at(1));
+        await tester.pumpAndSettle();
         await tester.tap(find.byType(LibraryTile).at(1));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: 'item sheet');
@@ -731,6 +749,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: 'delete dialog');
         await tester.tap(find.text(controller.s.cancel));
+        await tester.pumpAndSettle();
+        // Back up to the header, which left the screen when the tile was scrolled to.
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 5000));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byTooltip(controller.s.settings));
@@ -1723,7 +1744,7 @@ void main() {
     tester.view.physicalSize = const Size(720, 800);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    const style = TextStyle(fontFamily: 'Archivo', fontSize: 15, decoration: TextDecoration.none);
+    const style = TextStyle(fontFamily: NazzilTheme.sans, fontSize: 15, decoration: TextDecoration.none);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,

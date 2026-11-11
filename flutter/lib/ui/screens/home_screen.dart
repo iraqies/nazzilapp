@@ -143,6 +143,7 @@ class HomeScreen extends StatelessWidget {
         media: media,
         photos: photos,
         body: body,
+        below: _Result.heightFor(context, media, body.width - 40, album: album) + 12,
         inset: inset,
         progress: arriving ? controller.progress : null,
         unsaved: job != null && !arriving && !(running && controller.converting),
@@ -195,7 +196,8 @@ class _Apps extends StatelessWidget {
       for (final platform in PlatformId.values)
         if (platform != PlatformId.unknown) s.platformName(platform),
     ];
-    final style = Theme.of(context).textTheme.labelMedium;
+    final style = Theme.of(context).textTheme.labelMedium!;
+    final layout = Directionality.of(context);
     return Semantics(
       label: names.join(', '),
       child: ExcludeSemantics(
@@ -204,9 +206,10 @@ class _Apps extends StatelessWidget {
             widthFactor: 0.78,
             child: Wrap(
               alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 12,
               runSpacing: 2,
-              children: [for (final name in names) Text(name, style: style)],
+              children: [for (final name in names) Text(name, style: styleIn(name, style, layout))],
             ),
           ),
         ),
@@ -289,6 +292,7 @@ class _Poster extends StatefulWidget {
     required this.media,
     required this.photos,
     required this.body,
+    required this.below,
     required this.inset,
     required this.progress,
     required this.unsaved,
@@ -300,6 +304,9 @@ class _Poster extends StatefulWidget {
 
   /// The room Home has, which caps the height of the poster.
   final Size body;
+
+  /// How much of that room the words and controls under the poster need.
+  final double below;
 
   /// The height of the status bar the poster runs under, or 0.
   final double inset;
@@ -345,7 +352,7 @@ class _PosterState extends State<_Poster> {
     final width = widget.body.width;
     // Never flatter than a film frame, and never so tall that the controls leave the screen.
     final least = width * 9 / 16;
-    final most = math.max(least, math.min(widget.body.height - 300, widget.body.height * 0.62));
+    final most = math.max(least, math.min(widget.body.height - widget.below, widget.body.height * 0.62));
     final height = (width / (_aspect ?? 16 / 10)).clamp(least, most);
     return TweenAnimationBuilder<double>(
       tween: Tween(end: height),
@@ -549,6 +556,49 @@ class _Result extends StatelessWidget {
   /// Whether the status line speaks for itself: on a phone no header is up to do it.
   final bool live;
 
+  /// How tall this stands for [media] in a column [width] wide, from its first line
+  /// down to the line that pauses and cancels a download. It adds up what [build]
+  /// lays out, at its tallest, so the poster can keep one height whatever the
+  /// download is doing.
+  static double heightFor(BuildContext context, MediaInfo media, double width, {required bool album}) {
+    final theme = Theme.of(context);
+    final type = theme.textTheme;
+    final layout = Directionality.of(context);
+    // A screen gives a line a whole number of pixels, so the height of one is asked, not worked out.
+    double tall(String text, TextStyle style, {TextScaler? scaler, int lines = 1}) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: directionOf(text) ?? layout,
+        textScaler: scaler ?? MediaQuery.textScalerOf(context),
+        maxLines: lines,
+      )..layout(maxWidth: width);
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    double line(TextStyle style) => tall(' ', style);
+    final titleHeight = tall(
+      media.title,
+      styleIn(media.title, type.headlineMedium!, layout),
+      scaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3),
+      lines: 3,
+    );
+    final author = media.author;
+    final button = theme.filledButtonTheme.style?.textStyle?.resolve(const {});
+    // An album's first line also holds the buttons that turn its pages.
+    return math.max(line(type.bodySmall!), album ? 48 : 0) +
+        4 +
+        titleHeight +
+        (author == null ? 0 : 6 + tall(author, styleIn(author, type.bodySmall!, layout))) +
+        16 +
+        math.max(48, line(type.labelLarge!) + 16) +
+        16 +
+        math.max(56, button == null ? 0 : line(button) + 24) +
+        4 +
+        48;
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = controller.s;
@@ -652,7 +702,8 @@ class _Result extends StatelessWidget {
                               : downloading
                                   ? s.downloading
                                   : s.queued,
-                      style: theme.textTheme.titleSmall,
+                      // Lighter than the two ways to stop beside it, which are the things to press.
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ),
                 ),

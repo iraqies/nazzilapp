@@ -38,9 +38,17 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   fonts:
-    - family: Archivo
+    - family: Anthropic Sans Text
       fonts:
-        - asset: assets/fonts/Archivo.ttf
-    - family: Changa
+        - asset: assets/fonts/AnthropicSans-Text-Regular-Static.otf
+        - asset: assets/fonts/AnthropicSans-Text-Semibold-Static.otf
+          weight: 600
+    - family: Anthropic Sans Display
       fonts:
-        - asset: assets/fonts/Changa.ttf
+        - asset: assets/fonts/AnthropicSans-Display-Semibold-Static.otf
+          weight: 600
+    - family: Aref Ruqaa
+      fonts:
+        - asset: assets/fonts/ArefRuqaa-Regular.ttf
+        - asset: assets/fonts/ArefRuqaa-Bold.ttf
+          weight: 700
