@@ -1,7 +1,7 @@
 name: nazzil
 description: Save videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest to your gallery.
 publish_to: "none"
-version: 2.1.0+24
+version: 2.2.0+25
 
 environment:
   sdk: ^3.13.4
