@@ -26,7 +26,7 @@ The motif is colour arriving. A fetched post shows in colour, as it looks where 
 
 The second motif is the frame. Home opens on an empty dashed frame that asks for a link. The fetched post fills it. The library is frames edge to edge, and the last saves run along the bottom of Home as a strip.
 
-The name is set as text in the header. There is no logo in the app, because none was drawn. The letter N tile of the earlier design is gone, and the launcher icon is unchanged.
+The name is set as text in the header. There is no logo in the app yet. The letter N tile of the earlier design is gone, and the launcher icon is unchanged. The owner asked for logo concepts on 2026-11-11, and twenty-five are in `design/logo/` (the sheets are in `design/logo/boards/`). None is chosen, so none is in the app.
 
 ## Colour
 

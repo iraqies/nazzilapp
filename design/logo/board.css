@@ -1,0 +1,88 @@
+/* The sheets the logo concepts are shown on. 720 wide, so the text reads on a phone without zooming. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+body {
+  width: 720px; background: #E9E6E0; color: #16140F; padding: 36px 30px 40px;
+  font-family: 'Archivo', 'Changa', sans-serif; font-size: 19px; line-height: 1.35;
+}
+img { display: block; }
+.tile { border-radius: 22.5%; }
+.tile.paper { outline: 1px solid #CFCAC0; outline-offset: -1px; }
+
+header { padding-bottom: 26px; }
+.overview header { display: flex; gap: 24px; align-items: flex-end; justify-content: space-between; }
+.today { flex: none; }
+.today img { width: 76px; height: 76px; margin: 0 auto; }
+.today figcaption { font-size: 13px; color: #5F5B54; padding-top: 6px; white-space: nowrap; }
+h1 { font-size: 48px; line-height: 1; font-weight: 800; font-stretch: 75%; }
+header p { font-size: 20px; margin-top: 12px; color: #45413A; max-width: 600px; }
+.range { font-size: 17px; font-weight: 600; color: #45413A; margin-bottom: 8px; }
+
+/* overview */
+.overview section { border-top: 1px solid #C9C4BA; padding: 14px 0 22px; }
+.overview h2 { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+.cells { display: grid; grid-template-columns: repeat(5, 116px); gap: 20px; }
+.cells .tile { width: 116px; height: 116px; }
+.cells figcaption { font-size: 14.5px; line-height: 1.2; color: #45413A; padding-top: 8px; }
+.cells figcaption b { display: block; font-size: 21px; font-weight: 800; color: #16140F; }
+
+/* a sheet of five */
+.board article {
+  display: grid; grid-template-columns: 236px 1fr; gap: 26px; align-items: start;
+  border-top: 1px solid #C9C4BA; padding: 24px 0;
+}
+.board article:last-child { padding-bottom: 0; }
+.tile.big { width: 236px; height: 236px; }
+.about h3 { font-size: 33px; line-height: 1.05; font-weight: 800; font-stretch: 75%; }
+.about h3 b { display: inline-block; min-width: 46px; }
+.about p { margin-top: 8px; color: #45413A; min-height: 78px; }
+.alts { display: flex; gap: 14px; align-items: flex-end; margin-top: 12px; }
+.alts .tile { width: 64px; height: 64px; }
+.alts figcaption { font-size: 12.5px; color: #5F5B54; padding-top: 5px; white-space: nowrap; }
+.alts .small { margin-inline-start: auto; }
+.alts .small div { display: flex; gap: 9px; align-items: flex-end; }
+.alts .tile.s44 { width: 44px; height: 44px; }
+.alts .tile.s30 { width: 30px; height: 30px; }
+.alts .tile.s20 { width: 20px; height: 20px; }
+
+/* a home screen */
+.phone { width: 412px; height: 915px; padding: 0; position: relative; overflow: hidden; }
+.phone.dark {
+  color: #fff;
+  background:
+    radial-gradient(120% 60% at 15% 0%, #24364A 0%, transparent 60%),
+    radial-gradient(110% 55% at 100% 45%, #3A2440 0%, transparent 62%),
+    radial-gradient(120% 60% at 20% 100%, #12303A 0%, transparent 65%),
+    #0E1116;
+}
+.phone.light {
+  color: #14161A;
+  background:
+    radial-gradient(120% 60% at 10% 0%, #F6DCCB 0%, transparent 60%),
+    radial-gradient(110% 55% at 100% 40%, #CFE0F2 0%, transparent 62%),
+    radial-gradient(120% 60% at 25% 100%, #E4D6F0 0%, transparent 65%),
+    #E3E7EC;
+}
+.status { display: flex; justify-content: space-between; align-items: center; padding: 16px 26px 0; font-size: 15px; font-weight: 600; }
+.bars { display: flex; gap: 5px; align-items: flex-end; }
+.bars i { display: block; width: 5px; background: currentColor; border-radius: 1px; }
+.bars i:nth-child(1) { height: 7px; }
+.bars i:nth-child(2) { height: 10px; }
+.bars i:nth-child(3) { height: 13px; }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); row-gap: 20px; padding: 30px 12px 0; }
+.grid figure { display: grid; justify-items: center; }
+.grid .tile { width: 58px; height: 58px; }
+.grid figcaption { font-size: 13px; font-weight: 500; padding-top: 6px; }
+.square .tile, .square .dock i { border-radius: 27%; }
+.round .tile, .round .dock i { border-radius: 50%; }
+.phone .tile.paper { outline: none; }
+.note { position: absolute; left: 40px; right: 40px; bottom: 150px; text-align: center; font-size: 13.5px; line-height: 1.35; opacity: .78; }
+.dock {
+  position: absolute; left: 20px; right: 20px; bottom: 28px; height: 94px; border-radius: 30px;
+  display: flex; justify-content: space-evenly; align-items: center;
+}
+.dark .dock { background: rgba(255, 255, 255, .1); }
+.light .dock { background: rgba(255, 255, 255, .5); }
+.dock i { display: block; width: 58px; height: 58px; }
+.dark .dock i { background: #565B63; }
+.light .dock i { background: #A9B0B9; }
