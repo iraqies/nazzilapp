@@ -50,7 +50,8 @@ class RedditClient {
         last = error;
       }
     }
-    throw last is StateError ? last : StateError('Could not load this Reddit post. Try again.');
+    if (last case final Object error when error is StateError || connectionFailed(error)) throw error;
+    throw StateError('Could not load this Reddit post. Try again.');
   }
 
   /// The post itself, or the original when this one is a crosspost.

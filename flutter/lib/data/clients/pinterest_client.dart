@@ -46,7 +46,8 @@ class PinterestClient {
     } catch (error) {
       last = error;
     }
-    throw last is StateError ? last : StateError('Could not load this pin. It may be private or deleted.');
+    if (last case final Object error when error is StateError || connectionFailed(error)) throw error;
+    throw StateError('Could not load this pin. It may be private or deleted.');
   }
 
   /// Some pins only offer HLS. Pinterest's HLS points into one CMAF file per

@@ -39,7 +39,8 @@ class XClient {
     } catch (error) {
       last = error;
     }
-    throw last is StateError ? last : StateError('Could not load this X post. It may be private or deleted.');
+    if (last case final Object error when error is StateError || connectionFailed(error)) throw error;
+    throw StateError('Could not load this X post. It may be private or deleted.');
   }
 
   /// The token the embed widget sends; the API accepts it as is.

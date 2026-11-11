@@ -1,8 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import '../models/media.dart';
 import 'link_parser.dart';
+
+/// Whether [error] is the connection failing, as against the server answering no. A client that
+/// tried every way in keeps such an error, so that being offline is not reported as a missing post.
+bool connectionFailed(Object error) =>
+    error is SocketException ||
+    error is TlsException ||
+    error is TimeoutException ||
+    (error is HttpException && error.message.toLowerCase().contains('connection'));
 
 class NetClient {
   NetClient() {

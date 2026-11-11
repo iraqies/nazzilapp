@@ -1,9 +1,24 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nazzil/data/clients/pinterest_client.dart';
+import 'package:nazzil/data/clients/reddit_client.dart';
+import 'package:nazzil/data/clients/x_client.dart';
 import 'package:nazzil/data/extractor.dart';
+import 'package:nazzil/data/link_parser.dart';
+import 'package:nazzil/data/net.dart';
 import 'package:nazzil/l10n/strings.dart';
 import 'package:nazzil/models/media.dart';
+
+/// Every request ends the way [error] says.
+class _DeadNet extends NetClient {
+  _DeadNet(this.error);
+  final Object error;
+
+  @override
+  Future<String> get(String url, {Map<String, String> headers = const {}, String userAgent = NetHints.mobileUa}) async =>
+      throw error;
+}
 
 void main() {
   test('sorts the messages the data layer throws', () {
@@ -81,6 +96,41 @@ void main() {
   test('a stored failure name survives a round trip, and old text falls back', () {
     expect(Failure.named(Failure.network.name), Failure.network);
     expect(Failure.named('Connection dropped. Try again.'), Failure.download);
+  });
+
+  test('with no connection a client says so, and does not blame the post', () async {
+    Future<Failure> failureFrom(Future<MediaInfo> Function(NetClient net) fetch, Object error) async {
+      final net = _DeadNet(error);
+      addTearDown(net.close);
+      try {
+        await fetch(net);
+      } catch (caught) {
+        return failureOf(caught);
+      }
+      return Failure.none;
+    }
+
+    final fetches = <String, Future<MediaInfo> Function(NetClient net)>{
+      'x': (net) => XClient(net).fetch('https://x.com/a/status/42'),
+      'pinterest': (net) => PinterestClient(net).fetch('https://www.pinterest.com/pin/255016397643256616/'),
+      'reddit': (net) => RedditClient(net).fetch('https://www.reddit.com/comments/abc12'),
+    };
+    const down = [
+      SocketException("Failed host lookup: 'example.com'"),
+      HttpException('Connection closed before full header was received'),
+      HandshakeException('Connection terminated during handshake'),
+    ];
+    for (final MapEntry(key: name, value: fetch) in fetches.entries) {
+      for (final error in down) {
+        expect(await failureFrom(fetch, error), Failure.network, reason: '$name, $error');
+      }
+    }
+
+    // The server answering "not found" is still about the post.
+    const gone = HttpException('HTTP 404');
+    expect(await failureFrom(fetches['x']!, gone), Failure.unavailable);
+    expect(await failureFrom(fetches['pinterest']!, gone), Failure.unavailable);
+    expect(await failureFrom(fetches['reddit']!, gone), Failure.load);
   });
 
   test('interface text holds no dash characters', () {
