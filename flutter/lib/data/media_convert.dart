@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit_config.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
+import 'package:ffmpeg_kit_flutter_new_audio/signal.dart';
 import 'package:flutter/foundation.dart';
 
 import 'ffmpeg_args.dart';
@@ -70,8 +72,22 @@ class MediaConverter {
     throw StateError(failure);
   }
 
+  static Future<void>? _quitSignals;
+
+  /// FFmpeg takes the quit signals for itself on its first run and keeps them, so a computer that is shutting
+  /// down could no longer close the app. Told this first, it leaves them where they were.
+  static Future<void> _leaveQuitSignals() => _quitSignals ??= () async {
+        if (!Platform.isLinux && !Platform.isMacOS) return;
+        for (final signal in const [Signal.sigInt, Signal.sigQuit, Signal.sigTerm]) {
+          try {
+            await FFmpegKitConfig.ignoreSignal(signal);
+          } catch (_) {}
+        }
+      }();
+
   Future<File> _run(List<String> args, File output, String failure, {bool needsVideo = false}) async {
     if (output.existsSync()) output.deleteSync();
+    await _leaveQuitSignals();
     final session = await FFmpegKit.executeWithArguments(args);
     final code = await session.getReturnCode();
     final ok = ReturnCode.isSuccess(code) && output.existsSync() && output.lengthSync() > 1024;
