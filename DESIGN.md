@@ -92,7 +92,7 @@ Dark (the default), light, or follow the system. The tests in `flutter/test/` me
 
 ## Open to the owner
 
-Every Arabic line was rewritten in standard Arabic by the agent on 2026-11-11, at the owner's request, and is his to correct. Two choices in it are his to confirm. Buttons stay commands (نزّل, الصق, احذف) and are not the nouns phone systems use (تنزيل, لصق, حذف). The name is written نزل in the app, without its shadda, as it was before.
+Every Arabic line was rewritten in standard Arabic by the agent on 2026-11-11, at the owner's request, and is his to correct. Three choices in it are his to confirm. Buttons stay commands (نزّل, الصق, احذف) and are not the nouns phone systems use (تنزيل, لصق, حذف). The name is written نزل in the app, without its shadda, as it was before. The library is called التنزيلات, from the same root as نزّل, where it was التحميلات. تحميل is kept for a picture that fails to load.
 
 The app locks to portrait (`flutter/lib/main.dart`). Whether tablets should rotate is his call.
 

@@ -14,7 +14,7 @@ class S {
   String get frameHint => _pc
       ? _t('or drop it on this window', 'أو اسحبه إلى هذه النافذة')
       : _t('or share a post to Nazzil from any app', 'أو شارك منشورًا مع نزل من أي تطبيق');
-  String get recent => _t('Recent', 'آخر التحميلات');
+  String get recent => _t('Recent', 'آخر التنزيلات');
   String get linkLabel => _t('Link', 'الرابط');
   String get pasteHint =>
       _t('Paste or share a YouTube, TikTok, Instagram, Facebook, Reddit, X or Pinterest link', 'الصق رابطًا من يوتيوب أو تيك توك أو إنستغرام أو فيسبوك أو ريديت أو X أو بنترست');
@@ -42,7 +42,7 @@ class S {
   String get hd => _t('HD', 'جودة عالية');
   String get sd => _t('SD', 'جودة عادية');
   String get home => _t('Home', 'الرئيسية');
-  String get library => _t('Library', 'التحميلات');
+  String get library => _t('Library', 'التنزيلات');
   String get settings => _t('Settings', 'الإعدادات');
   String get back => _t('Back', 'رجوع');
   String get downloading => _t('Downloading…', 'جارٍ التنزيل…');
@@ -74,7 +74,7 @@ class S {
             ? 'Nazzil saves videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest into Downloads/Nazzil. Paste or drop a link, pick a quality, download.'
             : 'Nazzil saves videos, photos and audio from YouTube, TikTok, Instagram, Facebook, Reddit, X and Pinterest into your gallery. Paste a link, pick a quality, download.',
         _pc
-            ? 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في مجلد Nazzil داخل التنزيلات. الصق الرابط أو اسحبه، ثم اختر الجودة ونزّل.'
+            ? 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في مجلد Nazzil داخل مجلد التنزيلات. الصق الرابط أو اسحبه، ثم اختر الجودة ونزّل.'
             : 'نزل يحفظ الفيديو والصور والصوت من يوتيوب وتيك توك وإنستغرام وفيسبوك وريديت و X وبنترست في المعرض. الصق الرابط، ثم اختر الجودة ونزّل.',
       );
   String get credits => _t('Credits', 'حقوق');
@@ -96,7 +96,7 @@ class S {
   String get cantOpen => _pc
       ? _t(
           'Nothing on this computer could open it. It was saved to Downloads/Nazzil.',
-          'لا يوجد على جهازك برنامج يفتحه. حُفظ في مجلد Nazzil داخل التنزيلات.',
+          'لا يوجد على جهازك برنامج يفتحه. حُفظ في مجلد Nazzil داخل مجلد التنزيلات.',
         )
       : _t('No app on this phone could open it.', 'لا يوجد على هاتفك تطبيق يفتحه.');
   String get photoFailed => _t('Could not load this photo.', 'تعذّر تحميل هذه الصورة.');
@@ -105,7 +105,7 @@ class S {
   String get deleteBody => _pc
       ? _t(
           'Nazzil deletes its own copy. Downloads/Nazzil is left as it is.',
-          'نزل يحذف نسخته فقط. مجلد Nazzil داخل التنزيلات يبقى كما هو.',
+          'نزل يحذف نسخته فقط. مجلد Nazzil داخل مجلد التنزيلات يبقى كما هو.',
         )
       : _t(
           'Nazzil deletes its own copy. Your gallery and files are left as they are.',

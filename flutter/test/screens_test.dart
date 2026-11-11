@@ -836,7 +836,7 @@ void main() {
         entry('c', PlatformId.instagram, MediaKind.video),
       ],
     );
-    await tester.tap(tab('التحميلات'));
+    await tester.tap(tab('التنزيلات'));
     await tester.pumpAndSettle();
     expect(find.text('انقطع الاتصال.'), findsOneWidget);
     expect(find.text('أُلغي'), findsOneWidget);
@@ -1474,7 +1474,7 @@ void main() {
         entry('b', PlatformId.tiktok, MediaKind.video, onDisk: true, title: 'عنوان عربي طويل جدا ما تكفيه السطور اللي تنطيها الورقة مهما انقص'),
       ],
     );
-    await tester.tap(tab('التحميلات'));
+    await tester.tap(tab('التنزيلات'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(LibraryTile).at(0));
     await tester.pumpAndSettle();
