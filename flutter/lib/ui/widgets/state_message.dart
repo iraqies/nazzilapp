@@ -7,15 +7,11 @@ class StateMessage extends StatelessWidget {
     required this.title,
     this.body,
     this.actions = const [],
-    this.onPhoto = false,
   });
 
   final String title;
   final String? body;
   final List<(String, VoidCallback)> actions;
-
-  /// Shown over the black photo viewer rather than the page surface.
-  final bool onPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +25,13 @@ class StateMessage extends StatelessWidget {
           children: [
             Semantics(
               liveRegion: true,
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge?.copyWith(color: onPhoto ? Colors.white : null),
+              child: MediaQuery.withClampedTextScaling(
+                maxScaleFactor: 1.3,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall,
+                ),
               ),
             ),
             if (body != null) ...[
@@ -40,23 +39,18 @@ class StateMessage extends StatelessWidget {
               Text(
                 body!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: onPhoto ? Colors.white : scheme.onSurfaceVariant,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
             if (actions.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Wrap(
                 alignment: WrapAlignment.center,
-                spacing: 4,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (final action in actions)
-                    TextButton(
-                      onPressed: action.$2,
-                      style: onPhoto ? TextButton.styleFrom(foregroundColor: Colors.white) : null,
-                      child: Text(action.$1),
-                    ),
+                    OutlinedButton(onPressed: action.$2, child: Text(action.$1)),
                 ],
               ),
             ],

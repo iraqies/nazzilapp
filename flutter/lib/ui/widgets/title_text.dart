@@ -32,12 +32,19 @@ class TitleText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final layout = Directionality.of(context);
+    final own = directionOf(text);
+    var style = this.style;
+    // An Arabic title in the English app still needs the taller lines Arabic gets.
+    final height = style?.height;
+    if (own == TextDirection.rtl && layout == TextDirection.ltr && height != null) {
+      style = style!.copyWith(height: height + 0.2);
+    }
     return Text(
       text,
       style: style,
       maxLines: maxLines,
       overflow: maxLines == null ? null : TextOverflow.ellipsis,
-      textDirection: directionOf(text) ?? layout,
+      textDirection: own ?? layout,
       textAlign: layout == TextDirection.rtl ? TextAlign.right : TextAlign.left,
     );
   }

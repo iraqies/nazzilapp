@@ -3,7 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
-import '../widgets/segmented.dart';
+import '../widgets/choice_row.dart';
+import '../widgets/heading.dart';
 import '../widgets/tappable.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -15,12 +16,17 @@ class SettingsScreen extends StatelessWidget {
     final s = controller.s;
     final theme = Theme.of(context);
     final remote = controller.remote;
+    Widget section(String label) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Semantics(header: true, child: Text(label, style: theme.textTheme.titleMedium)),
+        );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
       children: [
-        Text(s.language, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 10),
-        SegmentedChoice(
+        Heading(s.settings),
+        const SizedBox(height: 24),
+        section(s.language),
+        ChoiceRow(
           value: controller.settings.language,
           options: [
             ('system', s.system),
@@ -30,20 +36,18 @@ class SettingsScreen extends StatelessWidget {
           onChanged: controller.setLanguage,
         ),
         const SizedBox(height: 28),
-        Text(s.theme, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 10),
-        SegmentedChoice(
+        section(s.theme),
+        ChoiceRow(
           value: controller.settings.theme,
           options: [
-            ('system', s.system),
-            ('light', s.themeLight),
             ('dark', s.themeDark),
+            ('light', s.themeLight),
+            ('system', s.system),
           ],
           onChanged: controller.setTheme,
         ),
         const SizedBox(height: 28),
-        Text(s.colour, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 12),
+        section(s.colour),
         // Five 58 wide swatches and four gaps fit one row on a 360 wide phone.
         Wrap(
           spacing: 6,
@@ -59,23 +63,24 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 32),
-        Text(s.about, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        section(s.about),
         Text(s.aboutBody, style: theme.textTheme.bodyMedium),
         const SizedBox(height: 28),
-        Text(s.credits, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        section(s.credits),
         _credit(context, 'iraqies', 'github.com/iraqies', 'https://github.com/iraqies'),
+        const Divider(),
         _credit(context, 'Telegram', 't.me/weirdistic', 'https://t.me/weirdistic'),
+        const Divider(),
         _credit(context, 'stalk.gg', 'stalk.gg/x', 'https://stalk.gg/x'),
         const SizedBox(height: 20),
         Text('${s.version} ${controller.localVersion}', style: theme.textTheme.bodySmall),
         if (remote != null && controller.updates.isNewer(remote.version, controller.localVersion)) ...[
-          const SizedBox(height: 12),
-          Text('${s.updateAvailable}: ${remote.version}', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 16),
+          Text('${s.updateAvailable}: ${remote.version}', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
           Align(
             alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
+            child: OutlinedButton(
               onPressed: () => launchUrl(Uri.parse(remote.apkUrl), mode: LaunchMode.externalApplication),
               child: Text(s.updateNow),
             ),
@@ -86,15 +91,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _credit(BuildContext context, String title, String handle, String url) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: ListTile(
-        tileColor: Theme.of(context).colorScheme.surfaceContainerLow,
-        title: Text(title),
-        subtitle: Text(handle),
-        trailing: const Icon(Icons.open_in_new_rounded, size: 16),
-        onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-      ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      title: Text(title),
+      subtitle: Text(handle),
+      trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
     );
   }
 }
@@ -120,19 +122,20 @@ class _Swatch extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // The picked one gets a ring and a tick, so the pick does not rest on colour alone.
               Container(
                 width: 48,
                 height: 48,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected ? scheme.onSurface : scheme.outline,
-                    width: selected ? 2 : 1,
-                  ),
+                  borderRadius: BorderRadius.circular(NazzilRadius.control + 4),
+                  border: Border.all(color: selected ? scheme.onSurface : Colors.transparent, width: 2),
                 ),
                 child: DecoratedBox(
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: palette.fill),
+                  decoration: BoxDecoration(
+                    color: palette.fill,
+                    borderRadius: BorderRadius.circular(NazzilRadius.control),
+                  ),
                   child: selected
                       ? const Center(child: Icon(Icons.check_rounded, color: NazzilColors.ink, size: 22))
                       : null,

@@ -7,6 +7,7 @@ enum MediaKind { video, audio, photo }
 enum Failure {
   none,
   pasteFirst,
+  noLink,
   unsupported,
   network,
   blocked,
@@ -270,7 +271,8 @@ class LibraryItem {
 class AppSettings {
   const AppSettings({
     this.language = 'system',
-    this.theme = 'system',
+    // Dark is the designed default: a saved picture reads best against black.
+    this.theme = 'dark',
     this.palette = 'rose',
   });
 

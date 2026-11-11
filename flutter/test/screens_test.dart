@@ -1,23 +1,31 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nazzil/app.dart';
 import 'package:nazzil/data/link_parser.dart';
+import 'package:nazzil/data/settings_store.dart';
+import 'package:nazzil/l10n/strings.dart';
 import 'package:nazzil/models/media.dart';
 import 'package:nazzil/state/nazzil_controller.dart';
-import 'package:nazzil/l10n/strings.dart';
 import 'package:nazzil/theme/nazzil_theme.dart';
+import 'package:nazzil/ui/screens/home_screen.dart';
 import 'package:nazzil/ui/screens/viewer_screen.dart';
+import 'package:nazzil/ui/widgets/arriving.dart';
 import 'package:nazzil/ui/widgets/done_sheet.dart';
 import 'package:nazzil/ui/widgets/library_tile.dart';
+import 'package:nazzil/ui/widgets/link_frame.dart';
 import 'package:nazzil/ui/widgets/title_text.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/pictures.dart';
 
 late Directory scratch;
 
@@ -31,6 +39,7 @@ LibraryItem entry(
   int photoCount = 0,
   String? title,
   String? videoKey,
+  String? thumbnail,
 }) {
   final path = '${scratch.path}/$id.${kind == MediaKind.photo ? 'jpg' : 'mp4'}';
   if (onDisk) File(path).writeAsBytesSync([0]);
@@ -45,6 +54,7 @@ LibraryItem entry(
     videoKey: videoKey ?? '${platform.name}:$id',
     paths: status == LibraryItem.statusDone ? [path] : const [],
     photoCount: photoCount,
+    thumbnail: thumbnail,
     status: status,
     error: error,
   );
@@ -58,10 +68,12 @@ Future<NazzilController> boot(
   List<LibraryItem> library = const [],
   Size size = const Size(360, 720),
   double textScale = 1,
+  double statusBar = 0,
+  double pixelRatio = 1,
 }) async {
   SharedPreferences.setMockInitialValues({
     'nazzil.language': language,
-    'nazzil.theme': theme,
+    'nazzil.theme.v2': theme,
     'nazzil.palette': palette,
     'nazzil.library.v2': jsonEncode([for (final item in library) item.toJson()]),
   });
@@ -72,8 +84,10 @@ Future<NazzilController> boot(
     buildNumber: '22',
     buildSignature: '',
   );
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size * pixelRatio;
+  tester.view.devicePixelRatio = pixelRatio;
+  tester.view.padding = FakeViewPadding(top: statusBar * pixelRatio);
+  tester.view.viewPadding = FakeViewPadding(top: statusBar * pixelRatio);
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -83,10 +97,33 @@ Future<NazzilController> boot(
   return controller;
 }
 
-/// Measures every text and icon on the current page: its own colour against
-/// the colour most of the pixels around it have. Lists what misses WCAG AA.
-Future<({int checked, double lowest, List<String> faint})> measureContrast(WidgetTester tester) async {
+/// Writes a plain picture of the given size to the scratch folder, and returns where.
+Future<String> picture(WidgetTester tester, String name, int width, int height, {Color color = const Color(0xFFCC3355)}) async {
+  final path = '${scratch.path}/$name.png';
+  await tester.runAsync(() async {
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder).drawRect(Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()), Paint()..color = color);
+    final image = await recorder.endRecording().toImage(width, height);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    File(path).writeAsBytesSync(bytes!.buffer.asUint8List());
+    image.dispose();
+  });
+  return path;
+}
+
+/// Reading and decoding a picture run in real time, one stage per turn of the fake clock.
+Future<void> pictures(WidgetTester tester) async {
+  for (var i = 0; i < 6; i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+    await tester.pump(const Duration(milliseconds: 120));
+  }
+  await tester.pumpAndSettle();
+}
+
+/// The screen as pixels, for the checks that look at what was painted.
+Future<({int width, int height, ByteData pixels})> capture(WidgetTester tester) async {
   final view = tester.binding.renderViews.first;
+  // ignore: invalid_use_of_protected_member
   final layer = view.debugLayer! as OffsetLayer;
   late final int width;
   late final int height;
@@ -98,52 +135,118 @@ Future<({int checked, double lowest, List<String> faint})> measureContrast(Widge
     pixels = (await image.toByteData())!;
     image.dispose();
   });
+  return (width: width, height: height, pixels: pixels);
+}
+
+/// The runs of letters in a paragraph, each with the style it ends up with.
+List<({String words, TextStyle style})> runs(InlineSpan span, [TextStyle inherited = const TextStyle()]) {
+  if (span is! TextSpan) return const [];
+  final style = inherited.merge(span.style);
+  final words = (span.text ?? '').trim();
+  return [
+    if (words.isNotEmpty) (words: words, style: style),
+    for (final child in span.children ?? const <InlineSpan>[]) ...runs(child, style),
+  ];
+}
+
+/// Measures every text and icon on the current page against the colour most
+/// of the pixels around it have, and lists what misses WCAG AA.
+///
+/// The colour of the letters is the one their style names, checked against
+/// what was painted: letters under an Opacity or a filter stop short of it,
+/// and are then measured at the shade they did reach. Wants two pixels a
+/// point or more, where a thin stroke still covers a whole pixel.
+Future<({int checked, double lowest, List<String> faint})> measureContrast(WidgetTester tester) async {
+  final shot = await capture(tester);
+  final pixels = shot.pixels;
+  final scale = tester.view.devicePixelRatio;
+  int rgbAt(int x, int y) => pixels.getUint32((y * shot.width + x) * 4) >> 8;
+  ({int left, int top, int right, int bottom}) onScreen(Rect box) => (
+        left: (box.left * scale).floor().clamp(0, shot.width),
+        top: (box.top * scale).floor().clamp(0, shot.height),
+        right: (box.right * scale).ceil().clamp(0, shot.width),
+        bottom: (box.bottom * scale).ceil().clamp(0, shot.height),
+      );
 
   var checked = 0;
   var lowest = double.infinity;
   final faint = <String>[];
   // Each widget above a paragraph hands back the same one, so keep a set.
   for (final paragraph in tester.allRenderObjects.whereType<RenderParagraph>().toSet()) {
-    final style = paragraph.text.style;
-    final own = style?.color;
-    final words = paragraph.text.toPlainText().trim();
-    if (style == null || own == null || words.isEmpty || !paragraph.hasSize) continue;
+    if (!paragraph.hasSize) continue;
     // A page under a sheet or a dialog is dimmed and out of reach.
     final element = (paragraph.debugCreator! as DebugCreator).element;
     if (ModalRoute.of(element)?.isCurrent == false) continue;
+    // Words kept in the tree to hold their place are not on screen.
+    final hidden = element.findAncestorWidgetOfExactType<Visibility>();
+    if (hidden != null && !hidden.visible) continue;
     final box = MatrixUtils.transformRect(paragraph.getTransformTo(null), Offset.zero & paragraph.size);
-    final left = box.left.floor().clamp(0, width);
-    final right = box.right.ceil().clamp(0, width);
-    final top = box.top.floor().clamp(0, height);
-    final bottom = box.bottom.ceil().clamp(0, height);
-    if (left >= right || top >= bottom) continue;
+    final inside = onScreen(box);
+    // Letters that fill their box to the edge still need a backdrop to stand on.
+    final around = onScreen(box.inflate(2));
+    if (inside.left >= inside.right || inside.top >= inside.bottom) continue;
 
-    final counts = <int, int>{};
-    for (var y = top; y < bottom; y++) {
-      for (var x = left; x < right; x++) {
-        final rgba = pixels.getUint32((y * width + x) * 4);
-        final near = ((rgba >> 24) - (own.r * 255).round()).abs() <= 16 &&
-            ((rgba >> 16 & 0xFF) - (own.g * 255).round()).abs() <= 16 &&
-            ((rgba >> 8 & 0xFF) - (own.b * 255).round()).abs() <= 16;
-        if (!near) counts[rgba] = (counts[rgba] ?? 0) + 1;
+    for (final run in runs(paragraph.text)) {
+      final own = run.style.color;
+      if (own == null) continue;
+      final ownRgb = ((own.r * 255).round(), (own.g * 255).round(), (own.b * 255).round());
+
+      final counts = <int, int>{};
+      for (var y = around.top; y < around.bottom; y++) {
+        for (var x = around.left; x < around.right; x++) {
+          final rgb = rgbAt(x, y);
+          final near = ((rgb >> 16) - ownRgb.$1).abs() <= 16 &&
+              ((rgb >> 8 & 0xFF) - ownRgb.$2).abs() <= 16 &&
+              ((rgb & 0xFF) - ownRgb.$3).abs() <= 16;
+          if (!near) counts[rgb] = (counts[rgb] ?? 0) + 1;
+        }
       }
-    }
-    if (counts.isEmpty) continue;
-    final rgba = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-    final behind = Color.fromARGB(255, rgba >> 24, rgba >> 16 & 0xFF, rgba >> 8 & 0xFF);
-    final shown = Color.alphaBlend(own, behind);
-    final a = shown.computeLuminance();
-    final b = behind.computeLuminance();
-    final ratio = (a > b ? a + 0.05 : b + 0.05) / (a > b ? b + 0.05 : a + 0.05);
+      // Nothing but the colour of the letters: they stand on their own colour.
+      final behind = counts.isEmpty
+          ? own.withValues(alpha: 1)
+          : Color(0xFF000000 | counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key);
+      final named = Color.alphaBlend(own, behind);
 
-    final icon = style.fontFamily == 'MaterialIcons';
-    final size = style.fontSize ?? 14;
-    final large = size >= 24 || (size >= 18.66 && (style.fontWeight ?? FontWeight.w400).value >= 700);
-    final needed = icon || large ? 3.0 : 4.5;
-    checked++;
-    if (ratio < lowest) lowest = ratio;
-    if (ratio < needed) {
-      faint.add('${icon ? 'icon' : '"$words"'} is ${ratio.toStringAsFixed(2)}:1, needs $needed ($own on $behind)');
+      // How far along the way from the backdrop to their colour the letters get.
+      final dr = (named.r - behind.r) * 255;
+      final dg = (named.g - behind.g) * 255;
+      final db = (named.b - behind.b) * 255;
+      final way = dr * dr + dg * dg + db * db;
+      var reach = way < 1 ? 1.0 : 0.0;
+      for (var y = inside.top; y < inside.bottom && reach < 1; y++) {
+        for (var x = inside.left; x < inside.right && reach < 1; x++) {
+          final rgb = rgbAt(x, y);
+          final pr = (rgb >> 16) - behind.r * 255;
+          final pg = (rgb >> 8 & 0xFF) - behind.g * 255;
+          final pb = (rgb & 0xFF) - behind.b * 255;
+          final along = (pr * dr + pg * dg + pb * db) / way;
+          if (along <= reach) continue;
+          // Off that way altogether: something else in the box, not these letters.
+          final or = pr - along * dr;
+          final og = pg - along * dg;
+          final ob = pb - along * db;
+          if (or * or + og * og + ob * ob > 24 * 24) continue;
+          reach = along.clamp(0.0, 1.0);
+        }
+      }
+      final faded = reach < 0.75;
+      final shown = faded ? Color.lerp(behind, named, reach)! : named;
+
+      final a = shown.computeLuminance();
+      final b = behind.computeLuminance();
+      final contrast = (a > b ? a + 0.05 : b + 0.05) / (a > b ? b + 0.05 : a + 0.05);
+      final icon = run.style.fontFamily == 'MaterialIcons';
+      final size = run.style.fontSize ?? 14;
+      final large = size >= 24 || (size >= 18.66 && (run.style.fontWeight ?? FontWeight.w400).value >= 700);
+      final needed = icon || large ? 3.0 : 4.5;
+      checked++;
+      if (contrast < lowest) lowest = contrast;
+      if (contrast < needed) {
+        faint.add(
+          '${icon ? 'icon' : '"${run.words}"'} is ${contrast.toStringAsFixed(2)}:1, needs $needed '
+          '(${faded ? 'painted at ${(reach * 100).round()}% of ' : ''}$own on $behind)',
+        );
+      }
     }
   }
   return (checked: checked, lowest: lowest, faint: faint);
@@ -163,52 +266,140 @@ const sampleVideo = MediaInfo(
   ],
 );
 
+/// The same post with a picture of its own, served from this machine.
+MediaInfo pictured(String url, {String id = 'abc'}) => MediaInfo(
+      id: id,
+      title: sampleVideo.title,
+      author: sampleVideo.author,
+      webpageUrl: 'https://www.youtube.com/watch?v=$id',
+      platform: sampleVideo.platform,
+      duration: sampleVideo.duration,
+      thumbnail: url,
+      options: sampleVideo.options,
+    );
+
+LibraryItem jobFor(MediaInfo media, String status) => entry(
+      'job',
+      media.platform,
+      MediaKind.video,
+      status: status,
+      videoKey: LinkParser.identityKey(media.webpageUrl, media.id),
+      thumbnail: media.thumbnail,
+    );
+
+const linux = TargetPlatformVariant({TargetPlatform.linux});
+
 void main() {
   setUp(() {
     scratch = Directory.systemTemp.createTempSync('nazzil-screens');
-    // The image cache asks the platform for a folder; tests have no platform.
+    // The stores ask the platform for a folder; tests have no platform.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async => scratch.path,
     );
+    // No network in tests: a picture comes from a file a test names, or fails at once.
+    LocalPictures.serve();
   });
   tearDown(() => scratch.deleteSync(recursive: true));
 
   setUpAll(() async {
+    // The icons ship with Flutter, beside the program that runs the tests.
+    // Without them every icon is a plain square, which measures the same.
+    final icons = File('${File(Platform.resolvedExecutable).parent.parent.parent.path}/material_fonts/MaterialIcons-Regular.otf');
     for (final (family, file) in [
-      ('Outfit', 'assets/fonts/Outfit.ttf'),
-      ('NotoNaskhArabic', 'assets/fonts/NotoNaskhArabic.ttf'),
+      ('Archivo', File('assets/fonts/Archivo.ttf')),
+      ('Changa', File('assets/fonts/Changa.ttf')),
+      if (icons.existsSync()) ('MaterialIcons', icons),
     ]) {
-      final loader = FontLoader(family)..addFont(Future.value(ByteData.sublistView(File(file).readAsBytesSync())));
+      final loader = FontLoader(family)..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
       await loader.load();
     }
   });
 
-  testWidgets('home: empty fetch explains itself and icon buttons carry names', (tester) async {
+  /// The tab at the bottom of a phone: after the page in the tree, so the last match.
+  Finder tab(String label) => find.text(label).last;
+
+  double scrolled(WidgetTester tester) => tester
+      .state<ScrollableState>(
+        find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
+      )
+      .position
+      .pixels;
+
+  testWidgets('home: Paste on an empty frame, Fetch once it holds words, and each mistake gets its own line', (tester) async {
     final controller = await boot(tester);
-    expect(find.text('Download the video. Keep it.'), findsOneWidget);
-    expect(find.text('Link'), findsOneWidget);
+    var clipboard = '';
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async => call.method == 'Clipboard.getData' ? {'text': clipboard} : null,
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+
+    expect(find.text('Nazzil'), findsOneWidget);
+    expect(find.text('Paste a link'), findsOneWidget);
+    expect(find.text('or share a post to Nazzil from any app'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_outward_rounded), findsNothing);
-    expect(find.text('Three beats'), findsNothing);
+    expect(find.text('Fetch'), findsNothing);
+    expect(find.text('Recent'), findsNothing, reason: 'nothing is saved yet, so there is no strip');
+    expect(find.byType(FilledButton), findsOneWidget, reason: 'one button for the next step');
 
-    await tester.tap(find.text('Fetch'));
+    await tester.tap(find.text('Paste'));
     await tester.pumpAndSettle();
-    expect(find.text('Paste a link first.'), findsOneWidget);
+    expect(find.text("No link on your clipboard. Copy a post's link first."), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'https://example.com/nothing');
-    await tester.pumpAndSettle();
-    expect(find.text('Paste a link first.'), findsNothing);
-    await tester.tap(find.text('Fetch'));
+    clipboard = 'look at https://example.com/nothing';
+    await tester.tap(find.text('Paste'));
     await tester.pumpAndSettle();
     expect(find.text('This link is not from a supported app yet.'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'https://example.com/nothing');
+    expect(find.text('Paste'), findsNothing, reason: 'the frame holds a link now, so the button fetches');
 
     await controller.setLanguage('ar');
     await tester.pumpAndSettle();
     expect(find.text('هذا الرابط مو من تطبيق مدعوم بعد.'), findsOneWidget);
+    await controller.setLanguage('en');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'not a link');
+    await tester.pumpAndSettle();
+    expect(find.text('This link is not from a supported app yet.'), findsNothing);
+    await tester.tap(find.text('Fetch'));
+    await tester.pumpAndSettle();
+    expect(find.text('Paste a link first.'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pumpAndSettle();
+    expect(controller.url, isEmpty);
+    expect(find.text('Paste a link first.'), findsNothing);
+    expect(find.text('Paste'), findsOneWidget);
   });
 
-  testWidgets('home result: one platform label, quality icons, ink on the button', (tester) async {
+  testWidgets('home: the frame is the link field, and takes the room the rest of the page leaves', (tester) async {
+    await boot(tester);
+    final frame = tester.getRect(find.byType(LinkFrame));
+    final button = tester.getRect(find.byType(FilledButton));
+    expect(frame.width, 320);
+    expect(frame.height, greaterThan(320 * 9 / 16), reason: 'more than a film frame when the screen has the room');
+    expect(button.top - frame.bottom, 16);
+    // The icon and the two lines under it sit in the middle of the frame, as one block.
+    expect(tester.getCenter(find.text('Paste a link')).dx, frame.center.dx);
+    final top = tester.getRect(find.descendant(of: find.byType(LinkFrame), matching: find.byIcon(Icons.content_paste_rounded))).top;
+    final bottom = tester.getRect(find.text('or share a post to Nazzil from any app')).bottom;
+    expect((top + bottom) / 2, closeTo(frame.center.dy, 0.5));
+
+    // A tap anywhere in the frame starts typing, and the frame keeps its size.
+    await tester.tapAt(frame.bottomLeft + const Offset(30, -30));
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+    expect(find.text('Link'), findsOneWidget);
+    expect(
+      find.text('Paste or share a YouTube, TikTok, Instagram, Facebook, Reddit, X or Pinterest link'),
+      findsOneWidget,
+    );
+    expect(tester.getRect(find.byType(LinkFrame)), frame);
+  });
+
+  testWidgets('home result: one line of facts, no quality icons, and the colour on the one button that downloads', (tester) async {
     final controller = await boot(tester, palette: 'emerald', theme: 'light');
     controller
       ..media = sampleVideo
@@ -217,30 +408,223 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('YouTube · 9:56'), findsOneWidget);
     expect(find.text('YouTube'), findsNothing);
-    expect(find.byIcon(Icons.hd_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.sd_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.hd_outlined), findsNothing);
+    expect(find.byType(LinkFrame), findsNothing, reason: 'the poster takes the place of the frame');
+    expect(find.text('Nazzil'), findsNothing, reason: 'and of the header');
+
+    final scheme = Theme.of(tester.element(find.text('Download'))).colorScheme;
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    final style = (button.style ?? FilledButtonTheme.of(tester.element(find.byType(FilledButton))).style)!;
+    expect(style.backgroundColor!.resolve({}), NazzilPalette.byId('emerald').fill);
     final label = tester.widget<Text>(find.text('Download'));
-    final style = DefaultTextStyle.of(tester.element(find.text('Download'))).style.merge(label.style);
-    expect(style.color, NazzilColors.ink);
+    expect(
+      DefaultTextStyle.of(tester.element(find.text('Download'))).style.merge(label.style).color,
+      NazzilColors.ink,
+    );
 
-    // One filled button per screen: with a result up, Fetch steps back.
-    Color? fill(String text) {
-      final button = tester.widget<FilledButton>(
-        find.ancestor(of: find.text(text), matching: find.byType(FilledButton)),
-      );
-      return (button.style ?? FilledButtonTheme.of(tester.element(find.text(text))).style)!
-          .backgroundColor!
-          .resolve({});
-    }
-
-    expect(fill('Download'), NazzilPalette.byId('emerald').fill);
-    expect(fill('Fetch'), Theme.of(tester.element(find.text('Fetch'))).colorScheme.surfaceContainerHigh);
-
-    await tester.ensureVisible(find.text('SD'));
-    await tester.pumpAndSettle();
+    // The picked quality is filled with the text colour: the user's colour stays on Download.
+    Color? cell(String text) =>
+        tester.widget<Material>(find.ancestor(of: find.text(text), matching: find.byType(Material)).first).color;
+    expect(cell('HD'), scheme.primary);
+    expect(cell('SD'), Colors.transparent);
     await tester.tap(find.text('SD'));
     await tester.pumpAndSettle();
     expect(controller.selected?.id, 'sd');
+    expect(cell('SD'), scheme.primary);
+    expect(cell('HD'), Colors.transparent);
+
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pumpAndSettle();
+    expect(controller.media, isNull);
+    expect(find.byType(LinkFrame), findsOneWidget);
+  });
+
+  testWidgets('poster: it takes the shape of the picture, between a film frame and the room on screen', (tester) async {
+    final controller = await boot(tester);
+    LocalPictures.serve({
+      'https://pictures.example/flat.png': await picture(tester, 'flat', 400, 100),
+      'https://pictures.example/tall.png': await picture(tester, 'tall', 100, 400),
+      'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200),
+    });
+    final room = tester.getSize(find.byType(HomeScreen)).height;
+
+    Future<double> posterOf(MediaInfo media) async {
+      controller
+        ..media = media
+        ..selected = media.options.first
+        ..notifyListeners();
+      await tester.pump();
+      await pictures(tester);
+      return tester.getSize(find.byType(ArrivingPicture)).height;
+    }
+
+    expect(await posterOf(pictured('https://pictures.example/photo.png', id: 'p')), closeTo(240, 0.01));
+    expect(
+      await posterOf(pictured('https://pictures.example/flat.png', id: 'f')),
+      closeTo(360 * 9 / 16, 0.01),
+      reason: 'never flatter than a film frame',
+    );
+    expect(
+      await posterOf(pictured('https://pictures.example/tall.png', id: 't')),
+      closeTo(room - 300, 0.01),
+      reason: 'never so tall that the controls leave the screen',
+    );
+    expect(tester.getRect(find.text('Download')).bottom, lessThan(room));
+
+    // With no picture to go by, a plain block stands in.
+    controller
+      ..media = sampleVideo
+      ..selected = sampleVideo.options.first
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(find.byType(ArrivingPicture), findsNothing);
+    final stand = find.ancestor(of: find.byIcon(Icons.videocam_outlined), matching: find.byType(ColoredBox)).first;
+    expect(tester.getSize(stand).height, closeTo(360 / 1.6, 0.01));
+  });
+
+  testWidgets('poster: it runs under the status bar, and hands the bar back once scrolled away', (tester) async {
+    final controller = await boot(tester, theme: 'light', statusBar: 30, size: const Size(360, 420), textScale: 2);
+    LocalPictures.serve({'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200)});
+    final media = pictured('https://pictures.example/photo.png');
+    Brightness? clock() => SystemChrome.latestStyle?.statusBarIconBrightness;
+
+    expect(tester.getRect(find.text('Nazzil')).top, greaterThanOrEqualTo(30), reason: 'the empty Home starts below the bar');
+    expect(clock(), Brightness.dark);
+
+    controller
+      ..media = media
+      ..selected = media.options.first
+      ..notifyListeners();
+    await tester.pump();
+    await pictures(tester);
+    expect(tester.getRect(find.byType(ArrivingPicture)).top, 0);
+    expect(tester.getRect(find.byTooltip('Clear')).top, greaterThanOrEqualTo(30), reason: 'the way out stays clear of the bar');
+    expect(clock(), Brightness.light, reason: 'light figures over the picture and its fade');
+
+    final poster = tester.getSize(find.byType(ArrivingPicture)).height;
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
+    await tester.pumpAndSettle();
+    expect(scrolled(tester), greaterThan(poster - 30), reason: 'the poster has left but for the strip under the bar');
+    expect(clock(), Brightness.dark, reason: 'the strip under the bar is the page again');
+    // The words of the page pass under that strip, not behind the clock.
+    final strip = tester.hitTestOnBinding(const Offset(180, 15)).path.map((entry) => entry.target.runtimeType.toString());
+    expect(strip, isNot(contains('RenderParagraph')));
+  });
+
+  testWidgets('download: the picture goes from grey to colour, the number sits on it, and the line under holds the ways to stop', (tester) async {
+    final controller = await boot(tester);
+    LocalPictures.serve({'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200)});
+    final media = pictured('https://pictures.example/photo.png');
+    final job = jobFor(media, LibraryItem.statusDownloading);
+    ArrivalFrame frame() => tester.widget<ArrivalFrame>(find.byType(ArrivalFrame).first);
+
+    controller
+      ..media = media
+      ..selected = media.options.first
+      ..notifyListeners();
+    await tester.pump();
+    await pictures(tester);
+    expect(frame().arrived, 1, reason: 'a post that was only fetched is shown in full colour');
+    expect(find.byType(ColorFiltered), findsNothing);
+
+    controller
+      ..library = [job]
+      ..activeJobId = job.id
+      ..downloading = true
+      ..progress = 0.5
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(frame().arrived, closeTo(0.5, 0.001));
+    expect(find.byType(ColorFiltered), findsOneWidget);
+    expect(find.text('50%'), findsOneWidget);
+    expect(find.text('Downloading…'), findsOneWidget);
+    expect(find.text('Pause'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing, reason: 'nothing to start while it runs');
+
+    // Half the picture is in colour and half is grey, with the line between them.
+    final poster = tester.getRect(find.byType(ArrivingPicture));
+    final shot = await capture(tester);
+    int at(double x) => shot.pixels.getUint32((poster.center.dy.round() * shot.width + x.round()) * 4);
+    expect(at(poster.left + 40) >> 8, 0xCC3355);
+    final grey = at(poster.right - 40);
+    expect(grey >> 24, grey >> 16 & 0xFF);
+    expect(grey >> 16 & 0xFF, grey >> 8 & 0xFF);
+    expect(at(poster.center.dx) >> 8, NazzilPalette.rose.fill.toARGB32() & 0xFFFFFF);
+
+    controller
+      ..converting = true
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(frame().arrived, 1, reason: 'the whole file is here; only the conversion is left');
+    expect(find.text('50%'), findsNothing);
+    expect(find.text('Converting…'), findsOneWidget);
+    expect(find.text('Pause'), findsNothing, reason: 'nothing is left to pause');
+    expect(find.text('Cancel'), findsOneWidget);
+
+    controller.goTab(1);
+    await tester.pumpAndSettle();
+    final tile = find.byType(LibraryTile);
+    expect(find.descendant(of: tile, matching: find.text('Converting…')), findsOneWidget);
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Pause'), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Cancel'), findsOneWidget);
+    await tester.tapAt(const Offset(180, 40));
+    await tester.pumpAndSettle();
+
+    controller
+      ..converting = false
+      ..downloading = false
+      ..activeJobId = null
+      ..library = [jobFor(media, LibraryItem.statusPaused)]
+      ..goTab(0);
+    await tester.pumpAndSettle();
+    expect(frame().arrived, 0, reason: 'a paused download is all grey');
+    expect(frame().line, isFalse);
+    expect(find.text('Paused'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Resume'), findsOneWidget);
+    expect(find.text('Pause'), findsNothing);
+  });
+
+  testWidgets('download: in the Arabic app the colour arrives from the right', (tester) async {
+    final controller = await boot(tester, language: 'ar');
+    LocalPictures.serve({'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200)});
+    final media = pictured('https://pictures.example/photo.png');
+    final job = jobFor(media, LibraryItem.statusDownloading);
+    controller
+      ..media = media
+      ..selected = media.options.first
+      ..library = [job]
+      ..activeJobId = job.id
+      ..downloading = true
+      ..progress = 0.25
+      ..notifyListeners();
+    await tester.pump();
+    await pictures(tester);
+    final poster = tester.getRect(find.byType(ArrivingPicture));
+    final shot = await capture(tester);
+    int at(double x) => shot.pixels.getUint32((poster.center.dy.round() * shot.width + x.round()) * 4);
+    expect(at(poster.right - 30) >> 8, 0xCC3355);
+    final grey = at(poster.left + 30);
+    expect(grey >> 24, grey >> 8 & 0xFF);
+    // The number is digits, so it reads left to right, and sits where reading starts.
+    expect(tester.getRect(find.text('25%')).right, greaterThan(poster.center.dx));
+  });
+
+  testWidgets('a picture that is not on the device is grey, at 42% of its brightness', (tester) async {
+    await tester.pumpWidget(
+      const ColorFiltered(colorFilter: NazzilColors.unsaved, child: ColoredBox(color: Color(0xFFFFFFFF))),
+    );
+    final white = (await capture(tester)).pixels.getUint32(0);
+    expect([white >> 24, white >> 16 & 0xFF, white >> 8 & 0xFF], everyElement(closeTo(0.42 * 255, 1)));
+    await tester.pumpWidget(
+      const ColorFiltered(colorFilter: NazzilColors.unsaved, child: ColoredBox(color: Color(0xFFFF0000))),
+    );
+    final red = (await capture(tester)).pixels.getUint32(0);
+    expect(red >> 24, red >> 16 & 0xFF);
+    expect(red >> 24, red >> 8 & 0xFF);
+    expect(red >> 24, lessThan(white >> 24), reason: 'red is darker than white to the eye');
   });
 
   for (final language in ['en', 'ar']) {
@@ -252,6 +636,7 @@ void main() {
           theme: theme,
           size: const Size(320, 640),
           textScale: 2,
+          statusBar: 24,
           library: [
             entry('a', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'A long title that needs both of its lines to show'),
             entry('b', PlatformId.pinterest, MediaKind.photo, onDisk: true, photoCount: 12),
@@ -260,49 +645,96 @@ void main() {
           ],
         );
         // Short steps, so every part of the page gets painted on screen once.
-        Future<void> sweep(Type scrollable) async {
+        Future<void> sweep(Finder scrollable, String where) async {
           for (var step = 0; step < 16; step++) {
-            await tester.drag(find.byType(scrollable), const Offset(0, -240));
+            await tester.drag(scrollable, const Offset(0, -240), warnIfMissed: false);
             await tester.pump(const Duration(milliseconds: 50));
-            expect(tester.takeException(), isNull, reason: '$scrollable step $step');
+            expect(tester.takeException(), isNull, reason: '$where step $step');
           }
         }
 
         controller
           ..clipOffer = 'https://www.tiktok.com/@someone/video/1'
+          ..failure = Failure.noLink
           ..notifyListeners();
         await tester.pump();
-        await sweep(CustomScrollView);
+        await sweep(find.byType(CustomScrollView), 'home');
 
         controller
+          ..loading = true
+          ..setUrl('https://www.tiktok.com/@someone/video/7301112223334445556');
+        await tester.pump();
+        await sweep(find.byType(CustomScrollView), 'home while fetching');
+
+        const urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg'];
+        const album = MediaInfo(
+          id: 'alb',
+          title: 'A weekend in Erbil with far more words than one line will ever hold',
+          author: 'someone',
+          webpageUrl: 'https://www.tiktok.com/@someone/photo/1',
+          platform: PlatformId.tiktok,
+          photos: urls,
+          options: [
+            QualityOption(id: 'photos', label: 'Photos', ext: 'jpg', kind: MediaKind.photo, photoUrls: urls),
+            QualityOption(id: 'audio', label: 'Audio', ext: 'mp3', kind: MediaKind.audio, directUrl: 'https://example.com/a'),
+          ],
+        );
+        controller
+          ..loading = false
           ..clipOffer = null
-          ..media = sampleVideo
-          ..selected = sampleVideo.options.first
+          ..media = album
+          ..selected = album.options.first
           ..failure = Failure.blocked
           ..notifyListeners();
         await tester.pump();
-        await sweep(CustomScrollView);
+        await sweep(find.byType(CustomScrollView), 'album');
+
+        final job = jobFor(sampleVideo, LibraryItem.statusDownloading);
+        controller
+          ..media = sampleVideo
+          ..selected = sampleVideo.options.first
+          ..library = [job, ...controller.library]
+          ..activeJobId = job.id
+          ..downloading = true
+          ..progress = 0.5
+          ..notifyListeners();
+        await tester.pump();
+        await sweep(find.byType(CustomScrollView), 'downloading');
 
         controller.goTab(1);
         await tester.pump();
-        await sweep(CustomScrollView);
+        await sweep(find.byType(CustomScrollView), 'library');
+
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 5000));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(LibraryTile).at(1));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'item sheet');
+        await sweep(find.descendant(of: find.byType(BottomSheet), matching: find.byType(SingleChildScrollView)), 'item sheet');
+        await tester.tap(find.text(controller.s.delete));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: 'delete dialog');
+        await tester.tap(find.text(controller.s.cancel));
+        await tester.pumpAndSettle();
 
         await tester.tap(find.byTooltip(controller.s.settings));
         await tester.pump();
-        await sweep(ListView);
+        await sweep(find.byType(ListView), 'settings');
       });
     }
   }
 
-  testWidgets('settings: language, theme and colour all switch', (tester) async {
+  testWidgets('settings: language, theme and colour all switch, and the choice is kept', (tester) async {
     final controller = await boot(tester);
     await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Back'), findsOneWidget);
+    expect(Theme.of(tester.element(find.text('Dark'))).brightness, Brightness.dark, reason: 'dark is how Nazzil opens');
 
     await tester.tap(find.text('Light'));
     await tester.pumpAndSettle();
     expect(Theme.of(tester.element(find.text('Light'))).brightness, Brightness.light);
+    expect((await SharedPreferences.getInstance()).getString('nazzil.theme.v2'), 'light');
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
     expect(Theme.of(tester.element(find.text('Dark'))).brightness, Brightness.dark);
@@ -313,6 +745,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.settings.palette, palette.id);
       expect(Theme.of(tester.element(find.text(name))).colorScheme.primaryContainer, palette.fill);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget, reason: 'the pick is marked by more than its colour');
     }
 
     await tester.tap(find.text('العربية'));
@@ -321,10 +754,26 @@ void main() {
     expect(find.byTooltip('رجوع'), findsOneWidget);
     await tester.tap(find.byTooltip('رجوع'));
     await tester.pumpAndSettle();
-    expect(find.text('نزّل الفيديو. خليه عندك.'), findsOneWidget);
+    expect(find.text('الصق رابط'), findsOneWidget);
+    expect(find.text('نزل'), findsOneWidget);
   });
 
-  testWidgets('library: counts, names, a filter for every app present, and both empty states', (tester) async {
+  test('settings store: dark is the default, and a choice of light made before is kept', () async {
+    Future<String> themeFrom(Map<String, Object> stored) async {
+      SharedPreferences.setMockInitialValues(stored);
+      return (await SettingsStore().load()).theme;
+    }
+
+    expect(await themeFrom({}), 'dark');
+    expect(await themeFrom({'nazzil.theme': 'light'}), 'light');
+    expect(await themeFrom({'nazzil.theme': 'dark'}), 'dark');
+    // "system" was the default before as often as it was a choice, so it moves to the new default.
+    expect(await themeFrom({'nazzil.theme': 'system'}), 'dark');
+    expect(await themeFrom({'nazzil.theme': 'light', 'nazzil.theme.v2': 'system'}), 'system');
+  });
+
+  testWidgets('library: counts, a tag on every picture, a filter for every app present, and both empty states', (tester) async {
+    final handle = tester.ensureSemantics();
     final controller = await boot(
       tester,
       library: [
@@ -333,18 +782,27 @@ void main() {
         entry('c', PlatformId.x, MediaKind.video, onDisk: true),
       ],
     );
-    await tester.tap(find.text('Library').last);
+    await tester.tap(tab('Library'));
     await tester.pumpAndSettle();
     expect(find.text('3 items'), findsOneWidget);
     expect(find.text('3 photos'), findsOneWidget);
+    expect(find.text('Video'), findsNWidgets(2));
+    // The title is not on the picture; it is read out with the tag, and shown a tap away.
+    expect(find.text('Saved item b'), findsNothing);
+    expect(tester.getSemantics(find.byType(LibraryTile).at(1)).label, 'Saved item b, 3 photos');
+
+    await tester.tap(find.text('All apps'));
+    await tester.pumpAndSettle();
     for (final name in ['Reddit', 'Pinterest', 'X']) {
-      expect(find.text(name), findsNWidgets(2), reason: 'a filter chip and a tile label for $name');
+      expect(find.text(name), findsOneWidget, reason: '$name has something saved');
     }
     expect(find.text('YouTube'), findsNothing);
-
-    await tester.tap(find.text('Reddit').first);
+    expect(find.text('All apps'), findsNWidgets(2), reason: 'the button, and the row that is picked');
+    await tester.tap(find.text('Reddit'));
     await tester.pumpAndSettle();
     expect(find.text('1 item'), findsOneWidget);
+    expect(find.text('Reddit'), findsOneWidget, reason: 'the button names the pick');
+    expect(find.text('All apps'), findsNothing);
 
     await tester.tap(find.text('Audio'));
     await tester.pumpAndSettle();
@@ -354,6 +812,7 @@ void main() {
     expect(find.text('3 items'), findsOneWidget);
     expect(controller.libraryKind, 'all');
     expect(controller.libraryPlatform, 'all');
+    handle.dispose();
   });
 
   testWidgets('library: failed and removed items say why and offer a way forward', (tester) async {
@@ -366,13 +825,37 @@ void main() {
         entry('c', PlatformId.instagram, MediaKind.video),
       ],
     );
-    await tester.tap(find.text('التحميلات').last);
+    await tester.tap(tab('التحميلات'));
     await tester.pumpAndSettle();
     expect(find.text('النت انقطع.'), findsOneWidget);
     expect(find.text('أُلغي'), findsOneWidget);
-    expect(find.text('حاول مرة ثانية'), findsNWidgets(2));
     expect(find.text('الملف انحذف'), findsOneWidget);
-    expect(find.text('نزّله مرة ثانية'), findsOneWidget);
+
+    Future<void> open(int index) async {
+      await tester.tap(find.byType(LibraryTile).at(index));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> close() async {
+      await tester.tapAt(const Offset(180, 40));
+      await tester.pumpAndSettle();
+    }
+
+    await open(0);
+    expect(find.text('النت انقطع.'), findsNWidgets(2), reason: 'on the picture and in its sheet');
+    expect(find.widgetWithText(ListTile, 'حاول مرة ثانية'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'شغّل'), findsNothing, reason: 'nothing to play yet');
+    await close();
+
+    await open(1);
+    expect(find.text('أُلغي'), findsNWidgets(2));
+    expect(find.widgetWithText(ListTile, 'حاول مرة ثانية'), findsOneWidget);
+    await close();
+
+    await open(2);
+    expect(find.text('الملف انحذف'), findsNWidgets(2));
+    expect(find.widgetWithText(ListTile, 'نزّله مرة ثانية'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'الأصل'), findsOneWidget);
   });
 
   testWidgets('library: delete asks first when a file would go with it', (tester) async {
@@ -384,19 +867,19 @@ void main() {
       ],
     );
     final file = File(controller.library.first.paths.first);
-    await tester.tap(find.text('Library').last);
+    await tester.tap(tab('Library'));
     await tester.pumpAndSettle();
-    // The corner of a tile, clear of the buttons a stopped one shows.
     Future<void> open(int index) async {
-      await tester.tapAt(tester.getTopLeft(find.byType(LibraryTile).at(index)) + const Offset(12, 12));
+      await tester.tap(find.byType(LibraryTile).at(index));
       await tester.pumpAndSettle();
     }
 
     await open(0);
+    expect(find.text('Kept clip'), findsOneWidget);
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(find.text('Delete this download?'), findsOneWidget);
-    expect(find.text('Nazzil deletes its own copy. Downloads/Nazzil is left as it is.'), findsOneWidget);
+    expect(find.text('Nazzil deletes its own copy. Your gallery and files are left as they are.'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(controller.library.length, 2);
@@ -412,7 +895,7 @@ void main() {
     expect(file.existsSync(), isFalse);
 
     await open(0);
-    expect(find.text('Try again'), findsWidgets);
+    expect(find.widgetWithText(ListTile, 'Try again'), findsOneWidget);
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(find.text('Delete this download?'), findsNothing);
@@ -422,7 +905,7 @@ void main() {
     expect(find.text('Photos'), findsNothing, reason: 'no filters over an empty library');
     await tester.tap(find.text('Add a link'));
     await tester.pumpAndSettle();
-    expect(find.text('Download the video. Keep it.'), findsOneWidget);
+    expect(find.byType(LinkFrame), findsOneWidget);
   });
 
   testWidgets('library tile: a saved photo is its own cover, a video keeps the site picture', (tester) async {
@@ -432,7 +915,7 @@ void main() {
             body: Center(
               child: SizedBox(
                 width: 160,
-                height: 260,
+                height: 160 / LibraryTile.ratio,
                 child: LibraryTile(item: item, s: const S('en'), kept: true, onOpen: () {}),
               ),
             ),
@@ -446,77 +929,202 @@ void main() {
     await tester.pumpWidget(tile(photo));
     final cover = tester.widget<Image>(find.byType(Image)).image as ResizeImage;
     expect((cover.imageProvider as FileImage).file.path, photo.paths.first);
-    // 160 wide makes the cover 200 high; at 2 pixels a point, with half again in hand, that is 600.
-    expect((cover.width, cover.height, cover.policy), (600, 600, ResizeImagePolicy.fit));
+    // 160 wide makes the frame 213 high; at 2 pixels a point, with half again in hand, that is 640.
+    expect((cover.width, cover.height, cover.policy), (640, 640, ResizeImagePolicy.fit));
     expect(find.byType(CachedNetworkImage), findsNothing);
 
     final clip = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true).copyWith(thumbnail: small);
     await tester.pumpWidget(tile(clip));
     expect(tester.widget<CachedNetworkImage>(find.byType(CachedNetworkImage)).imageUrl, small);
-    // The image cache sweeps ten seconds after its first use.
-    await tester.pump(const Duration(seconds: 11));
+    await tester.pumpAndSettle();
   });
 
-  testWidgets('library sheet: Open file says so when nothing opens it, and Linux gets no Share', (tester) async {
-    await boot(tester, library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true)]);
-    // As on a real Linux desktop: the launch call claims success either way,
-    // and only the question beforehand tells whether an app exists.
+  testWidgets('library sheet on a phone: gallery and share, and a line when no app opens the file', (tester) async {
+    await boot(tester, library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'A clip')]);
+    // Only the question beforehand tells whether an app exists for the file.
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/url_launcher'),
       (call) async => call.method != 'canLaunch',
     );
-    await tester.tap(find.text('Library').last);
+    await tester.tap(tab('Library'));
     await tester.pumpAndSettle();
-    await tester.tapAt(tester.getTopLeft(find.byType(LibraryTile)) + const Offset(12, 12));
+    await tester.tap(find.byType(LibraryTile));
     await tester.pumpAndSettle();
-    // share_plus throws for files on Linux, where these tests run.
-    expect(find.text('Share'), findsNothing);
-    // A video is not a stack of photos: on a computer the row shows "opens elsewhere".
+    expect(find.text('A clip'), findsOneWidget);
+    expect(find.text('Reddit · Video'), findsOneWidget);
     expect(
-      find.descendant(of: find.widgetWithText(ListTile, 'Open file'), matching: find.byIcon(Icons.open_in_new_rounded)),
+      [for (final row in tester.widgetList<ListTile>(find.byType(ListTile))) (row.title! as Text).data],
+      ['Play', 'Open in gallery', 'Share', 'Original', 'Delete'],
+    );
+    expect(
+      find.descendant(of: find.widgetWithText(ListTile, 'Open in gallery'), matching: find.byIcon(Icons.photo_library_outlined)),
       findsOneWidget,
     );
-    await tester.tap(find.text('Open file'));
+    await tester.tap(find.text('Open in gallery'));
     await tester.pumpAndSettle();
-    expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
+    expect(find.text('No app on this phone could open it.'), findsOneWidget);
     expect(
       tester.getRect(find.byType(SnackBar)).bottom,
-      lessThanOrEqualTo(tester.getRect(find.text('Library').last).top),
+      lessThanOrEqualTo(tester.getRect(tab('Library')).top),
       reason: 'the message floats above the tabs and leaves them in reach',
     );
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Nothing on this computer'), findsNothing);
+    expect(find.textContaining('No app on this phone'), findsNothing);
   });
 
-  testWidgets('viewer: a missing file gets words and two ways out', (tester) async {
+  testWidgets(
+    'library sheet on Linux: Open file says so when nothing opens it, and there is no Share',
+    (tester) async {
+      await boot(tester, library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true)]);
+      // As on a real Linux desktop: the launch call claims success either way,
+      // and only the question beforehand tells whether an app exists.
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/url_launcher'),
+        (call) async => call.method != 'canLaunch',
+      );
+      await tester.tap(tab('Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(LibraryTile));
+      await tester.pumpAndSettle();
+      // share_plus throws for files on Linux.
+      expect(find.text('Share'), findsNothing);
+      // On a computer the row shows "opens elsewhere", not a stack of photos.
+      expect(
+        find.descendant(of: find.widgetWithText(ListTile, 'Open file'), matching: find.byIcon(Icons.open_in_new_rounded)),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Open file'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    },
+    variant: linux,
+  );
+
+  testWidgets('home: the last saves run along the bottom, open their sheet, and lead to the library', (tester) async {
+    final controller = await boot(
+      tester,
+      library: [
+        for (var i = 0; i < 14; i++)
+          entry('r$i', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'Clip number $i'),
+      ],
+    );
+    expect(find.text('Recent'), findsOneWidget);
+    final strip = find.byType(LibraryTile);
+    expect(tester.getRect(strip.first).left, 20, reason: 'the strip starts on the margin of the page');
+    final page = tester.getRect(find.byType(HomeScreen));
+    expect(tester.getRect(strip.first).bottom, page.bottom - 24, reason: 'and sits at the bottom of the screen');
+    expect(tester.getRect(find.byType(FilledButton)).bottom, lessThan(tester.getRect(find.text('Recent')).top));
+
+    // Twelve at most, however many are saved.
+    await tester.drag(strip.first, const Offset(-3000, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getSemantics(strip.last).label, startsWith('Clip number 11'));
+
+    await tester.tap(strip.last);
+    await tester.pumpAndSettle();
+    expect(find.text('Clip number 11'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Play'), findsOneWidget);
+    await tester.tapAt(const Offset(180, 40));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Library'));
+    await tester.pumpAndSettle();
+    expect(controller.tab, 1);
+    expect(find.text('14 items'), findsOneWidget);
+  });
+
+  testWidgets('home: a link on the clipboard is offered in a bar that can be taken or closed', (tester) async {
+    final controller = await boot(tester);
+    controller
+      ..clipOffer = 'https://www.tiktok.com/@someone/video/1'
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(find.text('A supported link is on your clipboard'), findsOneWidget);
+    final offer = tester.getRect(find.widgetWithText(OutlinedButton, 'Fetch this'));
+    expect(offer.bottom, lessThanOrEqualTo(tester.getRect(tab('Home')).top), reason: 'above the tabs');
+    expect(offer.top, greaterThan(tester.getRect(find.byType(FilledButton)).bottom), reason: 'and clear of the button');
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(controller.clipOffer, isNull);
+    expect(find.text('A supported link is on your clipboard'), findsNothing);
+  });
+
+  testWidgets('header: it says what is downloading, and nothing when nothing is', (tester) async {
+    final controller = await boot(tester);
+    final header = find.ancestor(of: find.text('Nazzil'), matching: find.byType(Column)).first;
+    Iterable<String?> lines() => tester.widgetList<Text>(find.descendant(of: header, matching: find.byType(Text))).map((t) => t.data);
+    expect(lines(), ['Nazzil']);
+
+    controller
+      ..library = [
+        entry('j1', PlatformId.youtube, MediaKind.video, status: LibraryItem.statusDownloading),
+        entry('j2', PlatformId.youtube, MediaKind.video, status: LibraryItem.statusQueued),
+      ]
+      ..activeJobId = 'j1'
+      ..downloading = true
+      ..progress = 0.3
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(lines(), ['Nazzil', 'Downloading… · 1 waiting']);
+    expect(find.descendant(of: find.byType(LibraryTile).first, matching: find.text('30%')), findsOneWidget);
+
+    controller
+      ..converting = true
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(lines(), ['Nazzil', 'Converting… · 1 waiting']);
+
+    controller
+      ..converting = false
+      ..downloading = false
+      ..activeJobId = null
+      ..library = [entry('j1', PlatformId.youtube, MediaKind.video, status: LibraryItem.statusPaused)]
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(lines(), ['Nazzil', 'Paused']);
+
+    // Reading a link is said on the button, once.
+    controller
+      ..library = []
+      ..loading = true
+      ..setUrl('https://www.tiktok.com/@someone/video/1');
+    await tester.pump();
+    expect(lines(), ['Nazzil']);
+    expect(find.text('Reading the link…'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
+    controller
+      ..loading = false
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('viewer: a missing file gets words and two ways out, in a dark room whatever the theme', (tester) async {
     final controller = await boot(tester);
     for (final kind in [MediaKind.video, MediaKind.photo]) {
       final item = entry('missing-${kind.name}', PlatformId.youtube, kind);
       await tester.pumpWidget(
         MaterialApp(
-          theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+          theme: NazzilTheme.light(NazzilPalette.rose, arabic: false),
           home: ViewerScreen(controller: controller, item: item),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.text("Nazzil's copy of this file is gone."), findsOneWidget);
-      expect(find.text('Download again'), findsOneWidget);
-      expect(find.text('Original'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Download again'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Original'), findsOneWidget);
+      final theme = Theme.of(tester.element(find.text('Download again')));
+      expect(theme.brightness, Brightness.dark);
+      expect(tester.widget<Material>(find.byType(Material).first).color, theme.colorScheme.surface);
+      expect(SystemChrome.latestStyle?.systemNavigationBarColor, theme.colorScheme.surface);
     }
   });
 
-  testWidgets('viewer: a video nothing on the computer can open says so', (tester) async {
+  testWidgets('viewer on a phone: a video that will not play says so and offers the gallery', (tester) async {
     final controller = await boot(tester);
-    final asked = <String>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/url_launcher'),
-      (call) async {
-        asked.add('${call.method} ${(call.arguments as Map)['url']}');
-        return call.method != 'canLaunch';
-      },
-    );
     final item = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true);
     await tester.pumpWidget(
       MaterialApp(
@@ -524,52 +1132,42 @@ void main() {
         home: ViewerScreen(controller: controller, item: item),
       ),
     );
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Nothing on this computer could open it'), findsNothing);
-    await tester.tap(find.byTooltip('Play'));
-    await tester.pumpAndSettle();
-    expect(asked.single, allOf(startsWith('canLaunch '), endsWith('/clip.mp4')));
-    expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
+    // No video player exists in a test, which is the failure this screen has words for.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('This video will not play here.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Open in gallery'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Original'), findsOneWidget);
   });
 
-  testWidgets('converting: the label says so and Pause goes, since nothing is left to pause', (tester) async {
-    final controller = await boot(tester, size: const Size(360, 1400));
-    final job = entry(
-      'job',
-      PlatformId.youtube,
-      MediaKind.video,
-      status: LibraryItem.statusDownloading,
-      videoKey: LinkParser.identityKey(sampleVideo.webpageUrl, sampleVideo.id),
-    );
-    controller
-      ..library = [job]
-      ..activeJobId = job.id
-      ..downloading = true
-      ..progress = 0.5
-      ..media = sampleVideo
-      ..selected = sampleVideo.options.first
-      ..notifyListeners();
-    await tester.pump();
-    expect(find.text('Downloading… 50%'), findsOneWidget);
-    expect(find.text('Pause'), findsOneWidget);
-
-    controller
-      ..converting = true
-      ..notifyListeners();
-    await tester.pump();
-    expect(find.text('Downloading… 50%'), findsNothing);
-    // Once in the header, once on the button.
-    expect(find.text('Converting…'), findsNWidgets(2));
-    expect(find.text('Pause'), findsNothing);
-    expect(find.text('Cancel'), findsOneWidget);
-
-    controller.goTab(1);
-    await tester.pump();
-    final tile = find.byType(LibraryTile);
-    expect(find.descendant(of: tile, matching: find.text('Converting…')), findsOneWidget);
-    expect(find.descendant(of: tile, matching: find.text('Pause')), findsNothing);
-    expect(find.descendant(of: tile, matching: find.text('Cancel')), findsOneWidget);
-  });
+  testWidgets(
+    'viewer on Linux: a video nothing on the computer can open says so',
+    (tester) async {
+      final controller = await boot(tester);
+      final asked = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/url_launcher'),
+        (call) async {
+          asked.add('${call.method} ${(call.arguments as Map)['url']}');
+          return call.method != 'canLaunch';
+        },
+      );
+      final item = entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
+          home: ViewerScreen(controller: controller, item: item),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Nothing on this computer could open it'), findsNothing);
+      await tester.tap(find.byTooltip('Play'));
+      await tester.pumpAndSettle();
+      expect(asked.single, allOf(startsWith('canLaunch '), endsWith('/clip.mp4')));
+      expect(find.text('Nothing on this computer could open it. It was saved to Downloads/Nazzil.'), findsOneWidget);
+    },
+    variant: linux,
+  );
 
   testWidgets('viewer: an album turns by button and by arrow key, not only by swipe', (tester) async {
     final controller = await boot(tester);
@@ -619,9 +1217,10 @@ void main() {
     expect(find.byTooltip('Next'), findsNothing, reason: 'one photo needs no counter');
   });
 
-  testWidgets('home: an album preview turns by button too', (tester) async {
-    final controller = await boot(tester, size: const Size(360, 1200));
-    const urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg', 'https://example.com/3.jpg'];
+  testWidgets('home: an album preview turns by button too, and a photo that fails to load says so', (tester) async {
+    final controller = await boot(tester);
+    LocalPictures.serve({'https://pictures.example/1.png': await picture(tester, 'one', 300, 200)});
+    const urls = ['https://pictures.example/1.png', 'https://example.com/2.jpg', 'https://example.com/3.jpg'];
     const album = MediaInfo(
       id: 'alb',
       title: 'Weekend in Erbil',
@@ -635,26 +1234,27 @@ void main() {
       ..selected = album.options.first
       ..notifyListeners();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await pictures(tester);
     expect(find.text('TikTok · 3 photos'), findsOneWidget);
     expect(find.text('1 of 3'), findsOneWidget);
-    expect(find.text('Save photos'), findsOneWidget);
-    expect(find.text('Save this photo'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Save photos'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Save this photo'), findsOneWidget);
+    expect(find.text('Could not load this photo.'), findsNothing);
+    // The frame takes the shape of the first photo.
+    expect(tester.getSize(find.byType(PageView)).height, closeTo(240, 0.01));
+
     await tester.tap(find.byTooltip('Next'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
     expect(controller.photoIndex, 1);
     expect(find.text('2 of 3'), findsOneWidget);
+    expect(find.text('Could not load this photo.'), findsOneWidget);
     await tester.tap(find.byTooltip('Previous'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
     expect(controller.photoIndex, 0);
-    // Lets the image cache's clean-up timer run out before the test ends.
-    await tester.pump(const Duration(seconds: 11));
   });
 
   testWidgets('home: one photo gets one save button and singular words', (tester) async {
-    final controller = await boot(tester, size: const Size(360, 1200));
+    final controller = await boot(tester);
     const urls = ['https://example.com/1.jpg'];
     const one = MediaInfo(
       id: 'one',
@@ -668,15 +1268,14 @@ void main() {
       ..media = one
       ..selected = one.options.first
       ..notifyListeners();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
     expect(find.text('TikTok · 1 photo'), findsOneWidget);
     expect(find.text('Photo'), findsOneWidget);
     expect(find.text('Photos'), findsNothing);
     expect(find.text('Save photo'), findsOneWidget);
     expect(find.text('Save photos'), findsNothing);
     expect(find.text('Save this photo'), findsNothing, reason: 'it would save the same file as the button above it');
-    await tester.pump(const Duration(seconds: 11));
+    expect(find.byTooltip('Next'), findsNothing);
   });
 
   testWidgets('tabs: each keeps its place on the page while the other is open', (tester) async {
@@ -684,24 +1283,56 @@ void main() {
       tester,
       library: [for (var i = 0; i < 12; i++) entry('k$i', PlatformId.reddit, MediaKind.video, onDisk: true)],
     );
-    double offset() => tester
-        .state<ScrollableState>(
-          find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
-        )
-        .position
-        .pixels;
     controller.goTab(1);
     await tester.pumpAndSettle();
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
     await tester.pumpAndSettle();
-    final place = offset();
+    final place = scrolled(tester);
     expect(place, greaterThan(0));
     controller.goTab(0);
     await tester.pumpAndSettle();
-    expect(offset(), 0, reason: 'Home has its own place');
+    expect(scrolled(tester), 0, reason: 'Home has its own place');
     controller.goTab(1);
     await tester.pumpAndSettle();
-    expect(offset(), place);
+    expect(scrolled(tester), place);
+  });
+
+  testWidgets('home: a new post opens at its top, wherever the page was', (tester) async {
+    final controller = await boot(
+      tester,
+      size: const Size(320, 480),
+      textScale: 2,
+      library: [entry('k', PlatformId.reddit, MediaKind.video, onDisk: true)],
+    );
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(scrolled(tester), greaterThan(0));
+
+    controller
+      ..media = sampleVideo
+      ..selected = sampleVideo.options.first
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(scrolled(tester), 0);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    final place = scrolled(tester);
+    expect(place, greaterThan(0));
+
+    // The same post keeps its place across a visit to the library.
+    controller.goTab(1);
+    await tester.pumpAndSettle();
+    controller.goTab(0);
+    await tester.pumpAndSettle();
+    expect(scrolled(tester), place);
+
+    final next = pictured('https://example.com/none.jpg', id: 'next');
+    controller
+      ..media = next
+      ..selected = next.options.first
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(scrolled(tester), 0);
   });
 
   test('a title reads in the direction of its first letter', () {
@@ -718,37 +1349,63 @@ void main() {
       tester,
       language: 'ar',
       library: [
-        entry('a', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'A long English title that cannot fit on two lines of a tile'),
-        entry('b', PlatformId.tiktok, MediaKind.video, onDisk: true, title: 'عنوان عربي طويل جدا ما يكفيه سطرين داخل المربع الصغير هذا'),
+        entry('a', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'A long English title that cannot fit on the lines a sheet gives it, however it is cut'),
+        entry('b', PlatformId.tiktok, MediaKind.video, onDisk: true, title: 'عنوان عربي طويل جدا ما تكفيه السطور اللي تنطيها الورقة مهما انقص'),
       ],
     );
-    await tester.tap(find.text('التحميلات').last);
+    await tester.tap(tab('التحميلات'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(LibraryTile).at(0));
     await tester.pumpAndSettle();
     final english = tester.widget<Text>(find.textContaining('A long English title'));
-    final arabic = tester.widget<Text>(find.textContaining('عنوان عربي'));
     expect(english.textDirection, TextDirection.ltr);
-    expect(arabic.textDirection, TextDirection.rtl);
     expect(english.textAlign, TextAlign.right);
+    await tester.tapAt(const Offset(180, 40));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(LibraryTile).at(1));
+    await tester.pumpAndSettle();
+    final arabic = tester.widget<Text>(find.textContaining('عنوان عربي'));
+    expect(arabic.textDirection, TextDirection.rtl);
     expect(arabic.textAlign, TextAlign.right);
   });
 
-  testWidgets('wide window: link box and library side by side, no tab bar', (tester) async {
-    await boot(
-      tester,
-      size: const Size(1280, 800),
-      library: [
-        for (var i = 0; i < 6; i++) entry('w$i', PlatformId.values[i], MediaKind.video, onDisk: true),
-      ],
-    );
-    expect(find.text('Download the video. Keep it.'), findsOneWidget);
-    expect(find.text('6 items'), findsOneWidget);
-    expect(find.text('Home'), findsNothing);
-    final first = tester.getTopLeft(find.byType(LibraryTile).at(0));
-    final fourth = tester.getTopLeft(find.byType(LibraryTile).at(3));
-    expect(fourth.dy, first.dy, reason: 'at least four tiles share the first row');
-  });
+  testWidgets(
+    'wide window: link frame and library side by side, no tab bar and no strip',
+    (tester) async {
+      final controller = await boot(
+        tester,
+        size: const Size(1280, 800),
+        library: [
+          for (var i = 0; i < 6; i++) entry('w$i', PlatformId.values[i], MediaKind.video, onDisk: true),
+        ],
+      );
+      expect(find.text('Paste a link'), findsOneWidget);
+      expect(find.text('or drop it on this window'), findsOneWidget);
+      expect(find.text('6 items'), findsOneWidget);
+      expect(find.text('Home'), findsNothing);
+      expect(find.text('Recent'), findsNothing, reason: 'the library itself is in view');
+      expect(find.text('Nazzil'), findsOneWidget, reason: 'one header for both panes');
+      final first = tester.getTopLeft(find.byType(LibraryTile).at(0));
+      final fourth = tester.getTopLeft(find.byType(LibraryTile).at(3));
+      expect(fourth.dy, first.dy, reason: 'at least four tiles share the first row');
+      expect(tester.getRect(find.byType(LinkFrame)).right, lessThan(first.dx));
 
-  testWidgets('done dialog: confetti once, none under reduce motion, and the title counts the photos', (tester) async {
+      // A fetched post stays in its pane, with the header still above it.
+      controller
+        ..media = sampleVideo
+        ..selected = sampleVideo.options.first
+        ..notifyListeners();
+      await tester.pumpAndSettle();
+      expect(find.text('Nazzil'), findsOneWidget);
+      expect(find.byTooltip('Settings'), findsOneWidget);
+      expect(tester.getRect(find.byTooltip('Clear')).top, greaterThan(tester.getRect(find.text('Nazzil')).bottom));
+      expect(tester.getRect(find.text('Download')).right, lessThan(first.dx));
+    },
+    variant: linux,
+  );
+
+  testWidgets('done dialog: colour crosses the picture once, not at all under reduce motion, and the title counts the photos', (tester) async {
+    final shown = await picture(tester, 'shown', 80, 60);
     Widget dialog({bool photos = false, bool onePhoto = false}) => MaterialApp(
           theme: NazzilTheme.dark(NazzilPalette.rose, arabic: false),
           home: Scaffold(
@@ -756,6 +1413,8 @@ void main() {
               s: const S('en'),
               photos: photos,
               onePhoto: onePhoto,
+              cover: Image.file(File(shown), fit: BoxFit.cover),
+              ghost: Image.file(File(shown), fit: BoxFit.cover),
               onView: () {},
               onShare: () {},
               onClose: () {},
@@ -763,25 +1422,54 @@ void main() {
           ),
         );
     await tester.pumpWidget(dialog());
-    expect(find.byType(ConfettiBurst), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 350));
+    final crossing = tester.widget<ArrivalFrame>(find.byType(ArrivalFrame)).arrived;
+    expect(crossing, inExclusiveRange(0, 1));
     await tester.pumpAndSettle();
+    expect(tester.widget<ArrivalFrame>(find.byType(ArrivalFrame)).arrived, 1);
+    expect(find.byType(ColorFiltered), findsNothing, reason: 'it ends in full colour');
     expect(find.text('Saved'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Play'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Close'), findsOneWidget);
 
     tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(dialog());
-    expect(find.byType(ConfettiBurst), findsNothing);
+    expect(find.byType(ArrivalFrame), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
 
     // The title counts: one photo is not "Photos".
     await tester.pumpWidget(dialog(photos: true, onePhoto: true));
     expect(find.text('Photo saved'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'View'), findsOneWidget);
     await tester.pumpWidget(dialog(photos: true));
     expect(find.text('Photos saved'), findsOneWidget);
   });
 
+  testWidgets('done dialog: a finished download opens it over the app, and Close puts it away', (tester) async {
+    final controller = await boot(
+      tester,
+      library: [entry('clip', PlatformId.reddit, MediaKind.video, onDisk: true)],
+    );
+    controller
+      ..doneItem = controller.library.first
+      ..notifyListeners();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('Saved'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Play'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget, reason: 'a phone has a share sheet');
+    await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved'), findsNothing);
+    expect(controller.doneItem, isNull);
+  });
+
   testWidgets('accessibility guidelines: tap targets, labels and text contrast', (tester) async {
     final handle = tester.ensureSemantics();
+    final shown = await picture(tester, 'shown', 300, 200, color: const Color(0xFFE8E0D0));
     for (final (theme, language, palette) in [
       ('dark', 'en', 'emerald'),
       ('light', 'en', 'sunset'),
@@ -796,53 +1484,107 @@ void main() {
         language: language,
         palette: palette,
         size: const Size(360, 2400),
+        // Two pixels a point, as on a phone: at one, thin letters never reach their own colour.
+        pixelRatio: 2,
         library: [
-          entry('a', PlatformId.reddit, MediaKind.video, onDisk: true),
+          entry('a', PlatformId.reddit, MediaKind.video, onDisk: true, thumbnail: shown),
           entry('b', PlatformId.x, MediaKind.video, status: LibraryItem.statusFailed, error: Failure.blocked.name),
           entry('c', PlatformId.tiktok, MediaKind.photo, photoCount: 4),
           entry('d', PlatformId.youtube, MediaKind.audio, status: LibraryItem.statusCancelled),
           entry('e', PlatformId.instagram, MediaKind.video),
         ],
       );
+      LocalPictures.serve({'https://pictures.example/photo.png': shown});
       Future<void> check(String where) async {
         final at = '$where, $theme $language';
         await expectLater(tester, meetsGuideline(androidTapTargetGuideline), reason: at);
         await expectLater(tester, meetsGuideline(iOSTapTargetGuideline), reason: at);
         await expectLater(tester, meetsGuideline(labeledTapTargetGuideline), reason: at);
-        // Flutter's own check reads the text colour off the pixels, which
-        // fails on thin Arabic strokes at this scale; ours covers both.
-        if (language == 'en') await expectLater(tester, meetsGuideline(textContrastGuideline), reason: at);
+        // Flutter's own contrast check draws the page at one pixel a point
+        // whatever the screen and takes the most common light shade for the
+        // text colour: on thin letters that is the blur at their edge.
         final contrast = await measureContrast(tester);
         expect(contrast.faint, isEmpty, reason: at);
         expect(contrast.checked, greaterThan(3), reason: at);
         debugPrint('contrast $at: ${contrast.checked} texts and icons, lowest ${contrast.lowest.toStringAsFixed(2)}:1');
       }
 
+      await pictures(tester);
       controller
         ..clipOffer = 'https://www.tiktok.com/@someone/video/1'
-        ..failure = Failure.pasteFirst
+        ..failure = Failure.noLink
         ..notifyListeners();
       await tester.pumpAndSettle();
       await check('home');
+
+      controller.setUrl('https://www.tiktok.com/@someone/video/7301112223334445556');
+      await tester.pumpAndSettle();
+      await check('home with a link');
+
+      final media = pictured('https://pictures.example/photo.png');
       controller
         ..clipOffer = null
-        ..media = sampleVideo
-        ..selected = sampleVideo.options.first
+        ..media = media
+        ..selected = media.options.first
         ..failure = Failure.network
         ..notifyListeners();
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await pictures(tester);
       await check('home result');
+
+      final job = jobFor(media, LibraryItem.statusDownloading);
+      controller
+        ..failure = Failure.none
+        ..library = [job, ...controller.library]
+        ..activeJobId = job.id
+        ..downloading = true
+        ..progress = 0.5
+        ..notifyListeners();
+      await tester.pumpAndSettle();
+      await check('home downloading');
+      controller
+        ..downloading = false
+        ..activeJobId = null
+        ..library = [jobFor(media, LibraryItem.statusPaused), ...controller.library.skip(1)]
+        ..notifyListeners();
+      await tester.pumpAndSettle();
+      await check('home paused');
+
       controller.goTab(1);
       await tester.pumpAndSettle();
+      await pictures(tester);
       await check('library');
-      await tester.tapAt(tester.getTopLeft(find.byType(LibraryTile).first) + const Offset(12, 12));
+      await tester.tap(find.text(controller.s.filterAllApps));
       await tester.pumpAndSettle();
+      await check('app menu');
+      await tester.tapAt(const Offset(180, 2000));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(LibraryTile).at(1));
+      await tester.pumpAndSettle();
+      await pictures(tester);
       await check('item sheet');
       await tester.tap(find.text(controller.s.delete));
       await tester.pumpAndSettle();
       await check('delete dialog');
       await tester.tap(find.text(controller.s.cancel));
       await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(LibraryTile).at(2));
+      await tester.pumpAndSettle();
+      await check('item sheet of a failed download');
+      await tester.tapAt(const Offset(180, 40));
+      await tester.pumpAndSettle();
+
+      controller
+        ..doneItem = controller.library[1]
+        ..notifyListeners();
+      await tester.pump();
+      await tester.pumpAndSettle();
+      await check('done dialog');
+      await tester.tap(find.text(controller.s.close));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byTooltip(controller.s.settings));
       await tester.pumpAndSettle();
       await check('settings');
@@ -851,21 +1593,47 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('the contrast measure itself catches faint text', (tester) async {
+  testWidgets('the contrast measure itself: faint, unseen and faded words are caught, plain ones pass', (tester) async {
+    tester.view.physicalSize = const Size(720, 800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    const style = TextStyle(fontFamily: 'Archivo', fontSize: 15, decoration: TextDecoration.none);
     await tester.pumpWidget(
-      const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: ColoredBox(
-          color: Color(0xFF202020),
-          child: Center(
-            child: Text('faint', style: TextStyle(color: Color(0xFF505050), fontSize: 15, decoration: TextDecoration.none)),
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ColoredBox(
+          color: const Color(0xFF202020),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Text('plain', style: style.copyWith(color: const Color(0xFFFFFFFF))),
+              Text('faint', style: style.copyWith(color: const Color(0xFF505050))),
+              Text('unseen', style: style.copyWith(color: const Color(0xFF202020))),
+              Opacity(opacity: 0.25, child: Text('faded', style: style.copyWith(color: const Color(0xFFFFFFFF)))),
+              Text.rich(
+                TextSpan(
+                  style: style.copyWith(color: const Color(0xFFFFFFFF)),
+                  children: const [
+                    TextSpan(text: 'two '),
+                    TextSpan(text: 'tone', style: TextStyle(color: Color(0xFF606060))),
+                  ],
+                ),
+              ),
+              const Icon(Icons.settings_outlined, color: Color(0xFF3A3A3A)),
+            ],
           ),
         ),
       ),
     );
     final contrast = await measureContrast(tester);
-    expect(contrast.checked, 1);
-    expect(contrast.faint.single, contains('2.02:1'));
+    expect(contrast.checked, 7);
+    expect(contrast.faint, hasLength(5));
+    expect(contrast.faint[0], allOf(startsWith('"faint" is 2.02:1'), isNot(contains('painted at'))));
+    expect(contrast.faint[1], startsWith('"unseen" is 1.00:1'));
+    expect(contrast.faint[2], allOf(startsWith('"faded" is '), contains('painted at 25% of')));
+    expect(contrast.faint[3], startsWith('"tone" is 2.59:1'));
+    expect(contrast.faint[4], startsWith('icon is 1.43:1, needs 3.0'));
+    expect(contrast.lowest, closeTo(1, 0.001));
   });
 
   testWidgets('keyboard: tab reaches the controls and shows a focus ring', (tester) async {
@@ -899,53 +1667,105 @@ void main() {
     expect(controller.settings.palette, 'grape');
   });
 
-  testWidgets('keyboard: tab walks the page before the tabs, and one pane before the other', (tester) async {
-    // On a phone the tabs come last; on a wide window the library follows the link pane.
-    for (final (size, after) in [
-      (const Size(360, 720), ['Home', 'Library']),
-      (const Size(1280, 800), ['All']),
-    ]) {
-      final controller = await boot(
-        tester,
-        size: size,
-        library: [entry('k', PlatformId.reddit, MediaKind.video, onDisk: true)],
-      );
-      controller
-        ..media = sampleVideo
-        ..selected = sampleVideo.options.first
-        ..notifyListeners();
+  testWidgets('keyboard: a picture on the wall shows a ring inside its edge, and Enter opens it', (tester) async {
+    final controller = await boot(
+      tester,
+      library: [entry('k', PlatformId.reddit, MediaKind.video, onDisk: true, title: 'Kept clip')],
+    );
+    controller.goTab(1);
+    await tester.pumpAndSettle();
+    FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+    addTearDown(() => FocusManager.instance.highlightStrategy = FocusHighlightStrategy.automatic);
+    final tile = tester.getRect(find.byType(LibraryTile));
+    int ringed() => tester
+        .widgetList<DecoratedBox>(find.descendant(of: find.byType(LibraryTile), matching: find.byType(DecoratedBox)))
+        .map((box) => box.decoration)
+        .whereType<BoxDecoration>()
+        .where((decoration) => decoration.border != null)
+        .length;
+    expect(ringed(), 0);
+    for (var i = 0; i < 12 && !tile.contains(FocusManager.instance.primaryFocus!.rect.center); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
-
-      final stops = <String, Finder>{
-        'Settings': find.byTooltip('Settings'),
-        'Link': find.byType(TextField),
-        for (final text in ['Paste', 'Fetch', 'HD', 'SD', 'Audio', 'Download', 'Home', 'Library', 'All'])
-          text: find.text(text),
-      };
-      String focused() {
-        final rect = FocusManager.instance.primaryFocus!.rect;
-        return stops.entries
-            .where((stop) => stop.value.evaluate().isNotEmpty && rect.contains(tester.getCenter(stop.value.first)))
-            .map((stop) => stop.key)
-            .join('+');
-      }
-
-      final walked = <String>[];
-      for (var i = 0; i < 24; i++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-        await tester.pumpAndSettle();
-        walked.add(focused());
-        // The window itself listens for the paste shortcut and has no ring to show.
-        expect(FocusManager.instance.primaryFocus!.size, isNot(size), reason: 'stop $i at $size is the whole window');
-      }
-      expect(
-        walked.take(8 + after.length),
-        ['Settings', 'Link', 'Paste', 'Fetch', 'HD', 'SD', 'Audio', 'Download', ...after],
-        reason: '$size',
-      );
-      expect(walked.where((stop) => stop == 'Settings').length, greaterThan(1), reason: 'the round closes at $size');
-      if (after.length == 2) expect(walked[10], 'Settings', reason: 'the first control follows the last tab');
-      await tester.pumpWidget(const SizedBox());
     }
+    expect(tile.contains(FocusManager.instance.primaryFocus!.rect.center), isTrue);
+    expect(ringed(), 2, reason: 'two tones, so the ring shows on a light picture and on a dark one');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('Kept clip'), findsOneWidget);
   });
+
+  testWidgets('keyboard: tab walks the empty Home from the header down to the tabs', (tester) async {
+    await boot(tester, library: [entry('k', PlatformId.reddit, MediaKind.video, onDisk: true)]);
+    final stops = <String, Finder>{
+      'Settings': find.byTooltip('Settings'),
+      'Link': find.byType(EditableText),
+      'Paste': find.text('Paste'),
+      'To library': find.widgetWithText(TextButton, 'Library'),
+      'Tile': find.byType(LibraryTile),
+      'Home': tab('Home'),
+      'Library': tab('Library'),
+    };
+    final walked = <String>[];
+    for (var i = 0; i < 8; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final rect = FocusManager.instance.primaryFocus!.rect;
+      walked.add(
+        stops.entries.where((stop) => rect.contains(tester.getCenter(stop.value))).map((stop) => stop.key).join('+'),
+      );
+    }
+    expect(walked, ['Settings', 'Link', 'Paste', 'To library', 'Tile', 'Home', 'Library', 'Settings']);
+  });
+
+  for (final wide in [false, true]) {
+    testWidgets(
+      'keyboard: tab walks the page before the tabs, and one pane before the other (${wide ? 'wide' : 'phone'})',
+      (tester) async {
+        // On a phone the tabs come last; on a wide window the library follows the link pane.
+        final size = wide ? const Size(1280, 800) : const Size(360, 720);
+        final controller = await boot(
+          tester,
+          size: size,
+          library: [entry('k', PlatformId.reddit, MediaKind.video, onDisk: true)],
+        );
+        controller
+          ..media = sampleVideo
+          ..selected = sampleVideo.options.first
+          ..notifyListeners();
+        await tester.pumpAndSettle();
+
+        final stops = <String, Finder>{
+          'Settings': find.byTooltip('Settings'),
+          'Clear': find.byTooltip('Clear'),
+          for (final text in ['HD', 'SD', 'Audio', 'Download', 'Home', 'Library', 'All']) text: find.text(text),
+        };
+        String focused() {
+          final rect = FocusManager.instance.primaryFocus!.rect;
+          return stops.entries
+              .where((stop) => stop.value.evaluate().isNotEmpty && rect.contains(tester.getCenter(stop.value.first)))
+              .map((stop) => stop.key)
+              .join('+');
+        }
+
+        final walked = <String>[];
+        for (var i = 0; i < 24; i++) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pumpAndSettle();
+          walked.add(focused());
+          // The window itself listens for the paste shortcut and has no ring to show.
+          expect(FocusManager.instance.primaryFocus!.size, isNot(size), reason: 'stop $i at $size is the whole window');
+        }
+        final page = ['Clear', 'HD', 'SD', 'Audio', 'Download'];
+        if (wide) {
+          expect(walked.take(7), ['Settings', ...page, 'All']);
+          expect(walked.where((stop) => stop == 'Settings').length, greaterThan(1), reason: 'the round closes');
+        } else {
+          // The poster stands where the header was, so its way out is the first stop.
+          expect(walked.take(8), [...page, 'Home', 'Library', 'Clear']);
+        }
+      },
+      variant: wide ? linux : TargetPlatformVariant.only(TargetPlatform.android),
+    );
+  }
 }

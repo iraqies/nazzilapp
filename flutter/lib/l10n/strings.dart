@@ -10,11 +10,11 @@ class S {
   bool get _pc => Platforms.desktop;
 
   String get appName => _t('Nazzil', 'نزل');
-  String get tagline => _t('Download the video. Keep it.', 'نزّل الفيديو. خليه عندك.');
-  String get photoTagline =>
-      _pc
-          ? _t('Videos, TikTok photos, Instagram carousels. Straight into Downloads.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالتنزيلات.')
-          : _t('Videos, TikTok photos, Instagram carousels. Straight into your gallery.', 'فيديو وصور تيك توك وألبومات إنستغرام. ينزلون بالمعرض.');
+  String get framePrompt => _t('Paste a link', 'الصق رابط');
+  String get frameHint => _pc
+      ? _t('or drop it on this window', 'أو اسحبه على النافذة')
+      : _t('or share a post to Nazzil from any app', 'أو شارك المنشور ويّا نزل من أي تطبيق');
+  String get recent => _t('Recent', 'آخر التحميلات');
   String get linkLabel => _t('Link', 'الرابط');
   String get pasteHint =>
       _t('Paste or share a YouTube, TikTok, Instagram, Facebook, Reddit, X or Pinterest link', 'الصق رابط يوتيوب أو تيك توك أو إنستغرام أو فيسبوك أو ريديت أو X أو بنترست');
@@ -45,7 +45,6 @@ class S {
   String get library => _t('Library', 'التحميلات');
   String get settings => _t('Settings', 'الإعدادات');
   String get back => _t('Back', 'رجوع');
-  String get ready => _t('Ready', 'جاهز');
   String get downloading => _t('Downloading…', 'قاعد ينزّل…');
   String get converting => _t('Converting…', 'قاعد يحوّل…');
   String get downloaded => _t('Saved', 'تم التنزيل');
@@ -121,15 +120,6 @@ class S {
   String get filterPhotos => _t('Photos', 'صور');
   String get filterVideos => _t('Videos', 'فيديو');
   String get filterAudio => _t('Audio', 'صوت');
-  String get how => _pc
-      ? _t(
-          'Paste a link or drop it on this window. Pick the quality and it saves to the Nazzil folder in Downloads.',
-          'الصق الرابط أو اسحبه على النافذة. اختار الجودة وينحفظ بمجلد Nazzil بالتنزيلات.',
-        )
-      : _t(
-          'Share a post to Nazzil from any app, or paste its link here. Pick the quality and it saves to the Nazzil album in your gallery.',
-          'شارك المنشور ويّا نزل من أي تطبيق، أو الصق الرابط هنا. اختار الجودة وينحفظ بألبوم نزل بالمعرض.',
-        );
   String get ofWord => _t('of', 'من');
   String get previous => _t('Previous', 'السابق');
   String get next => _t('Next', 'التالي');
@@ -161,6 +151,7 @@ class S {
   String failure(Failure kind) => switch (kind) {
         Failure.none => '',
         Failure.pasteFirst => _t('Paste a link first.', 'أول شي الصق رابط.'),
+        Failure.noLink => _t('No link on your clipboard.', 'ماكو رابط منسوخ.'),
         Failure.unsupported => _t('This link is not from a supported app yet.', 'هذا الرابط مو من تطبيق مدعوم بعد.'),
         Failure.network => _t('Connection dropped.', 'النت انقطع.'),
         Failure.blocked => _t('This post blocked the download.', 'المنشور منع التنزيل.'),
@@ -178,6 +169,7 @@ class S {
   String advice(Failure kind) => switch (kind) {
         Failure.network || Failure.convert || Failure.load || Failure.download => _t('Try again.', 'حاول مرة ثانية.'),
         Failure.blocked => _t('Try again later.', 'جرّب بعدين.'),
+        Failure.noLink => _t("Copy a post's link first.", 'انسخ رابط المنشور أول.'),
         Failure.processing => _t('Try again in a bit.', 'جرّب بعد شوية.'),
         _ => '',
       };

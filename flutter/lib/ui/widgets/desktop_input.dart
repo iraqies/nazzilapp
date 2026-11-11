@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -57,7 +58,7 @@ class _DesktopInputState extends State<DesktopInput> {
   @override
   Widget build(BuildContext context) {
     if (!Platforms.desktop) return widget.child;
-    final mac = Platform.isMacOS;
+    final mac = defaultTargetPlatform == TargetPlatform.macOS;
     final scheme = Theme.of(context).colorScheme;
     return CallbackShortcuts(
       bindings: {
@@ -81,11 +82,11 @@ class _DesktopInputState extends State<DesktopInput> {
                       margin: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: scheme.surface.withValues(alpha: 0.86),
-                        borderRadius: BorderRadius.circular(NazzilRadius.card),
-                        border: Border.all(color: scheme.primary, width: 2),
+                        borderRadius: BorderRadius.circular(NazzilRadius.sheet),
+                        border: Border.all(color: scheme.onSurface, width: 2),
                       ),
                       child: Center(
-                        child: Icon(Icons.link_rounded, size: 72, color: scheme.primary),
+                        child: Icon(Icons.link_rounded, size: 72, color: scheme.onSurface),
                       ),
                     ),
                   ),

@@ -1,10 +1,12 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../theme/nazzil_theme.dart';
-import 'page_stepper.dart';
+import 'arriving.dart';
+import 'cover.dart';
 
+/// The photos of a post, one to a page and edge to edge. A swipe turns the
+/// page, and so does a change of [index] from the buttons beside it.
 class PhotoFilm extends StatefulWidget {
   const PhotoFilm({
     super.key,
@@ -12,12 +14,18 @@ class PhotoFilm extends StatefulWidget {
     required this.index,
     required this.onChanged,
     required this.s,
+    this.progress,
+    this.unsaved = false,
   });
 
   final List<String> urls;
   final int index;
   final ValueChanged<int> onChanged;
   final S s;
+
+  /// As on [ArrivingPicture]: every photo shows how far the download is.
+  final double? progress;
+  final bool unsaved;
 
   @override
   State<PhotoFilm> createState() => _PhotoFilmState();
@@ -29,7 +37,7 @@ class _PhotoFilmState extends State<PhotoFilm> {
   @override
   void initState() {
     super.initState();
-    _pages = PageController(viewportFraction: 0.86, initialPage: widget.index);
+    _pages = PageController(initialPage: widget.index);
   }
 
   @override
@@ -60,65 +68,35 @@ class _PhotoFilmState extends State<PhotoFilm> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final glide = NazzilMotion.of(context, const Duration(milliseconds: 280));
-    return Column(
-      children: [
-        SizedBox(
-          height: 380,
-          child: PageView.builder(
-            controller: _pages,
-            itemCount: widget.urls.length,
-            onPageChanged: widget.onChanged,
-            itemBuilder: (context, i) {
-              final active = i == widget.index;
-              return AnimatedScale(
-                duration: glide,
-                curve: Curves.easeOutCubic,
-                scale: active ? 1 : 0.9,
-                child: AnimatedOpacity(
-                  duration: glide,
-                  opacity: active ? 1 : 0.55,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(NazzilRadius.card),
-                      child: ColoredBox(
-                        color: scheme.surfaceContainerHigh,
-                        child: CachedNetworkImage(
-                          imageUrl: widget.urls[i],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          placeholder: (_, _) => const Center(child: CircularProgressIndicator()),
-                          errorWidget: (_, _, _) => Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(
-                                widget.s.photoFailed,
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+    return PageView.builder(
+      controller: _pages,
+      itemCount: widget.urls.length,
+      onPageChanged: widget.onChanged,
+      itemBuilder: (context, i) {
+        return ColoredBox(
+          color: scheme.surfaceContainerHigh,
+          child: ArrivingPicture(
+            progress: widget.progress,
+            unsaved: widget.unsaved,
+            ghost: NetPicture(url: widget.urls[i], alignment: posterAlignment, bare: true),
+            child: NetPicture(
+              url: widget.urls[i],
+              alignment: posterAlignment,
+              loading: const Center(child: CircularProgressIndicator()),
+              failed: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    widget.s.photoFailed,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-        if (widget.urls.length > 1) ...[
-          const SizedBox(height: 4),
-          PageStepper(
-            index: widget.index,
-            count: widget.urls.length,
-            onStep: widget.onChanged,
-            s: widget.s,
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 }

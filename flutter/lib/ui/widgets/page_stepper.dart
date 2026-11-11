@@ -11,19 +11,17 @@ class PageStepper extends StatelessWidget {
     required this.count,
     required this.onStep,
     required this.s,
-    this.onPhoto = false,
   });
 
   final int index;
   final int count;
   final ValueChanged<int> onStep;
   final S s;
-  final bool onPhoto;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = onPhoto ? Colors.white : theme.colorScheme.onSurface;
+    final color = theme.colorScheme.onSurface;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

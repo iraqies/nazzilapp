@@ -192,12 +192,18 @@ class NazzilController extends ChangeNotifier {
 
   Future<void> paste(String clip) async {
     final link = LinkParser.extract(clip);
-    if (link.isEmpty) return;
+    if (link.isEmpty) {
+      // Paste is the main button on an empty Home, so it has to answer.
+      failure = Failure.noLink;
+      notifyListeners();
+      return;
+    }
     url = link;
     clipOffer = null;
     _lastClip = link;
     notifyListeners();
-    if (LinkParser.isSupported(link)) await fetch(link);
+    // A link from an app Nazzil does not know gets told so here.
+    await fetch(link);
   }
 
   Future<void> offerClipboard() async {

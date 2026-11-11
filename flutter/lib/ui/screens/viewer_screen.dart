@@ -61,25 +61,29 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget build(BuildContext context) {
     final item = widget.item;
     final photo = item.kind == MediaKind.photo;
-    return Scaffold(
-      backgroundColor: photo ? Colors.black : null,
-      appBar: AppBar(
-        backgroundColor: photo ? Colors.black : null,
-        foregroundColor: photo ? Colors.white : null,
-        title: TitleText(
-          item.title,
-          maxLines: 1,
-          style: photo ? Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white) : null,
+    // The viewer is a dark room in every theme: a picture reads best against black.
+    final theme = NazzilTheme.dark(
+      NazzilPalette.byId(widget.controller.settings.palette),
+      arabic: _s.isAr,
+    );
+    return Theme(
+      data: theme,
+      // The app bar sets the status bar; this sets the system bar at the bottom, in the light theme too.
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: NazzilTheme.overlay(Brightness.dark, theme.colorScheme.surface),
+        child: Scaffold(
+          appBar: AppBar(
+            title: TitleText(item.title, maxLines: 1, style: theme.textTheme.titleMedium),
+          ),
+          body: photo ? _photos(item) : _video(),
         ),
       ),
-      body: photo ? _photos(item) : _video(),
     );
   }
 
-  Widget _gone({bool onPhoto = false}) {
+  Widget _gone() {
     final item = widget.item;
     return StateMessage(
-      onPhoto: onPhoto,
       title: _s.fileGone,
       actions: [
         (
@@ -96,7 +100,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Widget _photos(LibraryItem item) {
     final paths = item.paths.where((p) => File(p).existsSync()).toList();
-    if (paths.isEmpty) return _gone(onPhoto: true);
+    if (paths.isEmpty) return _gone();
     void go(int page) {
       if (page < 0 || page >= paths.length) return;
       if (NazzilMotion.reduced(context)) {
@@ -126,14 +130,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 onPageChanged: (i) => setState(() => _index = i),
                 itemBuilder: (context, i) {
                   if (isVideoFile(File(paths[i]))) {
-                    if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i], s: _s, onPhoto: true);
+                    if (!Platforms.inAppVideo) return _ExternalVideo(path: paths[i], s: _s);
                     return _AlbumVideo(key: ValueKey(paths[i]), path: paths[i], active: i == _index, s: _s);
                   }
                   return InteractiveViewer(
                     child: Image.file(
                       File(paths[i]),
                       fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => StateMessage(onPhoto: true, title: _s.photoFailed),
+                      errorBuilder: (_, _, _) => StateMessage(title: _s.photoFailed),
                     ),
                   );
                 },
@@ -142,7 +146,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             if (paths.length > 1)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: PageStepper(index: _index, count: paths.length, onStep: go, s: _s, onPhoto: true),
+                child: PageStepper(index: _index, count: paths.length, onStep: go, s: _s),
               )
             else
               const SizedBox(height: 24),
@@ -173,10 +177,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
 /// The video itself is the play and pause control, by tap or by keyboard.
 class _PlayArea extends StatefulWidget {
-  const _PlayArea({required this.player, required this.s, this.onPhoto = false});
+  const _PlayArea({required this.player, required this.s});
   final VideoPlayerController player;
   final S s;
-  final bool onPhoto;
 
   @override
   State<_PlayArea> createState() => _PlayAreaState();
@@ -210,7 +213,7 @@ class _PlayAreaState extends State<_PlayArea> {
         aspectRatio: player.value.aspectRatio,
         child: Tappable(
           radius: 0,
-          ringColor: widget.onPhoto ? Colors.white : null,
+          ringInside: true,
           label: _playing ? widget.s.pause : widget.s.play,
           onTap: () => _playing ? player.pause() : player.play(),
           child: Stack(
@@ -266,23 +269,21 @@ class _AlbumVideoState extends State<_AlbumVideo> {
   Widget build(BuildContext context) {
     if (_failed) {
       return StateMessage(
-        onPhoto: true,
         title: widget.s.cantPlay,
         actions: [(widget.s.openGallery, () => DownloadHost.openFile(widget.path))],
       );
     }
     if (!_player.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(child: CircularProgressIndicator());
     }
-    return _PlayArea(player: _player, s: widget.s, onPhoto: true);
+    return _PlayArea(player: _player, s: widget.s);
   }
 }
 
 class _ExternalVideo extends StatefulWidget {
-  const _ExternalVideo({required this.path, required this.s, this.onPhoto = false});
+  const _ExternalVideo({required this.path, required this.s});
   final String path;
   final S s;
-  final bool onPhoto;
 
   @override
   State<_ExternalVideo> createState() => _ExternalVideoState();
@@ -300,7 +301,6 @@ class _ExternalVideoState extends State<_ExternalVideo> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final onPhoto = widget.onPhoto;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -308,17 +308,12 @@ class _ExternalVideoState extends State<_ExternalVideo> {
           IconButton(
             tooltip: widget.s.play,
             iconSize: 88,
-            color: onPhoto ? Colors.white : scheme.primary,
             // Round like its icon, so hover, press and the focus ring follow the edge.
             style: ButtonStyle(
               shape: WidgetStateProperty.resolveWith(
                 (states) => CircleBorder(
                   side: states.contains(WidgetState.focused)
-                      ? BorderSide(
-                          color: onPhoto ? Colors.white : scheme.onSurface,
-                          width: 2,
-                          strokeAlign: BorderSide.strokeAlignOutside,
-                        )
+                      ? BorderSide(color: scheme.onSurface, width: 2, strokeAlign: BorderSide.strokeAlignOutside)
                       : BorderSide.none,
                 ),
               ),
@@ -332,9 +327,7 @@ class _ExternalVideoState extends State<_ExternalVideo> {
             child: Text(
               widget.path.split(Platform.pathSeparator).last,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: onPhoto ? Colors.white : scheme.onSurfaceVariant,
-              ),
+              style: theme.textTheme.bodySmall,
             ),
           ),
           if (_unopened)
@@ -345,7 +338,7 @@ class _ExternalVideoState extends State<_ExternalVideo> {
                 child: Text(
                   widget.s.cantOpen,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: onPhoto ? Colors.white : scheme.error),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error),
                 ),
               ),
             ),

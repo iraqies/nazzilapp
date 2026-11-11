@@ -1,14 +1,50 @@
-import 'dart:io';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/media.dart';
 import '../../theme/nazzil_theme.dart';
+import 'arriving.dart';
+import 'cover.dart';
 import 'tappable.dart';
-import 'title_text.dart';
 
+/// What a library item is, or what has become of its download, in a few words.
+({IconData icon, String text}) itemTag(
+  LibraryItem item,
+  S s, {
+  required bool kept,
+  double? progress,
+  bool converting = false,
+}) {
+  if (item.status == LibraryItem.statusDownloading) {
+    if (converting) return (icon: Icons.sync_rounded, text: s.converting);
+    return (
+      icon: Icons.download_rounded,
+      text: progress == null ? s.downloading : '${(progress * 100).round()}%',
+    );
+  }
+  if (item.status == LibraryItem.statusQueued) return (icon: Icons.schedule_rounded, text: s.queued);
+  if (item.paused) return (icon: Icons.pause_rounded, text: s.paused);
+  if (item.status == LibraryItem.statusFailed) {
+    return (
+      icon: Icons.error_outline_rounded,
+      text: item.error.isEmpty ? s.downloadFailed : s.failure(Failure.named(item.error)),
+    );
+  }
+  if (item.status == LibraryItem.statusCancelled) return (icon: Icons.close_rounded, text: s.cancelled);
+  if (!kept) return (icon: Icons.folder_off_outlined, text: s.missingFile);
+  final duration = item.duration;
+  return (
+    icon: kindIcon(item.kind),
+    text: switch (item.kind) {
+      MediaKind.photo => item.photoCount > 1 ? s.photosN(item.photoCount) : s.photo,
+      MediaKind.audio => s.audio,
+      MediaKind.video => duration != null && duration > 0 ? s.clock(duration) : s.video,
+    },
+  );
+}
+
+/// One frame of the library wall: the picture, and a tag that says what it
+/// is or what state it is in. The title and the actions are a tap away.
 class LibraryTile extends StatelessWidget {
   const LibraryTile({
     super.key,
@@ -16,230 +52,101 @@ class LibraryTile extends StatelessWidget {
     required this.s,
     required this.kept,
     required this.onOpen,
-    this.onCancel,
-    this.onPause,
-    this.onResume,
-    this.onRetry,
     this.progress,
     this.converting = false,
   });
 
   final LibraryItem item;
   final S s;
+
+  /// Whether the saved file is still on the device.
   final bool kept;
   final VoidCallback onOpen;
-  final VoidCallback? onCancel;
-  final VoidCallback? onPause;
-  final VoidCallback? onResume;
-  final VoidCallback? onRetry;
+
+  /// Set while this item is the one downloading.
   final double? progress;
   final bool converting;
 
-  static const coverRatio = 0.8;
-  static const _gap = 8.0;
-
-  /// Height of a tile [width] wide: the cover plus two title lines at the
-  /// current text size, so large system fonts get the room they need.
-  static double heightFor(BuildContext context, double width) {
-    final style = Theme.of(context).textTheme.titleMedium!;
-    final line = MediaQuery.textScalerOf(context).scale(style.fontSize!) * style.height!;
-    return width / coverRatio + _gap + (line * 2).ceilToDouble() + 2;
-  }
+  static const ratio = 3 / 4;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final busy = item.active;
-    final stopped = item.status == LibraryItem.statusFailed || item.status == LibraryItem.statusCancelled;
-    final missing = !kept && item.done;
+    final scheme = Theme.of(context).colorScheme;
+    final tag = itemTag(item, s, kept: kept, progress: progress, converting: converting);
+    final arriving = item.status == LibraryItem.statusDownloading && progress != null && !converting;
+    final here = (item.done && kept) || (item.status == LibraryItem.statusDownloading && converting);
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: constraints.maxWidth / coverRatio,
-              child: Tappable(
-                onTap: onOpen,
-                label: item.title,
-                radius: NazzilRadius.card,
-                color: theme.colorScheme.surfaceContainerHigh,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _cover(context, constraints.maxWidth, plain: busy || stopped || missing),
-                    if (busy || stopped || missing)
-                      Center(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(8),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: NazzilColors.photoScrim,
-                              borderRadius: BorderRadius.circular(NazzilRadius.control),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
-                              child: busy ? _busy(context) : _stopped(context, missing: missing),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      PositionedDirectional(
-                        top: 8,
-                        start: 8,
-                        end: 8,
-                        // A tag on a photo grows a little with the system font,
-                        // the title under the cover grows all the way.
-                        child: MediaQuery.withClampedTextScaling(
-                          maxScaleFactor: 1.3,
-                          child: Wrap(
-                            alignment: WrapAlignment.spaceBetween,
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              _chip(context, s.platformName(item.platform), icon: _kindIcon),
-                              if (item.photoCount > 1) _chip(context, s.photosN(item.photoCount)),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
+        return Tappable(
+          onTap: onOpen,
+          radius: 0,
+          ringInside: true,
+          label: [item.title, tag.text].where((part) => part.isNotEmpty).join(', '),
+          color: scheme.surfaceContainerHigh,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ArrivingPicture(
+                progress: arriving ? progress : null,
+                unsaved: !arriving && !here,
+                ghost: Cover(item: item, extent: constraints.biggest.longestSide, bare: true),
+                child: Cover(item: item, extent: constraints.biggest.longestSide),
+              ),
+              PositionedDirectional(
+                start: 6,
+                end: 6,
+                bottom: 6,
+                child: Align(
+                  alignment: AlignmentDirectional.bottomStart,
+                  // A tag on a picture grows a little with the system font, not all the way.
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.3,
+                    child: ExcludeSemantics(child: PictureTag(icon: tag.icon, text: tag.text)),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: _gap),
-            Expanded(
-              child: ExcludeSemantics(
-                child: TitleText(item.title, maxLines: 2, style: theme.textTheme.titleMedium),
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
+}
 
-  IconData get _kindIcon => switch (item.kind) {
-        MediaKind.photo => Icons.photo_outlined,
-        MediaKind.audio => Icons.graphic_eq_rounded,
-        MediaKind.video => Icons.videocam_outlined,
-      };
+/// White words on a dark scrim, readable over any picture.
+class PictureTag extends StatelessWidget {
+  const PictureTag({super.key, required this.icon, required this.text});
+  final IconData icon;
+  final String text;
 
-  Widget _busy(BuildContext context) {
-    final label = Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white);
-    final white = TextButton.styleFrom(foregroundColor: Colors.white);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (item.status == LibraryItem.statusDownloading)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: LinearProgressIndicator(
-              value: progress,
-              color: Colors.white,
-              backgroundColor: Colors.white30,
-            ),
-          ),
-        Text(
-          item.status == LibraryItem.statusDownloading
-              ? (converting ? s.converting : s.downloading)
-              : item.status == LibraryItem.statusPaused
-                  ? s.paused
-                  : s.queued,
-          style: label,
-          textAlign: TextAlign.center,
-        ),
-        Wrap(
-          alignment: WrapAlignment.center,
-          children: [
-            if (onPause != null && item.status == LibraryItem.statusDownloading)
-              TextButton(onPressed: onPause, style: white, child: Text(s.pause)),
-            if (onResume != null && item.status == LibraryItem.statusPaused)
-              TextButton(onPressed: onResume, style: white, child: Text(s.resume)),
-            if (onCancel != null) TextButton(onPressed: onCancel, style: white, child: Text(s.cancel)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _stopped(BuildContext context, {required bool missing}) {
-    final label = Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white);
-    final text = missing
-        ? s.missingFile
-        : item.status == LibraryItem.statusCancelled
-            ? s.cancelled
-            : item.error.isEmpty
-                ? s.downloadFailed
-                : s.failure(Failure.named(item.error));
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(text, style: label, textAlign: TextAlign.center),
-        if (onRetry != null)
-          TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(foregroundColor: Colors.white),
-            child: Text(missing ? s.downloadAgain : s.retry, textAlign: TextAlign.center),
-          ),
-      ],
-    );
-  }
-
-  /// [plain] leaves the icon out, for when a status sits in the middle.
-  Widget _cover(BuildContext context, double width, {bool plain = false}) {
-    final fallback = plain
-        ? const SizedBox.shrink()
-        : Center(child: Icon(_kindIcon, color: Theme.of(context).colorScheme.onSurfaceVariant));
-    // Decoded no larger than the tile needs: a full-size photo per tile would fill the memory.
-    final side = (width / coverRatio * MediaQuery.devicePixelRatioOf(context) * 1.5).round();
-    Widget fromFile(File file, Widget Function() otherwise) => Image(
-          image: ResizeImage(FileImage(file), width: side, height: side, policy: ResizeImagePolicy.fit),
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => otherwise(),
-        );
-    final thumb = item.thumbnail;
-    final online = thumb != null && thumb.startsWith('http');
-    final thumbFile = thumb != null && !online && File(thumb).existsSync() ? File(thumb) : null;
-    Widget fromThumb() {
-      if (online) {
-        return CachedNetworkImage(imageUrl: thumb, fit: BoxFit.cover, errorWidget: (_, _, _) => fallback);
-      }
-      return thumbFile == null ? fallback : fromFile(thumbFile, () => fallback);
-    }
-
-    final first = item.paths.isEmpty ? null : File(item.paths.first);
-    final saved = first != null && first.existsSync();
-    // A saved photo is its own cover: sharper than the site's thumbnail, and there offline.
-    if (saved && item.kind == MediaKind.photo) return fromFile(first, fromThumb);
-    if (online || thumbFile != null) return fromThumb();
-    return saved ? fromFile(first, () => fallback) : fallback;
-  }
-
-  Widget _chip(BuildContext context, String label, {IconData? icon}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: NazzilColors.photoScrim,
-        borderRadius: BorderRadius.circular(NazzilRadius.small),
+        borderRadius: BorderRadius.circular(NazzilRadius.tag),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 13, color: Colors.white),
-            const SizedBox(width: 4),
-          ],
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(fontSize: 12, color: Colors.white),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(5, 3, 7, 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(icon, size: 15, color: NazzilColors.onPhoto),
             ),
-          ),
-        ],
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                text,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: NazzilColors.onPhoto),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

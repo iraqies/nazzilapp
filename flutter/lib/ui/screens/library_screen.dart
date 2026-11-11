@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../data/platforms.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
 import '../widgets/heading.dart';
+import '../widgets/item_sheet.dart';
 import '../widgets/library_tile.dart';
-import '../widgets/nazzil_chip.dart';
-import '../widgets/segmented.dart';
 import '../widgets/state_message.dart';
-import '../widgets/title_text.dart';
-import 'viewer_screen.dart';
+import '../widgets/tappable.dart';
+import '../widgets/top_bar.dart';
 
 class LibraryScreen extends StatelessWidget {
-  const LibraryScreen({super.key, required this.controller, this.showAddLink = true});
+  const LibraryScreen({super.key, required this.controller, required this.onSettings, this.wide = false});
   final NazzilController controller;
+  final VoidCallback onSettings;
 
-  /// Off when the link box sits beside the library, as on a wide window.
-  final bool showAddLink;
+  /// Beside the link pane on a wide window: the shell draws the header, and
+  /// an empty library has no "Add a link" to offer, since the link pane is in view.
+  final bool wide;
 
   static const _maxTile = 220.0;
-  static const _gap = 12.0;
+  static const _gap = 2.0;
 
   @override
   Widget build(BuildContext context) {
@@ -28,105 +28,101 @@ class LibraryScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final items = controller.visibleLibrary;
     final platforms = controller.libraryPlatforms;
-    return CustomScrollView(
-      key: const PageStorageKey('library'),
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
-          sliver: SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Heading(s.library),
-                if (controller.library.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(s.itemsN(items.length), style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 16),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: SegmentedChoice(
-                      value: controller.libraryKind,
-                      options: [
-                        ('all', s.filterAll),
-                        ('photos', s.filterPhotos),
-                        ('videos', s.filterVideos),
-                        ('audio', s.filterAudio),
-                      ],
-                      onChanged: controller.setLibraryKind,
+    final arabic = s.isAr;
+    return Padding(
+      // The wall stops below the status bar, so no picture passes behind the clock.
+      padding: EdgeInsets.only(top: wide ? 0 : MediaQuery.paddingOf(context).top),
+      child: CustomScrollView(
+        key: const PageStorageKey('library'),
+        slivers: [
+          if (!wide) SliverToBoxAdapter(child: TopBar(controller: controller, onSettings: onSettings)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, wide ? 20 : 8, 20, 0),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 12,
+                children: [
+                  Heading(s.library),
+                  if (controller.library.isNotEmpty)
+                    Padding(
+                      // Sets the count on the baseline of the heading beside it.
+                      padding: EdgeInsets.only(bottom: arabic ? 9 : 5),
+                      child: Text(s.itemsN(items.length), style: theme.textTheme.bodySmall),
                     ),
-                  ),
                 ],
-                if (platforms.length > 1 || controller.libraryPlatform != 'all') ...[
-                  const SizedBox(height: 10),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.all(2),
-                    child: Row(
-                      children: [
-                        for (final option in [
-                          ('all', s.filterAllApps),
-                          for (final platform in platforms) (platform.name, s.platformName(platform)),
-                        ])
-                          Padding(
-                            padding: const EdgeInsetsDirectional.only(end: 8),
-                            child: NazzilChip(
-                              label: option.$2,
-                              selected: controller.libraryPlatform == option.$1,
-                              onTap: () => controller.setLibraryPlatform(option.$1),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
-        ),
-        if (items.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: controller.library.isEmpty
-                ? StateMessage(
-                    title: s.emptyLibrary,
-                    body: s.emptyLibraryHint,
-                    actions: [if (showAddLink) (s.addLink, () => controller.goTab(0))],
-                  )
-                : StateMessage(
-                    title: s.emptyFilter,
-                    actions: [(s.showAll, controller.clearLibraryFilters)],
+          if (controller.library.isNotEmpty)
+            SliverToBoxAdapter(
+              child: FocusTraversalGroup(
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(11, 4, 10, 4),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Wrap(
+                          children: [
+                            for (final kind in [
+                              ('all', s.filterAll),
+                              ('photos', s.filterPhotos),
+                              ('videos', s.filterVideos),
+                              ('audio', s.filterAudio),
+                            ])
+                              _KindTab(
+                                label: kind.$2,
+                                active: controller.libraryKind == kind.$1,
+                                onTap: () => controller.setLibraryKind(kind.$1),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (platforms.length > 1 || controller.libraryPlatform != 'all')
+                        Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: _AppMenu(controller: controller),
+                        ),
+                    ],
                   ),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 40),
-            sliver: SliverLayoutBuilder(
+                ),
+              ),
+            ),
+          if (items.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: controller.library.isEmpty
+                  ? StateMessage(
+                      title: s.emptyLibrary,
+                      body: s.emptyLibraryHint,
+                      actions: [if (!wide) (s.addLink, () => controller.goTab(0))],
+                    )
+                  : StateMessage(
+                      title: s.emptyFilter,
+                      actions: [(s.showAll, controller.clearLibraryFilters)],
+                    ),
+            )
+          else
+            SliverLayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.crossAxisExtent;
                 final columns = ((width + _gap) / (_maxTile + _gap)).ceil().clamp(2, 12);
-                final tile = (width - _gap * (columns - 1)) / columns;
                 return SliverGrid(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final item = items[index];
-                      final kept = controller.libraryStore.stillHave(item);
-                      final stopped = item.status == LibraryItem.statusFailed ||
-                          item.status == LibraryItem.statusCancelled;
                       final running = item.id == controller.activeJobId;
-                      final converting = running && controller.converting;
                       return LibraryTile(
                         item: item,
                         s: s,
-                        kept: kept,
+                        kept: controller.libraryStore.stillHave(item),
                         progress: running ? controller.progress : null,
-                        converting: converting,
-                        onOpen: () => _open(context, item),
-                        onCancel: item.active ? () => controller.cancelJob(item) : null,
-                        onPause: item.status == LibraryItem.statusDownloading && !converting
-                            ? () => controller.pauseJob(item)
-                            : null,
-                        onResume: item.paused ? () => controller.resumeJob(item) : null,
-                        onRetry: stopped || (item.done && !kept) ? () => controller.retryJob(item) : null,
+                        converting: running && controller.converting,
+                        onOpen: () => showItemSheet(context, controller, item),
                       );
                     },
                     childCount: items.length,
@@ -134,132 +130,139 @@ class LibraryScreen extends StatelessWidget {
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
                     crossAxisSpacing: _gap,
-                    mainAxisSpacing: 18,
-                    mainAxisExtent: LibraryTile.heightFor(context, tile),
+                    mainAxisSpacing: _gap,
+                    childAspectRatio: LibraryTile.ratio,
                   ),
                 );
               },
             ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _open(BuildContext context, LibraryItem item) async {
-    final s = controller.s;
-    if (item.pending || item.paused) return;
-    final kept = controller.libraryStore.stillHave(item);
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      sheetAnimationStyle: NazzilMotion.style(context),
-      builder: (sheet) {
-        final error = Theme.of(sheet).colorScheme.error;
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TitleText(item.title, style: Theme.of(sheet).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                if (item.done && kept) ...[
-                  ListTile(
-                    leading: Icon(item.kind == MediaKind.photo ? Icons.photo_outlined : Icons.play_arrow_rounded),
-                    title: Text(item.kind == MediaKind.photo ? s.view : s.play),
-                    onTap: () {
-                      Navigator.pop(sheet);
-                      Navigator.push(
-                        context,
-                        NazzilMotion.route<void>(
-                          context,
-                          (_) => ViewerScreen(controller: controller, item: item),
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    // A phone opens its gallery here; a computer hands the file to another app.
-                    leading: Icon(Platforms.desktop ? Icons.open_in_new_rounded : Icons.photo_library_outlined),
-                    title: Text(s.openGallery),
-                    onTap: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      final motion = NazzilMotion.style(context);
-                      Navigator.pop(sheet);
-                      if (await controller.openInGallery(item)) return;
-                      messenger.showSnackBar(SnackBar(content: Text(s.cantOpen)), snackBarAnimationStyle: motion);
-                    },
-                  ),
-                  if (Platforms.fileShare)
-                    ListTile(
-                      leading: const Icon(Icons.ios_share_rounded),
-                      title: Text(s.share),
-                      onTap: () {
-                        Navigator.pop(sheet);
-                        controller.shareItem(item);
-                      },
-                    ),
-                ] else
-                  ListTile(
-                    leading: const Icon(Icons.refresh_rounded),
-                    title: Text(item.done ? s.downloadAgain : s.retry),
-                    onTap: () {
-                      Navigator.pop(sheet);
-                      controller.retryJob(item);
-                    },
-                  ),
-                ListTile(
-                  leading: const Icon(Icons.link_rounded),
-                  title: Text(s.original),
-                  onTap: () {
-                    Navigator.pop(sheet);
-                    controller.openOriginal(item.sourceUrl);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.delete_outline, color: error),
-                  title: Text(s.delete, style: TextStyle(color: error)),
-                  onTap: () {
-                    Navigator.pop(sheet);
-                    _delete(context, item);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Asks first only when a saved file would go with the entry.
-  Future<void> _delete(BuildContext context, LibraryItem item) async {
-    final s = controller.s;
-    if (!controller.libraryStore.stillHave(item)) {
-      await controller.remove(item);
-      return;
-    }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: NazzilMotion.style(context),
-      builder: (dialog) => AlertDialog(
-        title: Text(s.deleteTitle),
-        content: Text(s.deleteBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(dialog).colorScheme.onSurface),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(dialog).colorScheme.error),
-            child: Text(s.delete),
-          ),
         ],
       ),
     );
-    if (confirmed == true) await controller.remove(item);
+  }
+}
+
+/// A kind filter: plain words, underlined when picked.
+class _KindTab extends StatelessWidget {
+  const _KindTab({required this.label, required this.active, required this.onTap});
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Tappable(
+      onTap: onTap,
+      selected: active,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: active ? scheme.onSurface : Colors.transparent, width: 2),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: active ? scheme.onSurface : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The app filter: one button that names the pick and opens the list.
+class _AppMenu extends StatelessWidget {
+  const _AppMenu({required this.controller});
+  final NazzilController controller;
+
+  Future<void> _open(BuildContext context) async {
+    final s = controller.s;
+    final theme = Theme.of(context);
+    final button = context.findRenderObject()! as RenderBox;
+    final overlay = Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final picked = await showMenu<String>(
+      context: context,
+      popUpAnimationStyle: NazzilMotion.style(context),
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(
+          button.localToGlobal(button.size.bottomLeft(Offset.zero), ancestor: overlay),
+          button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+        ),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final option in [
+          ('all', s.filterAllApps),
+          for (final platform in controller.libraryPlatforms) (platform.name, s.platformName(platform)),
+        ])
+          PopupMenuItem<String>(
+            value: option.$1,
+            height: 48,
+            child: Semantics(
+              selected: controller.libraryPlatform == option.$1,
+              child: Row(
+                children: [
+                  Expanded(child: Text(option.$2)),
+                  const SizedBox(width: 16),
+                  // The tick takes its room on every row, so the names line up.
+                  SizedBox.square(
+                    dimension: 20,
+                    child: controller.libraryPlatform == option.$1
+                        ? Icon(Icons.check_rounded, size: 20, color: theme.colorScheme.onSurface)
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+    if (picked != null) controller.setLibraryPlatform(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = controller.s;
+    final theme = Theme.of(context);
+    // By name, not from the apps present: a filter can outlive the last item it matched.
+    final picked = PlatformId.values.where((p) => p.name == controller.libraryPlatform).firstOrNull;
+    return Tappable(
+      onTap: () => _open(context),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  picked == null ? s.filterAllApps : s.platformName(picked),
+                  style: theme.textTheme.labelLarge,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Icon(Icons.expand_more_rounded, size: 22, color: theme.colorScheme.onSurface),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

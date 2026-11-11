@@ -10,10 +10,11 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/library_screen.dart';
 import 'ui/screens/settings_screen.dart';
 import 'ui/screens/viewer_screen.dart';
+import 'ui/widgets/cover.dart';
 import 'ui/widgets/desktop_input.dart';
 import 'ui/widgets/done_sheet.dart';
-import 'ui/widgets/mark.dart';
 import 'ui/widgets/tappable.dart';
+import 'ui/widgets/top_bar.dart';
 
 class NazzilApp extends StatelessWidget {
   const NazzilApp({super.key, required this.controller});
@@ -61,7 +62,7 @@ class NazzilShell extends StatefulWidget {
 }
 
 class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
-  /// From this width up the link box and the library sit side by side.
+  /// From this width up the link pane and the library sit side by side.
   static const _wide = 960.0;
 
   bool _settings = false;
@@ -89,6 +90,8 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
     }
   }
 
+  void _toggleSettings() => setState(() => _settings = !_settings);
+
   void _view(LibraryItem item) {
     Navigator.push(
       context,
@@ -113,6 +116,8 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
             s: s,
             photos: done.kind == MediaKind.photo,
             onePhoto: done.kind == MediaKind.photo && !done.isAlbum,
+            cover: Cover(item: done, extent: 380),
+            ghost: Cover(item: done, extent: 380, bare: true),
             onView: () {
               Navigator.pop(dialog);
               widget.controller.dismissSheets();
@@ -172,123 +177,88 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     final media = MediaQuery.of(context);
     final wide = media.size.width - media.padding.horizontal >= _wide;
+    // The Tab key walks one group to its end before the next: header, page, tabs,
+    // and on a wide window one pane before the other. A scrolled page cannot cut in.
+    final Widget page;
+    if (wide || _settings) {
+      // One header for the whole window. On a phone each tab draws its own,
+      // because the poster of a fetched post takes the header's place.
+      page = SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: _settings ? 640 : 1280),
+            child: Column(
+              children: [
+                TopBar(controller: controller, onSettings: _toggleSettings, settingsOpen: _settings),
+                if (wide && !_settings) const Divider(),
+                Expanded(
+                  child: FocusTraversalGroup(
+                    child: _settings
+                        ? SettingsScreen(controller: controller)
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 460,
+                                child: FocusTraversalGroup(
+                                  child: HomeScreen(controller: controller, onSettings: _toggleSettings, wide: true),
+                                ),
+                              ),
+                              const VerticalDivider(),
+                              Expanded(
+                                child: FocusTraversalGroup(
+                                  child: LibraryScreen(
+                                    controller: controller,
+                                    onSettings: _toggleSettings,
+                                    wide: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      page = SafeArea(
+        top: false,
+        bottom: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: FocusTraversalGroup(
+              child: controller.tab == 0
+                  ? HomeScreen(controller: controller, onSettings: _toggleSettings)
+                  : LibraryScreen(controller: controller, onSettings: _toggleSettings),
+            ),
+          ),
+        ),
+      );
+    }
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      value: NazzilTheme.overlay(theme.brightness, theme.colorScheme.surface),
       child: DesktopInput(
         controller: controller,
         child: Scaffold(
           // The tabs sit in this slot so a snack bar floats above them, not over them.
           bottomNavigationBar: _settings || wide
               ? null
-              : FocusTraversalGroup(
-                  child: SafeArea(
-                    top: false,
-                    child: Center(
-                      heightFactor: 1,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 640),
-                        child: _Tabs(controller: controller),
-                      ),
-                    ),
-                  ),
-                ),
-          body: FocusTraversalGroup(
-            child: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: wide && !_settings ? 1280 : 640),
-                  child: Column(
-                    children: [
-                      // The Tab key walks one group to its end before the next: header, page, tabs,
-                      // and on a wide window one pane before the other. A scrolled page cannot cut in.
-                      FocusTraversalGroup(child: _header(context)),
-                      Expanded(
-                        child: FocusTraversalGroup(
-                          child: _settings
-                              ? SettingsScreen(controller: controller)
-                              : wide
-                                  ? Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(
-                                          width: 460,
-                                          child: FocusTraversalGroup(child: HomeScreen(controller: controller)),
-                                        ),
-                                        const VerticalDivider(),
-                                        Expanded(
-                                          child: FocusTraversalGroup(
-                                            child: LibraryScreen(controller: controller, showAddLink: false),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : controller.tab == 0
-                                      ? HomeScreen(controller: controller)
-                                      : LibraryScreen(controller: controller),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+              : FocusTraversalGroup(child: _Tabs(controller: controller)),
+          body: page,
         ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    final controller = widget.controller;
-    final s = controller.s;
-    final theme = Theme.of(context);
-    final working = controller.downloading || controller.loading || controller.library.any((e) => e.paused);
-    final doing = controller.converting ? s.converting : s.downloading;
-    final status = controller.downloading
-        ? (controller.queuedCount > 0 ? '$doing · ${s.waitingN(controller.queuedCount)}' : doing)
-        : controller.library.any((e) => e.paused)
-            ? s.paused
-            : controller.loading
-                ? s.fetching
-                : s.ready;
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(22, 6, 10, 6),
-      child: Row(
-        children: [
-          const Mark(),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_settings ? s.settings : s.appName, style: theme.textTheme.titleLarge),
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    status,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: working ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: _settings ? s.back : s.settings,
-            onPressed: () => setState(() => _settings = !_settings),
-            icon: Icon(_settings ? Icons.arrow_back_rounded : Icons.settings_outlined),
-          ),
-        ],
       ),
     );
   }
 }
 
+/// Home and Library, along the bottom of a phone.
 class _Tabs extends StatelessWidget {
   const _Tabs({required this.controller});
   final NazzilController controller;
@@ -298,52 +268,61 @@ class _Tabs extends StatelessWidget {
     final s = controller.s;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final items = [(s.home, Icons.home_outlined), (s.library, Icons.photo_library_outlined)];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(NazzilRadius.card),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Row(
-            spacing: 4,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final active = controller.tab == i;
-                      final ink = active ? scheme.onPrimaryContainer : scheme.onSurfaceVariant;
-                      return Tappable(
-                        onTap: () => controller.goTab(i),
-                        selected: active,
-                        color: active ? scheme.primaryContainer : Colors.transparent,
-                        side: active ? BorderSide(color: scheme.primary, width: 1.5) : BorderSide.none,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 48),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                            child: Wrap(
-                              alignment: WrapAlignment.center,
-                              runAlignment: WrapAlignment.center,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 6,
-                              children: [
-                                Icon(items[i].$2, size: 18, color: ink),
-                                Text(items[i].$1, style: theme.textTheme.labelLarge?.copyWith(color: ink)),
-                              ],
+    final items = [
+      (s.home, Icons.home_outlined, Icons.home_rounded),
+      (s.library, Icons.photo_library_outlined, Icons.photo_library_rounded),
+    ];
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final active = controller.tab == i;
+                          // The open tab is told apart by a filled icon as well as a brighter one.
+                          final ink = active ? scheme.onSurface : scheme.onSurfaceVariant;
+                          return Tappable(
+                            onTap: () => controller.goTab(i),
+                            selected: active,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minHeight: 56),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(active ? items[i].$3 : items[i].$2, size: 25, color: ink),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      items[i].$1,
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.labelSmall?.copyWith(color: ink),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

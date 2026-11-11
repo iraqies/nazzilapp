@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/media.dart';
-import 'nazzil_chip.dart';
+import 'choice_row.dart';
 
 class QualitySwitch extends StatelessWidget {
   const QualitySwitch({
@@ -30,31 +30,12 @@ class QualitySwitch extends StatelessWidget {
     };
   }
 
-  IconData _icon(QualityOption option) {
-    return switch (option.kind) {
-      MediaKind.photo => option.photoUrls.length == 1 ? Icons.photo_outlined : Icons.photo_library_outlined,
-      MediaKind.audio => Icons.graphic_eq_rounded,
-      MediaKind.video when option.photoUrls.isNotEmpty => Icons.slideshow_outlined,
-      MediaKind.video when option.label == 'HD' => Icons.hd_outlined,
-      MediaKind.video when option.label == 'SD' => Icons.sd_outlined,
-      MediaKind.video => Icons.videocam_outlined,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final option in options)
-          NazzilChip(
-            label: _label(option),
-            icon: _icon(option),
-            selected: option.id == selected?.id,
-            onTap: () => onSelect(option),
-          ),
-      ],
+    return ChoiceRow<String>(
+      value: selected?.id,
+      options: [for (final option in options) (option.id, _label(option))],
+      onChanged: (id) => onSelect(options.firstWhere((option) => option.id == id)),
     );
   }
 }
