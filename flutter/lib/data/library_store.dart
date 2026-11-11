@@ -32,9 +32,15 @@ class LibraryStore {
     );
   }
 
+  /// Whether a finished download still has a file. A file with nothing in it is not one:
+  /// a phone that loses power as a download lands keeps the name and none of the bytes.
   bool stillHave(LibraryItem item) {
     if (item.active) return false;
-    return item.paths.any((path) => path.isNotEmpty && File(path).existsSync());
+    return item.paths.any((path) {
+      if (path.isEmpty) return false;
+      final stat = FileStat.statSync(path);
+      return stat.type == FileSystemEntityType.file && stat.size > 0;
+    });
   }
 
   LibraryItem? findKept({

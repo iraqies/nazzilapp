@@ -954,6 +954,26 @@ void main() {
     expect(find.widgetWithText(ListTile, 'الأصل'), findsOneWidget);
   });
 
+  testWidgets('library: a file with nothing in it is taken for gone', (tester) async {
+    final cut = entry('cut', PlatformId.tiktok, MediaKind.video, onDisk: true, title: 'Cut short');
+    File(cut.paths.single).writeAsBytesSync(const []);
+    final controller = await boot(tester, library: [cut]);
+    await tester.tap(tab('Library'));
+    await tester.pumpAndSettle();
+    expect(find.text('File was removed'), findsOneWidget);
+    await tester.tap(find.byType(LibraryTile));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Play'), findsNothing, reason: 'there is nothing to play');
+    expect(find.widgetWithText(ListTile, 'Download again'), findsOneWidget);
+    // Nothing would be lost with it, so Delete does not ask.
+    await tester.tap(find.text('Delete'));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this download?'), findsNothing);
+    expect(controller.library, isEmpty);
+    expect(File(cut.paths.single).existsSync(), isFalse);
+  });
+
   testWidgets('library: delete asks first when a file would go with it', (tester) async {
     final controller = await boot(
       tester,
@@ -1111,26 +1131,6 @@ void main() {
     expect(find.textContaining('No app on this phone'), findsNothing);
   });
 
-  testWidgets('library sheet: a video says which quality it was saved in, in the words of the quality buttons', (tester) async {
-    final controller = await boot(
-      tester,
-      size: const Size(360, 1200),
-      library: [
-        entry('hd', PlatformId.reddit, MediaKind.video, onDisk: true),
-        entry('sd', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'SD'),
-        entry('gif', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'GIF'),
-        entry('show', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'Video'),
-        entry('sound', PlatformId.reddit, MediaKind.audio, onDisk: true, quality: 'Audio'),
-      ],
-    );
-    await tester.tap(tab('Library'));
-    await tester.pumpAndSettle();
-    Future<void> facts(int tile, String line) async {
-      await tester.tap(find.byType(LibraryTile).at(tile));
-      await tester.pumpAndSettle();
-      expect(find.text(line), findsOneWidget);
-      await tester.tapAt(const Offset(180, 40));
-      await tester.pumpAndSettle();
   testWidgets('library sheet: its rows go on working when the page under it has changed', (tester) async {
     final controller = await boot(
       tester,
@@ -1176,6 +1176,26 @@ void main() {
     expect(find.byType(ViewerScreen), findsOneWidget);
   });
 
+  testWidgets('library sheet: a video says which quality it was saved in, in the words of the quality buttons', (tester) async {
+    final controller = await boot(
+      tester,
+      size: const Size(360, 1200),
+      library: [
+        entry('hd', PlatformId.reddit, MediaKind.video, onDisk: true),
+        entry('sd', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'SD'),
+        entry('gif', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'GIF'),
+        entry('show', PlatformId.reddit, MediaKind.video, onDisk: true, quality: 'Video'),
+        entry('sound', PlatformId.reddit, MediaKind.audio, onDisk: true, quality: 'Audio'),
+      ],
+    );
+    await tester.tap(tab('Library'));
+    await tester.pumpAndSettle();
+    Future<void> facts(int tile, String line) async {
+      await tester.tap(find.byType(LibraryTile).at(tile));
+      await tester.pumpAndSettle();
+      expect(find.text(line), findsOneWidget);
+      await tester.tapAt(const Offset(180, 40));
+      await tester.pumpAndSettle();
     }
 
     await facts(0, 'Reddit · Video · HD');
