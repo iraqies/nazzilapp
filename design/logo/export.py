@@ -25,6 +25,10 @@ FLUTTER = os.path.normpath(os.path.join(HERE, '..', '..', 'flutter'))
 ANDROID = os.path.join(FLUTTER, 'android', 'app', 'src', 'main', 'res')
 OUT = os.path.join(HERE, 'chosen')
 
+# The page and the text of the app's dark theme (nazzil_theme.dart), for a phone that is set dark.
+NIGHT_PAPER = '#000000'
+NIGHT_INK = '#F5F3EE'
+
 
 def write(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -94,6 +98,40 @@ def android(mark):
     write(os.path.join(drawable, 'ic_launcher_foreground.xml'), android_vector(mark, 108, scale, (INK, ROSE)))
     # A themed icon is one colour, which the launcher picks.
     write(os.path.join(drawable, 'ic_launcher_monochrome.xml'), android_vector(mark, 108, scale, ('#000000', '#000000')))
+    launch(mark, scale)
+
+
+def launch(mark, scale):
+    """What the phone shows while the app starts: the word on the page, light or dark as the phone is."""
+    drawable = os.path.join(ANDROID, 'drawable')
+    # The letters are named and not coloured here, so the dark phone gets light ones.
+    write(os.path.join(drawable, 'launch_logo.xml'), android_vector(mark, 108, scale, ('@color/launch_ink', ROSE)))
+    for folder, paper, ink in (('values', PAPER, INK), ('values-night', NIGHT_PAPER, NIGHT_INK)):
+        write(os.path.join(ANDROID, folder, 'colors.xml'), f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Written by design/logo/export.py. -->
+<resources>
+    <color name="launch_bg">{paper}</color>
+    <color name="launch_ink">{ink}</color>
+</resources>
+""")
+    # Android 12 and later draw the word themselves, 288 dp square, and show the middle of it.
+    # The picture under it is the same size, so nothing moves when one gives way to the other.
+    # It names a drawing and not the icon: the icon is not a picture file, and a launch screen
+    # that asks for one as a picture is left blank.
+    for folder in ('drawable', 'drawable-v21'):
+        write(os.path.join(ANDROID, folder, 'launch_background.xml'), """\
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Written by design/logo/export.py. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_bg" />
+    <item
+        android:width="288dp"
+        android:height="288dp"
+        android:drawable="@drawable/launch_logo"
+        android:gravity="center" />
+</layer-list>
+""")
 
 
 def pictures(mark):

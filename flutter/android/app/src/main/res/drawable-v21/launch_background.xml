@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Written by design/logo/export.py. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/launch_bg" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/ic_launcher" />
-    </item>
+    <item
+        android:width="288dp"
+        android:height="288dp"
+        android:drawable="@drawable/launch_logo"
+        android:gravity="center" />
 </layer-list>
