@@ -20,7 +20,7 @@ MOTION 2: motion reports the download. Colour moves across the poster as the fil
 
 Nazzil, نزّل, is Arabic for "download", said as a command. The app keeps that tone: buttons are one-word commands in Iraqi dialect (جيب, نزّل, كمّل, وقّف, سكّر), and statuses are one or two words. The Arabic is Iraqi, not formal Arabic, because the app is made for people who talk that way.
 
-The motif is colour arriving. A post that is not saved yet is grey. It turns to colour from the leading edge as the download runs, with a thin line of the picked colour at the front. The same grey marks everything that is not on the device: a waiting, paused, failed or removed item in the library is grey, and a saved one is in colour. The user reads the state of a download from the picture before reading a word.
+The motif is colour arriving. A fetched post shows in colour, as it looks where it came from. When its download starts the picture goes grey, and colour comes back across it from the leading edge as the file arrives, with a thin line of the picked colour at the front. The same grey marks everything that was asked for and is not on the device: a waiting, paused, failed or removed item is grey, and a saved one is in colour. The user reads the state of a download from the picture before reading a word.
 
 The second motif is the frame. Home opens on an empty dashed frame that asks for a link. The fetched post fills it. The library is frames edge to edge, and the last saves run along the bottom of Home as a strip.
 
@@ -46,13 +46,13 @@ Archivo sets Latin text. Its narrow cuts are the lettering of film posters and t
 
 Changa sets Arabic. Archivo has no Arabic letters, so Arabic falls through to it, while a Latin title inside the Arabic app still shows in Archivo. Changa is drawn with the same sturdy, squared shapes and goes up to weight 800, so an Arabic heading carries the same weight as an English one. Arabic lines are set taller for the marks above and below the letters, and letter spacing is always zero in Arabic because spacing breaks the joins.
 
-The scale: percentage 88, screen heading 42 (36 in Arabic), post title 30, frame prompt 26, section label 17, body 16 and 15, small 13.5. Sizes follow the system font size. The large sizes follow it up to 1.3 times, since they are already large.
+The scale: percentage 88, screen heading 42 (36 in Arabic), post title 30, frame prompt 26, dialog title 21, section label 17, body 16 and 15, small 14 and 13.5, tab label 12.5. Sizes follow the system font size. The large sizes follow it up to 1.3 times, since they are already large.
 
 ## Shape, surface and spacing
 
 Pictures have square corners, because they are frames cut from a film. Controls have corners of 8, sheets and dialogs 12, tags 4. Nothing is a pill.
 
-Surfaces are flat. There are no shadows, glows or decorative gradients. One gradient exists: a black fade over the top of a poster that runs under the phone's status bar, so the clock and battery stay readable over a bright picture.
+Surfaces are flat. There are no shadows, glows or decorative gradients. One gradient exists: a black fade over the top of a poster that runs under the phone's status bar, so the clock and battery stay readable over a bright picture. A post that came with no picture gets no fade.
 
 Spacing is 20 at the screen edge, 28 between groups and 8 to 16 inside a group. Pictures ignore the edge spacing: the poster and the library wall run to the screen edge, and 2 separates one wall tile from the next.
 
@@ -62,9 +62,11 @@ Anything tappable is at least 48 high.
 
 On a phone each screen is one column, at most 640 wide, with two tabs at the bottom: Home and Library. Settings opens from the header and takes the place of both.
 
-Home, with nothing fetched: the header, the frame, one button, the list of supported apps, and the strip of last saves along the bottom. The frame is also the link field: tapping it lets the user type or edit a link. The button names the next step, so it reads Paste while the frame is empty and Fetch once it holds a link.
+The header holds the name and the way into Settings. Under the name it says what is going on, on every screen: downloading or converting, how many wait behind it, or that something is paused. With nothing going on it says nothing.
 
-Home, with a post fetched: the poster runs from the top edge of the screen, in the shape of the picture, up to 58% of the screen height. Under it sit where the post is from, its title, the choices and one Download button. While it downloads, the button gives way to a status line with Pause and Cancel, and the percentage stands on the poster. The close button on the poster empties the frame again.
+Home, with nothing fetched: the header, the frame, one button, the list of supported apps, and the strip of last saves along the bottom. The frame takes the room the rest leaves and is never flatter than 16 to 9. It is also the link field: tapping it lets the user type or edit a link. The button names the next step, so it reads Paste while the frame is empty and Fetch once it holds a link.
+
+Home, with a post fetched: the poster runs from the top edge of the screen, in the shape of the picture. It is never flatter than 16 to 9, and never taller than 62% of the screen or than what leaves 300 for the controls under it. Under it sit where the post is from, its title, the choices and one Download button. While it downloads, the button gives way to a status line with Pause and Cancel, and the percentage stands on the poster. The close button on the poster empties the frame again.
 
 Library: the heading and count, the kind filters as text tabs, the app filter as a menu, then the wall. Tiles are 3 by 4, two across on a phone and more as the width allows, no wider than 220. A tile carries one tag (what it is, or what state it is in) and no title. Tapping a tile opens a sheet with its title and every action for it. The picture gets the space because it is how people recognise a download.
 
@@ -88,7 +90,7 @@ Dark (the default), light, or follow the system. The tests in `flutter/test/` me
 
 ## Open to the owner
 
-The Arabic wording added with the remake (the frame prompt and its hint, "no link on the clipboard", the Recent label) was written by the agent and is his to correct, like the lines added in the fix pass.
+The Arabic wording added with the remake was written by the agent and is his to correct, like the lines added in the fix pass. New: the Recent label (آخر التحميلات) and the two lines for a clipboard with no link (ماكو رابط منسوخ. and انسخ رابط المنشور أول.). The frame prompt and its hint are cut from lines the app already had.
 
 The app locks to portrait (`flutter/lib/main.dart`). Whether tablets should rotate is his call.
 
