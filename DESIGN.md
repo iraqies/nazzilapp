@@ -6,7 +6,7 @@ It covers the Flutter app in `flutter/`.
 
 ## Design read
 
-Reading this as: a personal media saver for Iraqi phone users, phone first and desktop second, in a screening room style where the interface is black and white and the saved picture is the only colour, dial ENERGY 2 / RHYTHM 2 / MOTION 2.
+Reading this as: a personal media saver for people who read Arabic or English, phone first and desktop second, in a screening room style where the interface is black and white and the saved picture is the only colour, dial ENERGY 2 / RHYTHM 2 / MOTION 2.
 
 Dial: ENERGY 2 / RHYTHM 2 / MOTION 2
 
@@ -18,7 +18,9 @@ MOTION 2: motion reports the download. Colour moves across the poster as the fil
 
 ## Identity
 
-Nazzil, نزّل, is Arabic for "download", said as a command. The app keeps that tone: buttons are one-word commands in Iraqi dialect (جيب, نزّل, كمّل, وقّف, سكّر), and statuses are one or two words. The Arabic is Iraqi, not formal Arabic, because the app is made for people who talk that way.
+Nazzil, نزّل, is Arabic for "download", said as a command. The app keeps that tone: buttons are short commands (الصق, اجلب, نزّل, استأنف, أغلق), and statuses are one or two words.
+
+The Arabic is standard Arabic (فصحى), by the owner's call on 2026-11-11. Before that the app spoke Iraqi dialect. A count takes the form its number asks for (صورتان, 3 صور, 11 صورة). A test in `flutter/test/strings_test.dart` fails if a dialect word comes back.
 
 The motif is colour arriving. A fetched post shows in colour, as it looks where it came from. When its download starts the picture goes grey, and colour comes back across it from the leading edge as the file arrives, with a thin line of the picked colour at the front. The same grey marks everything that was asked for and is not on the device: a waiting, paused, failed or removed item is grey, and a saved one is in colour. The user reads the state of a download from the picture before reading a word.
 
@@ -90,7 +92,7 @@ Dark (the default), light, or follow the system. The tests in `flutter/test/` me
 
 ## Open to the owner
 
-The Arabic wording added with the remake was written by the agent and is his to correct, like the lines added in the fix pass. New: the Recent label (آخر التحميلات) and the two lines for a clipboard with no link (ماكو رابط منسوخ. and انسخ رابط المنشور أول.). The frame prompt and its hint are cut from lines the app already had.
+Every Arabic line was rewritten in standard Arabic by the agent on 2026-11-11, at the owner's request, and is his to correct. Two choices in it are his to confirm. Buttons stay commands (نزّل, الصق, احذف) and are not the nouns phone systems use (تنزيل, لصق, حذف). The name is written نزل in the app, without its shadda, as it was before.
 
 The app locks to portrait (`flutter/lib/main.dart`). Whether tablets should rotate is his call.
 

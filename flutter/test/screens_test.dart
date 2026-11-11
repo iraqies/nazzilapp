@@ -367,7 +367,7 @@ void main() {
 
     await controller.setLanguage('ar');
     await tester.pumpAndSettle();
-    expect(find.text('هذا الرابط مو من تطبيق مدعوم بعد.'), findsOneWidget);
+    expect(find.text('هذا الرابط ليس من تطبيق مدعوم بعد.'), findsOneWidget);
     await controller.setLanguage('en');
     await tester.pumpAndSettle();
 
@@ -765,7 +765,7 @@ void main() {
     expect(find.byTooltip('رجوع'), findsOneWidget);
     await tester.tap(find.byTooltip('رجوع'));
     await tester.pumpAndSettle();
-    expect(find.text('الصق رابط'), findsOneWidget);
+    expect(find.text('الصق رابطًا'), findsOneWidget);
     expect(find.text('نزل'), findsOneWidget);
   });
 
@@ -838,9 +838,9 @@ void main() {
     );
     await tester.tap(tab('التحميلات'));
     await tester.pumpAndSettle();
-    expect(find.text('النت انقطع.'), findsOneWidget);
+    expect(find.text('انقطع الاتصال.'), findsOneWidget);
     expect(find.text('أُلغي'), findsOneWidget);
-    expect(find.text('الملف انحذف'), findsOneWidget);
+    expect(find.text('حُذف الملف'), findsOneWidget);
 
     Future<void> open(int index) async {
       await tester.tap(find.byType(LibraryTile).at(index));
@@ -853,19 +853,19 @@ void main() {
     }
 
     await open(0);
-    expect(find.text('النت انقطع.'), findsNWidgets(2), reason: 'on the picture and in its sheet');
-    expect(find.widgetWithText(ListTile, 'حاول مرة ثانية'), findsOneWidget);
+    expect(find.text('انقطع الاتصال.'), findsNWidgets(2), reason: 'on the picture and in its sheet');
+    expect(find.widgetWithText(ListTile, 'أعد المحاولة'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'شغّل'), findsNothing, reason: 'nothing to play yet');
     await close();
 
     await open(1);
     expect(find.text('أُلغي'), findsNWidgets(2));
-    expect(find.widgetWithText(ListTile, 'حاول مرة ثانية'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'أعد المحاولة'), findsOneWidget);
     await close();
 
     await open(2);
-    expect(find.text('الملف انحذف'), findsNWidgets(2));
-    expect(find.widgetWithText(ListTile, 'نزّله مرة ثانية'), findsOneWidget);
+    expect(find.text('حُذف الملف'), findsNWidgets(2));
+    expect(find.widgetWithText(ListTile, 'نزّله مرة أخرى'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'الأصل'), findsOneWidget);
   });
 

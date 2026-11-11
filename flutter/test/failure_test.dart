@@ -75,7 +75,7 @@ void main() {
     expect(s.failureLine(Failure.network), 'Connection dropped. Try again.');
     expect(s.failureLine(Failure.blocked), 'This post blocked the download. Try again later.');
     expect(s.failureLine(Failure.unavailable), 'This post may be private or deleted.');
-    expect(const S('ar').failureLine(Failure.processing), 'الفيديو بعده يتجهز. جرّب بعد شوية.');
+    expect(const S('ar').failureLine(Failure.processing), 'هذا الفيديو ما زال قيد المعالجة. حاول بعد قليل.');
   });
 
   test('a stored failure name survives a round trip, and old text falls back', () {
