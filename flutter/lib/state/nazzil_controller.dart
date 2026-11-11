@@ -27,8 +27,13 @@ class NazzilController extends ChangeNotifier {
   NazzilController({MediaExtractor? extractor, MediaDownloader? downloader})
       : extractor = extractor ?? MediaExtractor(),
         _givenDownloader = downloader {
+    settingsRead = _readSettings();
     _init();
   }
+
+  /// Done once the saved language, theme and colour are read. The app waits for it before
+  /// it draws, so its first frame is not in the defaults with the user's own a moment later.
+  late final Future<void> settingsRead;
 
   final MediaExtractor extractor;
   final MediaDownloader? _givenDownloader;
@@ -127,8 +132,15 @@ class NazzilController extends ChangeNotifier {
     return null;
   }
 
+  Future<void> _readSettings() async {
+    try {
+      settings = await settingsStore.load();
+    } catch (_) {}
+    notifyListeners();
+  }
+
   Future<void> _init() async {
-    settings = await settingsStore.load();
+    await settingsRead;
     library = libraryStore.recoverInterrupted(await libraryStore.all());
     await libraryStore.save(library);
     try {

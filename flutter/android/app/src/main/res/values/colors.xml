@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Written by design/logo/export.py. -->
 <resources>
-    <color name="launch_bg">#F4F2EE</color>
-    <color name="launch_ink">#111111</color>
+    <color name="launch_bg">#000000</color>
+    <color name="launch_ink">#F5F3EE</color>
 </resources>

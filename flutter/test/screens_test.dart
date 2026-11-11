@@ -807,6 +807,28 @@ void main() {
     });
   }
 
+  test('the controller says when the saved settings are read, so the app can wait to draw', () async {
+    SharedPreferences.setMockInitialValues({
+      'nazzil.language': 'ar',
+      'nazzil.theme.v2': 'light',
+      'nazzil.palette': 'emerald',
+    });
+    PackageInfo.setMockInitialValues(
+      appName: 'Nazzil',
+      packageName: 'com.nazzil.nazzil',
+      version: '1.3.0',
+      buildNumber: '22',
+      buildSignature: '',
+    );
+    final controller = NazzilController();
+    expect(controller.settings.language, 'system', reason: 'nothing is read yet, these are the defaults');
+    expect(controller.themeMode, ThemeMode.dark);
+    await controller.settingsRead;
+    expect(controller.s.isAr, isTrue);
+    expect(controller.themeMode, ThemeMode.light);
+    expect(controller.settings.palette, 'emerald');
+  });
+
   test('settings store: dark is the default, and a choice of light made before is kept', () async {
     Future<String> themeFrom(Map<String, Object> stored) async {
       SharedPreferences.setMockInitialValues(stored);

@@ -25,7 +25,7 @@ FLUTTER = os.path.normpath(os.path.join(HERE, '..', '..', 'flutter'))
 ANDROID = os.path.join(FLUTTER, 'android', 'app', 'src', 'main', 'res')
 OUT = os.path.join(HERE, 'chosen')
 
-# The page and the text of the app's dark theme (nazzil_theme.dart), for a phone that is set dark.
+# The page and the text of the app's dark theme (nazzil_theme.dart).
 NIGHT_PAPER = '#000000'
 NIGHT_INK = '#F5F3EE'
 
@@ -102,16 +102,26 @@ def android(mark):
 
 
 def launch(mark, scale):
-    """What the phone shows while the app starts: the word on the page, light or dark as the phone is."""
+    """What the phone shows while the app starts: the word on the page colour of the app's theme.
+
+    The phone draws this before the app runs. From Android 12 the app tells the phone which
+    theme it is set to (MainActivity.followTheme), and the phone picks the day or the night
+    colours to match. Before Android 12 the phone cannot be told, so there the launch screen
+    is always the dark one, which is how the app opens unless the user chose otherwise: a
+    light launch screen in front of a black app is a flash every time it opens.
+    """
     drawable = os.path.join(ANDROID, 'drawable')
-    # The letters are named and not coloured here, so the dark phone gets light ones.
     write(os.path.join(drawable, 'launch_logo.xml'), android_vector(mark, 108, scale, ('@color/launch_ink', ROSE)))
-    for folder, paper, ink in (('values', PAPER, INK), ('values-night', NIGHT_PAPER, NIGHT_INK)):
+    for folder, page, ink in (
+        ('values', NIGHT_PAPER, NIGHT_INK),
+        ('values-v31', PAPER, INK),
+        ('values-night-v31', NIGHT_PAPER, NIGHT_INK),
+    ):
         write(os.path.join(ANDROID, folder, 'colors.xml'), f"""\
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Written by design/logo/export.py. -->
 <resources>
-    <color name="launch_bg">{paper}</color>
+    <color name="launch_bg">{page}</color>
     <color name="launch_ink">{ink}</color>
 </resources>
 """)
