@@ -65,6 +65,7 @@ class _Extractor extends MediaExtractor {
 class _Downloader extends MediaDownloader {
   _Downloader(MediaExtractor extractor) : super(extractor: extractor, gallery: _Gallery(), net: NetClient());
   int runs = 0;
+  final ran = <String>[];
   final entered = Completer<void>();
   final gate = Completer<void>();
 
@@ -79,6 +80,7 @@ class _Downloader extends MediaDownloader {
     int? generation,
   }) async {
     runs += 1;
+    ran.add(media.title);
     if (!entered.isCompleted) entered.complete();
     await gate.future;
     return DownloadResult(files: [for (final path in resumePaths) File(path)], photoCount: 0);
@@ -101,27 +103,33 @@ Future<void> until(NazzilController controller, bool Function() ready) {
   return done.future.timeout(const Duration(seconds: 5));
 }
 
-/// A controller whose library holds one paused download with a part of its file on disk.
+QualityOption get clipOption =>
+    QualityOption(id: 'hd', label: 'HD', ext: 'mp4', kind: MediaKind.video, directUrl: at('video'));
+
+/// A library entry with a part of its file on disk.
+LibraryItem clip(String id, String status) => LibraryItem(
+      id: 'q-yt:$id-HD',
+      title: 'Clip $id',
+      platform: PlatformId.youtube,
+      kind: MediaKind.video,
+      quality: 'HD',
+      createdAt: DateTime.now(),
+      sourceUrl: 'https://example.com/$id',
+      videoKey: 'yt:$id',
+      paths: [(File('${scratch.path}/$id.mp4')..writeAsBytesSync(List.filled(1000, 1))).path],
+      status: status,
+      option: clipOption,
+    );
+
+/// A controller whose library holds one paused download, with [before] above it and [after] under it.
 Future<({NazzilController controller, _Extractor extractor, _Downloader downloader, File partial})> pausedJob(
-  String id,
-) async {
-  final partial = File('${scratch.path}/$id.mp4')..writeAsBytesSync(List.filled(1000, 1));
-  final option = QualityOption(id: 'hd', label: 'HD', ext: 'mp4', kind: MediaKind.video, directUrl: at('video'));
-  final paused = LibraryItem(
-    id: 'q-yt:$id-HD',
-    title: 'Clip $id',
-    platform: PlatformId.youtube,
-    kind: MediaKind.video,
-    quality: 'HD',
-    createdAt: DateTime.now(),
-    sourceUrl: 'https://example.com/$id',
-    videoKey: 'yt:$id',
-    paths: [partial.path],
-    status: LibraryItem.statusPaused,
-    option: option,
-  );
+  String id, {
+  List<LibraryItem> before = const [],
+  List<LibraryItem> after = const [],
+}) async {
+  final paused = clip(id, LibraryItem.statusPaused);
   SharedPreferences.setMockInitialValues({
-    'nazzil.library.v2': jsonEncode([paused.toJson()]),
+    'nazzil.library.v2': jsonEncode([for (final item in [...before, paused, ...after]) item.toJson()]),
   });
   final extractor = _Extractor(
     MediaInfo(
@@ -129,14 +137,14 @@ Future<({NazzilController controller, _Extractor extractor, _Downloader download
       title: paused.title,
       webpageUrl: paused.sourceUrl,
       platform: PlatformId.youtube,
-      options: [option],
+      options: [clipOption],
     ),
   );
   final downloader = _Downloader(extractor);
   final controller = NazzilController(extractor: extractor, downloader: downloader);
   addTearDown(controller.dispose);
   await until(controller, () => controller.library.isNotEmpty);
-  return (controller: controller, extractor: extractor, downloader: downloader, partial: partial);
+  return (controller: controller, extractor: extractor, downloader: downloader, partial: File(paused.paths.single));
 }
 
 void main() {
@@ -258,6 +266,32 @@ void main() {
     await until(job.controller, () => !job.controller.downloading);
     expect(job.controller.library.single.status, LibraryItem.statusDone);
     expect(job.downloader.runs, 1);
+  });
+
+  test('a resumed download keeps its place in the library, and the one resumed last runs next', () async {
+    final job = await pausedJob(
+      'middle',
+      before: [clip('newest', LibraryItem.statusPaused), clip('saved', LibraryItem.statusDone)],
+      after: [clip('oldest', LibraryItem.statusPaused)],
+    );
+    final controller = job.controller;
+    List<String> titles() => [for (final item in controller.library) item.title];
+    LibraryItem named(String id) => controller.library.firstWhere((item) => item.title == 'Clip $id');
+    const order = ['Clip newest', 'Clip saved', 'Clip middle', 'Clip oldest'];
+    expect(titles(), order);
+
+    await controller.resumeJob(named('oldest'));
+    await job.extractor.entered.future;
+    await controller.resumeJob(named('middle'));
+    await controller.resumeJob(named('newest'));
+    expect(titles(), order);
+
+    job.extractor.gate.complete();
+    job.downloader.gate.complete();
+    await until(controller, () => !controller.downloading && controller.queuedCount == 0);
+    expect(job.downloader.ran, ['Clip oldest', 'Clip newest', 'Clip middle']);
+    expect(titles(), order, reason: 'a finished download is where it was when it was asked for');
+    expect([for (final item in controller.library) item.status], everyElement(LibraryItem.statusDone));
   });
 
   test('a resumed download cancelled while its links are refreshed stays cancelled', () async {

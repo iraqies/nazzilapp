@@ -47,6 +47,7 @@ class NazzilController extends ChangeNotifier {
 
   AppSettings settings = const AppSettings();
   List<LibraryItem> library = [];
+  String? _resumedFirst;
   String url = '';
   MediaInfo? media;
   QualityOption? selected;
@@ -392,11 +393,16 @@ class NazzilController extends ChangeNotifier {
 
   Future<void> resumeJob(LibraryItem item) async {
     if (!item.paused && item.status != LibraryItem.statusFailed) return;
-    final next = item.copyWith(status: LibraryItem.statusQueued, error: '');
-    library = [...library.where((e) => e.id != item.id), next];
-    await libraryStore.save(library);
-    notifyListeners();
+    // It runs next but keeps its place: moved to the back of the list it would sit under the oldest saves.
+    _resumedFirst = item.id;
+    await _patch(item.id, item.copyWith(status: LibraryItem.statusQueued, error: ''));
     unawaited(_pump());
+  }
+
+  LibraryItem? _takeResumed() {
+    final item = _byId(_resumedFirst ?? '');
+    _resumedFirst = null;
+    return item?.status == LibraryItem.statusQueued ? item : null;
   }
 
   /// Puts a failed, cancelled or since-removed download back in the queue.
@@ -461,7 +467,7 @@ class NazzilController extends ChangeNotifier {
     try {
       if (Platforms.mobile) await Permission.notification.request();
       while (true) {
-        final job = libraryStore.nextQueued(library);
+        final job = _takeResumed() ?? libraryStore.nextQueued(library);
         if (job == null) break;
         await _runJob(job);
       }
