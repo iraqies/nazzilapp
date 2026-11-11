@@ -454,6 +454,7 @@ class NazzilController extends ChangeNotifier {
     if (item.id == activeJobId) {
       downloadNet.cancel();
     }
+    _reached.remove(item.id);
     await _deleteFiles(item);
     library = [
       for (final entry in library)
@@ -498,6 +499,14 @@ class NazzilController extends ChangeNotifier {
   /// What a download shows before its first bytes: enough for the line to be seen.
   static const _started = 0.02;
 
+  /// How far each paused download had got, so Resume opens on that and not on the start.
+  final _reached = <String, double>{};
+
+  /// A resumed download reports a little under its mark while a file it already has whole
+  /// is counted again: the sound of a joined video is 0.13 of the scale. A report further
+  /// under the mark than this means the file is being fetched from its start.
+  static const _startedOver = 0.15;
+
   Future<void> _runJob(LibraryItem queued) async {
     var job = queued;
     if (job.option == null) {
@@ -509,12 +518,15 @@ class NazzilController extends ChangeNotifier {
     final stopMark = downloadNet.generation;
     downloading = true;
     converting = false;
-    progress = _started;
+    final left = _reached.remove(job.id) ?? 0;
+    // The number does not go under this while the first bytes are counted.
+    var floor = left > _started ? left : _started;
+    progress = floor;
     failure = Failure.none;
     // Kept in step with the library, so a later copy of it does not put "queued" back.
     job = job.copyWith(status: LibraryItem.statusDownloading);
     await _patch(job.id, job);
-    await DownloadHost.start(title: job.title, percent: (_started * 100).round());
+    await DownloadHost.start(title: job.title, percent: (floor * 100).round());
     var lastPercent = -1;
     var lastSent = DateTime.fromMillisecondsSinceEpoch(0);
     Future<DownloadResult> attempt() => downloader.download(
@@ -528,9 +540,11 @@ class NazzilController extends ChangeNotifier {
             notifyListeners();
           },
           onProgress: (value) {
+            // A resume that could not carry on from its file starts over, and says so.
+            if (value < floor - _startedOver) floor = _started;
             // The first bytes report less than the mark the download opened on,
             // and a number that steps back reads as something going wrong.
-            progress = value < _started ? _started : value;
+            progress = value < floor ? floor : value;
             final percent = (progress * 100).round().clamp(1, 99);
             final now = DateTime.now();
             // Android drops notification updates beyond about 5 a second.
@@ -583,12 +597,15 @@ class NazzilController extends ChangeNotifier {
       final current = _byId(job.id);
       if (current == null || current.status == LibraryItem.statusCancelled) return;
       progress = progress.clamp(0.0, 0.99);
+      final kept = paused.paths.isNotEmpty ? paused.paths : job.paths;
+      // With nothing kept, Resume starts the job over, so it has no place to open on.
+      if (kept.isNotEmpty) _reached[job.id] = progress;
       await _patch(
         job.id,
         job.copyWith(
           status: LibraryItem.statusPaused,
           error: '',
-          paths: paused.paths.isNotEmpty ? paused.paths : job.paths,
+          paths: kept,
           photoCount: paused.completed,
         ),
       );

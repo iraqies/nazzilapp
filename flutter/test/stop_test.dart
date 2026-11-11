@@ -72,6 +72,9 @@ class _Downloader extends MediaDownloader {
   /// What the download reports before it waits at the gate.
   List<double> steps = const [];
 
+  /// True to stop as a pause does, once the steps are reported.
+  bool pauses = false;
+
   @override
   Future<DownloadResult> download({
     required MediaInfo media,
@@ -85,6 +88,7 @@ class _Downloader extends MediaDownloader {
     runs += 1;
     ran.add(media.title);
     steps.forEach(onProgress);
+    if (pauses) throw PausedException(paths: resumePaths);
     if (!entered.isCompleted) entered.complete();
     await gate.future;
     return DownloadResult(files: [for (final path in resumePaths) File(path)], photoCount: 0);
@@ -130,8 +134,10 @@ Future<({NazzilController controller, _Extractor extractor, _Downloader download
   String id, {
   List<LibraryItem> before = const [],
   List<LibraryItem> after = const [],
+  bool withFile = true,
 }) async {
-  final paused = clip(id, LibraryItem.statusPaused);
+  final whole = clip(id, LibraryItem.statusPaused);
+  final paused = withFile ? whole : whole.copyWith(paths: const []);
   SharedPreferences.setMockInitialValues({
     'nazzil.library.v2': jsonEncode([for (final item in [...before, paused, ...after]) item.toJson()]),
   });
@@ -148,7 +154,7 @@ Future<({NazzilController controller, _Extractor extractor, _Downloader download
   final controller = NazzilController(extractor: extractor, downloader: downloader);
   addTearDown(controller.dispose);
   await until(controller, () => controller.library.isNotEmpty);
-  return (controller: controller, extractor: extractor, downloader: downloader, partial: File(paused.paths.single));
+  return (controller: controller, extractor: extractor, downloader: downloader, partial: File(whole.paths.single));
 }
 
 void main() {
@@ -288,6 +294,110 @@ void main() {
     expect(shown.last, 50);
     job.downloader.gate.complete();
     await until(job.controller, () => !job.controller.downloading);
+  });
+
+  test('a resumed download opens on the percentage it was paused at', () async {
+    final job = await pausedJob('reopen');
+    final controller = job.controller;
+    job.extractor.gate.complete();
+    final shown = <int>[];
+    controller.addListener(() {
+      if (controller.downloading) shown.add((controller.progress * 100).round());
+    });
+
+    job.downloader
+      ..steps = [0, 0.2, 0.39]
+      ..pauses = true;
+    await controller.resumeJob(controller.library.single);
+    await until(controller, () => controller.library.single.paused);
+    expect(shown.last, 39);
+
+    shown.clear();
+    job.downloader
+      ..steps = [0.4, 0.5]
+      ..pauses = false;
+    await controller.resumeJob(controller.library.single);
+    await job.downloader.entered.future;
+    expect(shown.first, 39, reason: 'not the 2% a download starts on');
+    expect([...shown]..sort(), shown, reason: 'the number only goes up');
+    expect(shown.last, 50);
+    job.downloader.gate.complete();
+    await until(controller, () => !controller.downloading);
+  });
+
+  test('a resumed download that has to start over says so', () async {
+    final job = await pausedJob('over');
+    final controller = job.controller;
+    job.extractor.gate.complete();
+    job.downloader
+      ..steps = [0.39]
+      ..pauses = true;
+    await controller.resumeJob(controller.library.single);
+    await until(controller, () => controller.library.single.paused);
+
+    final shown = <int>[];
+    controller.addListener(() {
+      if (controller.downloading) shown.add((controller.progress * 100).round());
+    });
+    job.downloader
+      ..steps = [0, 0.1]
+      ..pauses = false;
+    await controller.resumeJob(controller.library.single);
+    await job.downloader.entered.future;
+    expect(shown.last, 10, reason: 'the file is being fetched from its start, and the number is the true one');
+    job.downloader.gate.complete();
+    await until(controller, () => !controller.downloading);
+  });
+
+  test('a resumed download holds its number while a file it already has is counted again', () async {
+    final job = await pausedJob('whole');
+    final controller = job.controller;
+    job.extractor.gate.complete();
+    job.downloader
+      ..steps = [0.85]
+      ..pauses = true;
+    await controller.resumeJob(controller.library.single);
+    await until(controller, () => controller.library.single.paused);
+
+    final shown = <int>[];
+    controller.addListener(() {
+      if (controller.downloading) shown.add((controller.progress * 100).round());
+    });
+    // The picture of a joined video is whole at 0.75; its sound carries on from there.
+    job.downloader
+      ..steps = [0.75, 0.86]
+      ..pauses = false;
+    await controller.resumeJob(controller.library.single);
+    await job.downloader.entered.future;
+    expect(shown.first, 85);
+    expect([...shown]..sort(), shown, reason: 'the number only goes up');
+    expect(shown.last, 86);
+    job.downloader.gate.complete();
+    await until(controller, () => !controller.downloading);
+  });
+
+  test('a paused download that kept nothing of its file opens from the start again', () async {
+    final job = await pausedJob('nothing', withFile: false);
+    final controller = job.controller;
+    job.downloader
+      ..steps = [0, 0.3]
+      ..pauses = true;
+    await controller.resumeJob(controller.library.single);
+    await until(controller, () => controller.library.single.paused);
+
+    final shown = <int>[];
+    controller.addListener(() {
+      if (controller.downloading) shown.add((controller.progress * 100).round());
+    });
+    job.downloader
+      ..steps = [0.1]
+      ..pauses = false;
+    await controller.resumeJob(controller.library.single);
+    await job.downloader.entered.future;
+    expect(shown.first, 2, reason: 'none of the 30% is on disk, so it is not shown');
+    expect(shown.last, 10);
+    job.downloader.gate.complete();
+    await until(controller, () => !controller.downloading);
   });
 
   test('a resumed download keeps its place in the library, and the one resumed last runs next', () async {
