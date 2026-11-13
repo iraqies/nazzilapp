@@ -457,16 +457,15 @@ void main() {
     expect(find.byType(LinkFrame), findsOneWidget);
   });
 
-  testWidgets('poster: a hero of one height, filling the room the words and controls leave', (tester) async {
+  testWidgets('poster: a hero fills the room, keeping the words and controls at the foot', (tester) async {
     final controller = await boot(tester);
     LocalPictures.serve({
       'https://pictures.example/flat.png': await picture(tester, 'flat', 400, 100),
       'https://pictures.example/tall.png': await picture(tester, 'tall', 100, 400),
-      'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200),
     });
     final room = tester.getSize(find.byType(HomeScreen)).height;
 
-    Future<double> posterOf(MediaInfo media) async {
+    Future<double> show(MediaInfo media) async {
       controller
         ..media = media
         ..selected = media.options.first
@@ -476,37 +475,55 @@ void main() {
       return tester.getSize(find.byType(NetPicture)).height;
     }
 
-    // Whatever the picture's shape, the poster is one hero height: it fills the
-    // room the words and controls leave, cover-cropped, so a wide clip reads as
-    // large as a tall one and the download sits low, not in the middle.
-    final photoH = await posterOf(pictured('https://pictures.example/photo.png', id: 'p'));
-    final flatH = await posterOf(pictured('https://pictures.example/flat.png', id: 'f'));
-    expect(flatH, closeTo(photoH, 0.01), reason: 'one height whatever the shape');
-    final tallPost = pictured('https://pictures.example/tall.png', id: 't');
-    final tall = await posterOf(tallPost);
-    expect(tall, closeTo(photoH, 0.01));
+    // Whatever its shape, the video thumbnail is a hero that fills the room the
+    // words and controls leave, cover-cropped, so a wide clip reads as large as a
+    // tall one and the download sits low at the foot, not in the middle.
+    final flat = await show(pictured('https://pictures.example/flat.png', id: 'f'));
+    final tall = await show(pictured('https://pictures.example/tall.png', id: 't'));
+    expect(flat, closeTo(tall, 0.01), reason: 'it fills, whatever the shape');
     expect(tall, greaterThan(360 * 9 / 16), reason: 'a hero, bigger than a film frame');
-    expect(tall, lessThanOrEqualTo(room * 0.70));
-    expect(tester.getRect(find.text('Download')).bottom, lessThanOrEqualTo(room));
-    // What it leaves is the room the words and controls need at their tallest, which is
-    // a paused download: Resume, and under it the line that cancels.
+    // The controls take the foot: the last of them sits a little above the tabs,
+    // far from the middle of the screen.
+    final foot = inInclusiveRange(room - 40, room - 18);
+    expect(
+      tester.getRect(find.widgetWithText(FilledButton, 'Download')).bottom,
+      foot,
+      reason: 'the one download button hugs the foot, not the middle',
+    );
+
+    final post = pictured('https://pictures.example/tall.png', id: 't');
+    // As the download runs, the picture stays a hero and the bar and the line that
+    // stops it sit at the foot.
     controller
-      ..library = [jobFor(tallPost, LibraryItem.statusPaused)]
+      ..library = [jobFor(post, LibraryItem.statusDownloading)]
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(NetPicture)).height, tall, reason: 'one height, whatever the download is doing');
-    expect(find.text('Resume'), findsOneWidget);
+    expect(tester.getSize(find.byType(NetPicture)).height, greaterThan(360 * 9 / 16));
     expect(
       tester.getRect(find.widgetWithText(TextButton, 'Cancel')).bottom,
-      inInclusiveRange(room - 2, room),
-      reason: 'never so tall that the controls leave the screen, and no taller room than they need',
+      foot,
+      reason: 'the controls hug the foot while it runs',
+    );
+
+    // A paused download is the tallest: Resume above the bar and the line that
+    // cancels. The hero gives up the room, so they still sit at the foot.
+    controller
+      ..library = [jobFor(post, LibraryItem.statusPaused)]
+      ..notifyListeners();
+    await tester.pumpAndSettle();
+    expect(find.text('Resume'), findsOneWidget);
+    expect(tester.getSize(find.byType(NetPicture)).height, greaterThan(360 * 9 / 16), reason: 'still a hero when paused');
+    expect(
+      tester.getRect(find.widgetWithText(TextButton, 'Cancel')).bottom,
+      foot,
+      reason: 'still at the foot when paused',
     );
     controller
       ..library = []
       ..notifyListeners();
     await tester.pumpAndSettle();
 
-    // With no picture to go by, a plain block stands in, at the same hero height.
+    // With no picture to go by, a plain block stands in, a hero too, button at the foot.
     controller
       ..media = sampleVideo
       ..selected = sampleVideo.options.first
@@ -515,6 +532,7 @@ void main() {
     expect(find.byType(NetPicture), findsNothing);
     final stand = find.ancestor(of: find.byIcon(Icons.videocam_outlined), matching: find.byType(ColoredBox)).first;
     expect(tester.getSize(stand).height, greaterThan(360 * 9 / 16), reason: 'the stand-in is a hero too');
+    expect(tester.getRect(find.widgetWithText(FilledButton, 'Download')).bottom, foot);
   });
 
   testWidgets('poster: it runs under the status bar, and hands the bar back once scrolled away', (tester) async {

@@ -167,7 +167,8 @@ class HomeScreen extends StatelessWidget {
         media: media,
         photos: photos,
         body: body,
-        below: _Result.heightFor(context, media, body.width - 40, album: album) + 12,
+        // The result sits in a card padded 12 above and 28 below; the poster fills the rest.
+        below: _Result.heightFor(context, media, body.width - 40, album: album, job: job) + 40,
         inset: inset,
       ),
       SliverToBoxAdapter(
@@ -421,18 +422,17 @@ class _PosterState extends State<_Poster> {
   Widget build(BuildContext context) {
     final width = widget.body.width;
     final room = widget.body.height;
-    // Never flatter than a film frame, and never so tall that the controls leave the screen.
+    // A hero fills the room the words and controls leave below; never flatter than a film frame.
     final least = width * 9 / 16;
-    final cap = math.max(least, room * 0.70);
+    final fill = math.max(least, room - widget.below);
     final double height;
     if (widget.photos) {
-      // The frame takes the shape of the first photo, bounded like the hero.
-      final upper = math.max(least, math.min(room - widget.below, cap));
-      height = (width / (_aspect ?? 3 / 2)).clamp(least, upper);
+      // The frame takes the shape of the first photo, no taller than the room it is left.
+      height = (width / (_aspect ?? 3 / 2)).clamp(least, fill);
     } else {
-      // A hero: the thumbnail fills the room the words and controls leave below,
-      // cover-cropped, so the picture is large and they sit low, not in the middle.
-      height = (room - widget.below).clamp(least, cap);
+      // The video thumbnail fills, cover-cropped, so the picture is large and the
+      // download sits low at the foot, not in the middle.
+      height = fill;
     }
     return TweenAnimationBuilder<double>(
       tween: Tween(end: height),
@@ -646,11 +646,11 @@ class _Result extends StatelessWidget {
   /// Whether the status line speaks for itself: on a phone no header is up to do it.
   final bool live;
 
-  /// How tall this stands for [media] in a column [width] wide, from its first line
-  /// down to the line that pauses and cancels a download. It adds up what [build]
-  /// lays out, at its tallest, so the poster can keep one height whatever the
-  /// download is doing.
-  static double heightFor(BuildContext context, MediaInfo media, double width, {required bool album}) {
+  /// How tall this stands for [media] in a column [width] wide, for the download
+  /// [job] it is showing (none, running or paused). It adds up what [build] lays
+  /// out so the poster above can fill the rest and keep the controls at the foot.
+  static double heightFor(BuildContext context, MediaInfo media, double width,
+      {required bool album, LibraryItem? job}) {
     final theme = Theme.of(context);
     final type = theme.textTheme;
     final layout = Directionality.of(context);
@@ -680,7 +680,7 @@ class _Result extends StatelessWidget {
     // The filled button holds a least height; past that its own words carry it.
     final buttonLeast = buttonStyle?.minimumSize?.resolve(const {})?.height ?? 56;
     // An album's first line also holds the buttons that turn its pages.
-    return math.max(line(type.bodySmall!), album ? 48 : 0) +
+    final head = math.max(line(type.bodySmall!), album ? 48 : 0) +
         4 +
         titleHeight +
         (author == null ? 0 : 6 + tall(author, styleIn(author, type.bodySmall!, layout))) +
@@ -689,15 +689,22 @@ class _Result extends StatelessWidget {
         // segments, padded two all round, that grows only if the words need it.
         4 +
         math.max(48, line(type.labelLarge!) + 12) +
-        16 +
-        // The tallest download is a paused one: Resume, then the bar and the line that stops it.
-        math.max(buttonLeast, button == null ? 0 : line(button) + 24) +
-        10 +
-        line(type.bodyMedium!) +
-        10 +
-        6 +
-        12 +
-        48;
+        16;
+    final buttonHeight = math.max(buttonLeast, button == null ? 0 : line(button) + 24);
+    final double controls;
+    if (job == null) {
+      // The post waits with one download button; an album also offers to save the one on show.
+      controls = buttonHeight + (album ? 48 : 0);
+    } else {
+      // A running download shows its state, a bar and the line that stops it; a paused one adds Resume.
+      controls = (job.paused ? buttonHeight + 10 : 0) +
+          line(type.bodyMedium!) +
+          10 +
+          6 +
+          12 +
+          48;
+    }
+    return head + controls;
   }
 
   @override
