@@ -28,7 +28,7 @@ class ChoiceRow<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final track = dark ? const Color(0xFF1C1C1E) : const Color(0xFFE3E3E8);
+    final track = dark ? const Color(0xFF2C2C2E) : const Color(0xFFE3E3E8);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: track,
@@ -49,7 +49,7 @@ class ChoiceRow<T> extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final active = value == option.$1;
-    final thumb = dark ? const Color(0xFF48484A) : Colors.white;
+    final thumb = dark ? const Color(0xFF636366) : Colors.white;
     final style = styleIn(option.$2, theme.textTheme.labelLarge!, Directionality.of(context)).copyWith(
       color: scheme.onSurface,
       fontWeight: active ? FontWeight.w600 : FontWeight.w400,

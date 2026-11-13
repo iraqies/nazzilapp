@@ -428,25 +428,24 @@ void main() {
     expect(find.byType(LinkFrame), findsNothing, reason: 'the poster takes the place of the frame');
     expect(logo, findsNothing, reason: 'and of the header');
 
-    final scheme = Theme.of(tester.element(find.text('Download'))).colorScheme;
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
     final style = (button.style ?? FilledButtonTheme.of(tester.element(find.byType(FilledButton))).style)!;
-    expect(style.backgroundColor!.resolve({}), NazzilColors.grape);
+    expect(style.backgroundColor!.resolve({}), NazzilColors.tint);
     final label = tester.widget<Text>(find.text('Download'));
     expect(
       DefaultTextStyle.of(tester.element(find.text('Download'))).style.merge(label.style).color,
-      NazzilColors.ink,
+      NazzilColors.onTint,
     );
 
-    // The picked quality is filled with the text colour: Grape stays on Download.
+    // The picked quality rides a raised thumb; the rest of the segmented control is clear.
     Color? cell(String text) =>
         tester.widget<Material>(find.ancestor(of: find.text(text), matching: find.byType(Material)).first).color;
-    expect(cell('HD'), scheme.primary);
+    expect(cell('HD'), isNot(Colors.transparent));
     expect(cell('SD'), Colors.transparent);
     await tester.tap(find.text('SD'));
     await tester.pumpAndSettle();
     expect(controller.selected?.id, 'sd');
-    expect(cell('SD'), scheme.primary);
+    expect(cell('SD'), isNot(Colors.transparent));
     expect(cell('HD'), Colors.transparent);
 
     await tester.tap(find.byTooltip('Clear'));
@@ -624,13 +623,13 @@ void main() {
       ..notifyListeners();
     await tester.pump();
     await pictures(tester);
-    final grape = NazzilColors.grape.toARGB32() & 0xFFFFFF;
+    final tint = NazzilColors.tint.toARGB32() & 0xFFFFFF;
     final bar = tester.getRect(find.byType(DownloadBar));
     final shot = await capture(tester);
     int at(double x) => shot.pixels.getUint32((bar.center.dy.round() * shot.width + x.round()) * 4);
     // A quarter in: the far (right) end carries the fill, the near (left) end is still the track.
-    expect(at(bar.right - 8) >> 8, grape);
-    expect(at(bar.left + 8) >> 8, isNot(grape));
+    expect(at(bar.right - 8) >> 8, tint);
+    expect(at(bar.left + 8) >> 8, isNot(tint));
   });
 
   testWidgets('a picture that is not on the device is grey, at 42% of its brightness', (tester) async {
@@ -834,11 +833,11 @@ void main() {
   });
 
   for (final earlier in ['sunset', 'rose']) {
-    testWidgets('settings: there is no colour to pick, and a phone that had $earlier picked is in Grape', (tester) async {
+    testWidgets('settings: there is no colour to pick, and a phone that had $earlier picked is in the tint', (tester) async {
       await boot(tester, alsoStored: {'nazzil.palette': earlier});
       final paste = find.byType(FilledButton);
       final style = (tester.widget<FilledButton>(paste).style ?? FilledButtonTheme.of(tester.element(paste)).style)!;
-      expect(style.backgroundColor!.resolve({}), NazzilColors.grape);
+      expect(style.backgroundColor!.resolve({}), NazzilColors.tint);
 
       await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();

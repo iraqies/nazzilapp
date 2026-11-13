@@ -3,13 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 abstract final class NazzilColors {
-  /// The one accent of the interface. It fills the button that does the next step,
-  /// draws the front line of an arriving picture and marks the logo, and nothing else.
-  /// The app offers no other, by the owner's call on 2026-11-11.
-  static const grape = Color(0xFF8B5CF6);
+  /// The one accent of the interface: Apple's link blue. It fills the button that
+  /// does the next step, the bar a download fills, and the mark on the logo, and is
+  /// kept to those, the sparing way the system spends its tint. The owner asked for
+  /// apple.com's own palette on 2026-11-13.
+  static const tint = Color(0xFF0066CC);
 
-  /// Text on Grape. It passes 4.5:1 there, and white does not, so the one filled
-  /// button keeps dark letters even in a light-on-accent design.
+  /// Text on the tint. White clears 4.5:1 on this blue, so the filled button carries
+  /// white letters, the way Apple's own buttons do.
+  static const onTint = Color(0xFFFFFFFF);
+
+  /// Dark text for the odd light fill, such as the warning red, where white would not clear 4.5:1.
   static const ink = Color(0xFF0B0B0C);
 
   /// Scrim behind a tag on a picture: white on it stays above 4.5:1 even over a white photo.
@@ -34,8 +38,8 @@ abstract final class NazzilColors {
 abstract final class NazzilRadius {
   static const tag = 6.0;
   static const control = 12.0;
-  static const card = 14.0;
-  static const sheet = 16.0;
+  static const card = 18.0;
+  static const sheet = 18.0;
 }
 
 /// Every animation asks here first, so the system reduce-motion setting
@@ -134,24 +138,24 @@ class NazzilTheme {
 
   static ThemeData _build(Brightness brightness, {required bool arabic}) {
     final dark = brightness == Brightness.dark;
-    // iOS system colours: true black with raised greys in the dark, a grouped
-    // light grey with white cells in the light.
-    final text = dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
-    final muted = dark ? const Color(0xFFA1A1A6) : const Color(0xFF636366);
-    final page = dark ? const Color(0xFF000000) : const Color(0xFFF2F2F7);
-    final sheet = dark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF);
+    // apple.com's palette: the deep near-black #1D1D1F with raised greys in the
+    // dark, the soft #F5F5F7 with white cells in the light.
+    final text = dark ? const Color(0xFFFFFFFF) : const Color(0xFF1D1D1F);
+    final muted = dark ? const Color(0xFFA1A1A6) : const Color(0xFF6E6E73);
+    final page = dark ? const Color(0xFF1D1D1F) : const Color(0xFFF5F5F7);
+    final sheet = dark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
     final raised = dark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
     // Hairlines sit light; control edges carry 3:1 so a bare outline reads.
-    final line = dark ? const Color(0xFF38383A) : const Color(0xFFD1D1D6);
+    final line = dark ? const Color(0xFF38383A) : const Color(0xFFD2D2D7);
     final edge = dark ? const Color(0xFF8A8A8E) : const Color(0xFF6D6D72);
     final scheme = ColorScheme(
       brightness: brightness,
       // A picked choice is the text colour, lettered in the page colour.
       primary: text,
       onPrimary: page,
-      // Grape is kept for the button that does the next step.
-      primaryContainer: NazzilColors.grape,
-      onPrimaryContainer: NazzilColors.ink,
+      // The tint fills the button that does the next step.
+      primaryContainer: NazzilColors.tint,
+      onPrimaryContainer: NazzilColors.onTint,
       secondary: text,
       onSecondary: page,
       secondaryContainer: raised,
@@ -226,6 +230,9 @@ class NazzilTheme {
           side: focusRing(states) ?? BorderSide.none,
         );
 
+    // apple.com rounds its buttons all the way to a pill.
+    OutlinedBorder pill(Set<WidgetState> states) => StadiumBorder(side: focusRing(states) ?? BorderSide.none);
+
     Color quiet(Set<WidgetState> states) => states.contains(WidgetState.disabled) ? muted : text;
 
     return ThemeData(
@@ -253,27 +260,27 @@ class NazzilTheme {
         hintStyle: type.bodyLarge?.copyWith(color: muted),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: NazzilColors.grape,
-        selectionColor: NazzilColors.grape.withValues(alpha: 0.28),
-        selectionHandleColor: NazzilColors.grape,
+        cursorColor: NazzilColors.tint,
+        selectionColor: NazzilColors.tint.withValues(alpha: 0.28),
+        selectionHandleColor: NazzilColors.tint,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.disabled) ? raised : NazzilColors.grape,
+            (states) => states.contains(WidgetState.disabled) ? raised : NazzilColors.tint,
           ),
           foregroundColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.ink,
+            (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.onTint,
           ),
           iconColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.ink,
+            (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.onTint,
           ),
           iconSize: const WidgetStatePropertyAll(21),
-          overlayColor: WidgetStatePropertyAll(NazzilColors.ink.withValues(alpha: 0.12)),
+          overlayColor: WidgetStatePropertyAll(NazzilColors.onTint.withValues(alpha: 0.16)),
           elevation: const WidgetStatePropertyAll(0),
           minimumSize: const WidgetStatePropertyAll(Size(64, 50)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
-          shape: WidgetStateProperty.resolveWith(control),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 24)),
+          shape: WidgetStateProperty.resolveWith(pill),
           textStyle: WidgetStatePropertyAll(style(17, bold: true, height: 1.2)),
         ),
       ),
@@ -301,9 +308,7 @@ class NazzilTheme {
           side: WidgetStateProperty.resolveWith(
             (states) => focusRing(states) ?? BorderSide(color: edge, width: 1.5),
           ),
-          shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.control)),
-          ),
+          shape: const WidgetStatePropertyAll(StadiumBorder()),
           textStyle: WidgetStatePropertyAll(type.labelLarge),
         ),
       ),

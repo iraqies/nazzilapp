@@ -37,10 +37,9 @@ void main() {
           );
         }
       }
-      // The button that does the next step is told by its words, so the
-      // words carry the contrast: ink on Grape.
-      expect(scheme.primaryContainer, NazzilColors.grape);
-      expect(scheme.onPrimaryContainer, NazzilColors.ink);
+      // The button that does the next step is the tint; its white words carry the contrast.
+      expect(scheme.primaryContainer, NazzilColors.tint);
+      expect(scheme.onPrimaryContainer, NazzilColors.onTint);
       expect(ratio(scheme.onPrimaryContainer, scheme.primaryContainer), greaterThanOrEqualTo(4.5));
       // A picked choice is filled with the text colour and written in the page colour.
       expect(ratio(scheme.onPrimary, scheme.primary), greaterThanOrEqualTo(4.5));

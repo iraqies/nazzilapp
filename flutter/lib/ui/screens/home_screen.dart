@@ -439,7 +439,7 @@ class DownloadBar extends StatelessWidget {
                 child: FractionallySizedBox(
                   alignment: AlignmentDirectional.centerStart,
                   widthFactor: filled,
-                  child: const ColoredBox(color: NazzilColors.grape),
+                  child: const ColoredBox(color: NazzilColors.tint),
                 ),
               ),
             ],
