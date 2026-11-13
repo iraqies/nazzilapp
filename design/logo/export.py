@@ -15,7 +15,7 @@ import tempfile
 
 from PIL import Image, ImageDraw
 
-from chosen import FIT, GRAPE, INK, PAPER, TILE, Mark, lettering, tile
+from chosen import FIT, INK, PAPER, SAPPHIRE, TILE, Mark, lettering, tile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'remake'))
@@ -25,9 +25,11 @@ FLUTTER = os.path.normpath(os.path.join(HERE, '..', '..', 'flutter'))
 ANDROID = os.path.join(FLUTTER, 'android', 'app', 'src', 'main', 'res')
 OUT = os.path.join(HERE, 'chosen')
 
-# The page and the text of the app's dark theme (nazzil_theme.dart).
+# The page and the text of the app's dark and light themes (nazzil_theme.dart).
 NIGHT_PAPER = '#000000'
-NIGHT_INK = '#F5F3EE'
+NIGHT_INK = '#F5F5F7'
+DAY_PAPER = '#F5F5F7'
+DAY_INK = '#1D1D1F'
 
 
 def write(path, text):
@@ -95,7 +97,7 @@ def android(mark):
     <solid android:color="{PAPER}" />
 </shape>
 """)
-    write(os.path.join(drawable, 'ic_launcher_foreground.xml'), android_vector(mark, 108, scale, (INK, GRAPE)))
+    write(os.path.join(drawable, 'ic_launcher_foreground.xml'), android_vector(mark, 108, scale, (INK, SAPPHIRE)))
     # A themed icon is one colour, which the launcher picks.
     write(os.path.join(drawable, 'ic_launcher_monochrome.xml'), android_vector(mark, 108, scale, ('#000000', '#000000')))
     # On a notification and in the status bar the phone keeps the shape of the icon and
@@ -116,10 +118,10 @@ def launch(mark, scale):
     light launch screen in front of a black app is a flash every time it opens.
     """
     drawable = os.path.join(ANDROID, 'drawable')
-    write(os.path.join(drawable, 'launch_logo.xml'), android_vector(mark, 108, scale, ('@color/launch_ink', GRAPE)))
+    write(os.path.join(drawable, 'launch_logo.xml'), android_vector(mark, 108, scale, ('@color/launch_ink', SAPPHIRE)))
     for folder, page, ink in (
         ('values', NIGHT_PAPER, NIGHT_INK),
-        ('values-v31', PAPER, INK),
+        ('values-v31', DAY_PAPER, DAY_INK),
         ('values-night-v31', NIGHT_PAPER, NIGHT_INK),
     ):
         write(os.path.join(ANDROID, folder, 'colors.xml'), f"""\
@@ -154,7 +156,7 @@ def pictures(mark):
     os.makedirs(OUT, exist_ok=True)
     write(os.path.join(OUT, 'nazzil-icon.svg'), tile(mark))
     write(os.path.join(OUT, 'nazzil-lettering.svg'), lettering(mark))
-    write(os.path.join(OUT, 'nazzil-lettering-light.svg'), lettering(mark, letters='#F5F3EE'))
+    write(os.path.join(OUT, 'nazzil-lettering-light.svg'), lettering(mark, letters=NIGHT_INK))
 
     big = 1024
     scratch = tempfile.mkdtemp(prefix='nazzil-logo-')

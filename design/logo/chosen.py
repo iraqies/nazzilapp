@@ -1,8 +1,8 @@
 """The logo the owner chose on 2026-11-11: concept 13, the word نزّل in the Ruqaa hand.
 
-The letters are ink, and the two dots and the shadda are Grape, the one colour
-the app has. On the launcher icon the ground is paper. In the app the mark
-stands on the page.
+The letters are ink, and the two dots and the shadda are the app's one accent,
+Finery's sapphire. On the launcher icon the ground is white, as the icon stands
+on its tile in the app. In the app the mark stands on the page.
 """
 import math
 
@@ -12,10 +12,10 @@ from lettering import shape
 FONT = 'ArefRuqaa-Bold.ttf'
 WORD = 'نزّل'
 
-PAPER = '#F4F2EE'
-INK = '#111111'
-# NazzilColors.grape in flutter/lib/theme/nazzil_theme.dart.
-GRAPE = '#8B5CF6'
+PAPER = '#FFFFFF'
+INK = '#1D1D1F'
+# NazzilColors.tint in flutter/lib/theme/nazzil_theme.dart.
+SAPPHIRE = '#0071E3'
 
 
 class Mark:
@@ -54,7 +54,7 @@ TILE = 512
 FIT = (340, 300)
 
 
-def tile(mark, ground=PAPER, letters=INK, dots=GRAPE, size=TILE, bleed=0):
+def tile(mark, ground=PAPER, letters=INK, dots=SAPPHIRE, size=TILE, bleed=0):
     """The launcher icon as a square SVG. `bleed` shows that much more of the ground on every side."""
     scale = mark.scale_into(*FIT)
     view = f'{-bleed} {-bleed} {TILE + 2 * bleed} {TILE + 2 * bleed}'
@@ -65,7 +65,7 @@ def tile(mark, ground=PAPER, letters=INK, dots=GRAPE, size=TILE, bleed=0):
     )
 
 
-def lettering(mark, letters=INK, dots=GRAPE, pad=0):
+def lettering(mark, letters=INK, dots=SAPPHIRE, pad=0):
     """The word alone, with no ground, as an SVG as large as the word plus `pad` font units around it."""
     width, height = mark.width + 2 * pad, mark.height + 2 * pad
     return (
