@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 abstract final class NazzilColors {
   /// The one accent of the interface: Finery's sapphire. It fills the button that
   /// does the next step and the bar a download fills, and marks the logo. The owner
-  /// asked to take after Finery (finery.theiraqieslove.workers.dev) on 2026-11-14.
+  /// asked to take after Finery (finery.theiraqieslove.workers.dev) on 2026-11-13.
   static const tint = Color(0xFF0071E3);
 
   /// Text on the tint. White clears 4.5:1 on this blue, so the filled button carries
