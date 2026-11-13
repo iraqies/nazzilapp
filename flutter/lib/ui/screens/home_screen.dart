@@ -585,7 +585,10 @@ class _Result extends StatelessWidget {
       lines: 3,
     );
     final author = media.author;
-    final button = theme.filledButtonTheme.style?.textStyle?.resolve(const {});
+    final buttonStyle = theme.filledButtonTheme.style;
+    final button = buttonStyle?.textStyle?.resolve(const {});
+    // The filled button holds a least height; past that its own words carry it.
+    final buttonLeast = buttonStyle?.minimumSize?.resolve(const {})?.height ?? 56;
     // An album's first line also holds the buttons that turn its pages.
     return math.max(line(type.bodySmall!), album ? 48 : 0) +
         4 +
@@ -594,7 +597,7 @@ class _Result extends StatelessWidget {
         16 +
         math.max(48, line(type.labelLarge!) + 16) +
         16 +
-        math.max(56, button == null ? 0 : line(button) + 24) +
+        math.max(buttonLeast, button == null ? 0 : line(button) + 24) +
         4 +
         48;
   }

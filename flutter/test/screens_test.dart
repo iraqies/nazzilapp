@@ -1986,7 +1986,7 @@ void main() {
     tester.view.physicalSize = const Size(720, 800);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    const style = TextStyle(fontFamily: NazzilTheme.serif, fontSize: 15, decoration: TextDecoration.none);
+    const style = TextStyle(fontFamily: NazzilTheme.sans, fontSize: 15, decoration: TextDecoration.none);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,

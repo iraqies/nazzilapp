@@ -98,16 +98,16 @@ void main() {
         type.labelSmall!,
       ];
 
-  test('english is set in the serif and arabic in the hand of the logo, each behind the other', () {
+  test('english is set in Inter and arabic in IBM Plex Sans Arabic, each behind the other', () {
     for (final arabic in [false, true]) {
       final type = NazzilTheme.dark(arabic: arabic).textTheme;
       for (final style in stylesOf(type)) {
+        // The percentage is digits, so it stays Latin even in the Arabic app.
         final latinFirst = !arabic || style == type.displayLarge;
-        final serif = style.fontSize! >= 21 ? NazzilTheme.serifDisplay : NazzilTheme.serif;
         // A word in the other script falls through to the other typeface, so neither is ever
         // left to whatever the phone has.
-        expect(style.fontFamily, latinFirst ? serif : NazzilTheme.ruqaa);
-        expect(style.fontFamilyFallback, [latinFirst ? NazzilTheme.ruqaa : serif]);
+        expect(style.fontFamily, latinFirst ? NazzilTheme.sans : NazzilTheme.arabicSans);
+        expect(style.fontFamilyFallback, [latinFirst ? NazzilTheme.arabicSans : NazzilTheme.sans]);
         expect(style.fontWeight, anyOf(FontWeight.w400, NazzilTheme.strong));
         // Spacing between letters breaks the joins of Arabic.
         expect(style.letterSpacing, 0);
@@ -118,34 +118,31 @@ void main() {
 
   test('the app ships the typefaces it sets, in the weights it sets them', () {
     final shipped = shippedTypefaces();
-    expect(shipped.keys, unorderedEquals([NazzilTheme.serif, NazzilTheme.serifDisplay, NazzilTheme.ruqaa]));
+    expect(shipped.keys, unorderedEquals([NazzilTheme.sans, NazzilTheme.arabicSans]));
     Set<int> weights(String family) => {for (final file in shipped[family]!) typefaceFacts(file).weight};
     // A weight that is not shipped would be faked by the screen, by smearing the letters.
-    expect(weights(NazzilTheme.serif), {400, NazzilTheme.strong.value});
-    expect(weights(NazzilTheme.serifDisplay), {NazzilTheme.strong.value});
-    // Ruqaa has a regular and a bold, and the bold answers for what is set strong.
-    expect(weights(NazzilTheme.ruqaa), {400, 700});
+    // Each typeface carries a regular and the semibold that answers for what is set strong.
+    expect(weights(NazzilTheme.sans), {400, NazzilTheme.strong.value});
+    expect(weights(NazzilTheme.arabicSans), {400, NazzilTheme.strong.value});
     expect(NazzilTheme.strong.value, greaterThan(500), reason: 'at 500 or less a screen picks the regular');
   });
 
-  test('the two typefaces stand on one line: the same size of letter, the same middle', () {
+  test('both typefaces are drawn to sit on one line at one size', () {
     final shipped = shippedTypefaces();
-    final latin = [...shipped[NazzilTheme.serif]!, ...shipped[NazzilTheme.serifDisplay]!].map(typefaceFacts);
-    final arabic = shipped[NazzilTheme.ruqaa]!.map(typefaceFacts);
-    double middle(({int weight, int body, int above, int below}) f) => (f.above - f.below) / 2 / f.body;
-    for (final a in arabic) {
-      // Ruqaa is drawn on a body of 1000. The app's copy says a smaller one, which is what
-      // enlarges its letters, and the theme gives Arabic lines as much more room.
-      expect(1000 / a.body, closeTo(NazzilTheme.arabicScale, 1e-9));
-      for (final l in latin) {
-        // A line is centred on the middle each typeface claims. Where they agree, a line
-        // holding both scripts is no taller than a line holding one.
-        expect(middle(a), closeTo(middle(l), 0.001));
-      }
+    final files = [...shipped[NazzilTheme.sans]!, ...shipped[NazzilTheme.arabicSans]!].map(typefaceFacts);
+    for (final f in files) {
+      // Each face reaches above and below the line and is drawn on a real body,
+      // so the theme can set both scripts at the same size with no enlargement.
+      expect(f.above, greaterThan(0));
+      expect(f.below, greaterThan(0));
+      expect(f.body, greaterThanOrEqualTo(1000));
     }
+    // The theme asks for no enlargement and no extra lead between the two scripts.
+    expect(NazzilTheme.arabicScale, 1.0);
+    expect(NazzilTheme.arabicLead, 0.0);
   });
 
-  test('one text size suits both scripts, and arabic stands on taller lines', () {
+  test('one text size suits both scripts, set on the same lines', () {
     final latin = NazzilTheme.dark(arabic: false).textTheme;
     final arabic = NazzilTheme.dark(arabic: true).textTheme;
     for (final (a, l) in [

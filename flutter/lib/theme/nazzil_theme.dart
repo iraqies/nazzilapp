@@ -1,13 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 abstract final class NazzilColors {
-  /// The one colour of the interface. It fills the button that does the next step,
+  /// The one accent of the interface. It fills the button that does the next step,
   /// draws the front line of an arriving picture and marks the logo, and nothing else.
   /// The app offers no other, by the owner's call on 2026-11-11.
   static const grape = Color(0xFF8B5CF6);
 
-  /// Text on Grape. It passes 4.5:1 there, and white does not.
+  /// Text on Grape. It passes 4.5:1 there, and white does not, so the one filled
+  /// button keeps dark letters even in a light-on-accent design.
   static const ink = Color(0xFF0B0B0C);
 
   /// Scrim behind a tag on a picture: white on it stays above 4.5:1 even over a white photo.
@@ -16,7 +18,7 @@ abstract final class NazzilColors {
 
   /// The close button on a poster is the same black disc in both themes.
   static const screen = Color(0xFF000000);
-  static const onScreen = Color(0xFFF5F3EE);
+  static const onScreen = Color(0xFFF5F5F7);
 
   /// A picture that is not on the device: grey, at 42% of its brightness.
   static const unsaved = ColorFilter.matrix(<double>[
@@ -27,11 +29,13 @@ abstract final class NazzilColors {
   ]);
 }
 
-/// Pictures have square corners; these are for the controls around them.
+/// iOS rounds its corners, so controls, cells and sheets all carry a radius.
+/// The media keeps square, full-bleed edges; these are for the chrome around it.
 abstract final class NazzilRadius {
-  static const tag = 4.0;
-  static const control = 8.0;
-  static const sheet = 12.0;
+  static const tag = 6.0;
+  static const control = 12.0;
+  static const card = 14.0;
+  static const sheet = 16.0;
 }
 
 /// Every animation asks here first, so the system reduce-motion setting
@@ -56,7 +60,10 @@ abstract final class NazzilMotion {
   static AnimationStyle? style(BuildContext context) => reduced(context) ? AnimationStyle.noAnimation : null;
 
   static Route<T> route<T>(BuildContext context, WidgetBuilder builder) {
-    if (!reduced(context)) return MaterialPageRoute<T>(builder: builder);
+    if (!reduced(context)) {
+      // Cupertino's horizontal slide is the native transition the owner asked for.
+      return CupertinoPageRoute<T>(builder: builder);
+    }
     return PageRouteBuilder<T>(
       pageBuilder: (context, _, _) => builder(context),
       transitionDuration: Duration.zero,
@@ -66,29 +73,23 @@ abstract final class NazzilMotion {
 }
 
 class NazzilTheme {
-  /// English is set in Fraunces, a serif picked to go with the Arabic: strokes that swell
-  /// and thin as a pen's do, soft ends, and as dark on the page. This cut at reading sizes,
-  static const serif = 'Fraunces Text';
+  /// The Latin interface is set in Inter, the closest openly licensed match to
+  /// Apple's San Francisco: a neutral UI sans with a tall x-height and real
+  /// tabular figures. The owner asked for a native-Apple look on 2026-11-13.
+  static const sans = 'Inter';
 
-  /// and this one for headings and the percentage.
-  static const serifDisplay = 'Fraunces Display';
+  /// Arabic is set in IBM Plex Sans Arabic, a clean humanist sans that sits at
+  /// the Latin size and reads like Apple's SF Arabic beside Inter. The logo keeps
+  /// its own Ruqaa lettering, drawn from an outline, so the brand mark is unchanged.
+  static const arabicSans = 'IBM Plex Sans Arabic';
 
-  /// Arabic is set in Aref Ruqaa, the hand the logo is written in. The app's copy holds
-  /// Arabic only and is drawn to the size of the Latin, so one text size suits both
-  /// scripts and each falls through to the other's typeface (design/type/build.py).
-  static const ruqaa = 'Aref Ruqaa';
-
-  /// What is set strong. Fraunces has this weight, and Ruqaa answers it with its bold.
+  /// What is set strong. Both typefaces carry a semibold at this weight.
   static const strong = FontWeight.w600;
 
-  /// The app's Ruqaa draws its letters this much larger than a text size says, which is
-  /// what brings them to the size of the Latin. Lines are counted in text sizes, so an
-  /// Arabic line needs as much more.
-  static const arabicScale = 4 / 3;
-
-  /// Ruqaa stacks its letters and hangs them below the line, so Arabic lines stand this
-  /// much taller again.
-  static const arabicLead = 0.15;
+  /// Both typefaces are drawn to sit on the same line at the same point size, so
+  /// one text size suits both scripts with no enlargement and no extra lead.
+  static const arabicScale = 1.0;
+  static const arabicLead = 0.0;
 
   /// [style] as it is set for Arabic words, or for Latin ones: that script's typeface
   /// first, and its lines. A theme sets its own language, so this is for a run of the
@@ -96,7 +97,7 @@ class NazzilTheme {
   static TextStyle inScript(TextStyle style, {required bool arabic}) {
     final first = style.fontFamily;
     final next = style.fontFamilyFallback;
-    if (first == null || next == null || next.isEmpty || (first == ruqaa) == arabic) return style;
+    if (first == null || next == null || next.isEmpty || (first == arabicSans) == arabic) return style;
     final height = style.height;
     return style.copyWith(
       fontFamily: next.first,
@@ -111,6 +112,11 @@ class NazzilTheme {
 
   static ThemeData light({required bool arabic}) => _build(Brightness.light, arabic: arabic);
   static ThemeData dark({required bool arabic}) => _build(Brightness.dark, arabic: arabic);
+
+  /// A translucent fill for the blurred bars (tab bar, nav bar), the one iOS
+  /// material. Laid over a backdrop blur it is the system's own chrome.
+  static Color barFill(ColorScheme scheme) =>
+      scheme.surface.withValues(alpha: scheme.brightness == Brightness.dark ? 0.72 : 0.82);
 
   /// Status bar and navigation bar colours for a page of this [brightness].
   /// [onPicture] is for a status bar that lies over a poster and its dark fade.
@@ -128,13 +134,16 @@ class NazzilTheme {
 
   static ThemeData _build(Brightness brightness, {required bool arabic}) {
     final dark = brightness == Brightness.dark;
-    final text = dark ? const Color(0xFFF5F3EE) : const Color(0xFF111111);
-    final muted = dark ? const Color(0xFFA8A49C) : const Color(0xFF5F5B54);
-    final page = dark ? const Color(0xFF000000) : const Color(0xFFF4F2EE);
-    final sheet = dark ? const Color(0xFF161616) : const Color(0xFFFFFFFF);
-    final raised = dark ? const Color(0xFF222222) : const Color(0xFFE9E6E0);
-    final line = dark ? const Color(0xFF2E2E2E) : const Color(0xFFD5D0C6);
-    final edge = dark ? const Color(0xFF777777) : const Color(0xFF807B72);
+    // iOS system colours: true black with raised greys in the dark, a grouped
+    // light grey with white cells in the light.
+    final text = dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+    final muted = dark ? const Color(0xFFA1A1A6) : const Color(0xFF636366);
+    final page = dark ? const Color(0xFF000000) : const Color(0xFFF2F2F7);
+    final sheet = dark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF);
+    final raised = dark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
+    // Hairlines sit light; control edges carry 3:1 so a bare outline reads.
+    final line = dark ? const Color(0xFF38383A) : const Color(0xFFD1D1D6);
+    final edge = dark ? const Color(0xFF8A8A8E) : const Color(0xFF6D6D72);
     final scheme = ColorScheme(
       brightness: brightness,
       // A picked choice is the text colour, lettered in the page colour.
@@ -149,7 +158,7 @@ class NazzilTheme {
       onSecondaryContainer: text,
       tertiary: text,
       onTertiary: page,
-      error: dark ? const Color(0xFFFF7A85) : const Color(0xFFB3202C),
+      error: dark ? const Color(0xFFFF6961) : const Color(0xFFD70015),
       onError: dark ? NazzilColors.ink : Colors.white,
       surface: page,
       onSurface: text,
@@ -167,23 +176,21 @@ class NazzilTheme {
       onInverseSurface: page,
     );
 
-    // One size suits both scripts. Letter spacing stays at zero because it would break
-    // the joins of Arabic.
+    // One size suits both scripts. Letter spacing stays at zero because it would
+    // break the joins of Arabic.
     TextStyle style(
       double size, {
       bool bold = false,
-      double height = 1.3,
+      double height = 1.35,
       Color? color,
-      bool display = false,
       bool digits = false,
     }) {
       final base = TextStyle(
-        fontFamily: display ? serifDisplay : serif,
-        fontFamilyFallback: const [ruqaa],
+        fontFamily: sans,
+        fontFamilyFallback: const [arabicSans],
         fontSize: size,
         fontWeight: bold ? strong : FontWeight.w400,
         height: height,
-        // The room a line has to spare goes above and below it in equal parts.
         leadingDistribution: TextLeadingDistribution.even,
         letterSpacing: 0,
         color: color ?? text,
@@ -191,22 +198,23 @@ class NazzilTheme {
       return arabic && !digits ? inScript(base, arabic: true) : base;
     }
 
+    // An iOS type ramp: a large title, headline and body, down to the tab label.
     final type = TextTheme(
       // The percentage on a poster: digits only, so it is the same in both languages.
-      displayLarge: style(88, bold: true, height: 0.86, display: true, digits: true)
+      displayLarge: style(80, bold: true, height: 0.92, digits: true)
           .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      displaySmall: style(40, bold: true, height: 1.1, display: true),
-      headlineMedium: style(28, bold: true, height: 1.15, display: true),
-      headlineSmall: style(26, bold: true, height: 1.15, display: true),
-      titleLarge: style(21, bold: true, height: 1.2, display: true),
-      titleMedium: style(17, bold: true, height: 1.25),
-      titleSmall: style(16, bold: true, height: 1.25),
-      bodyLarge: style(16, height: 1.45),
-      bodyMedium: style(15, height: 1.45),
-      bodySmall: style(14, height: 1.4, color: muted),
-      labelLarge: style(15, bold: true, height: 1.2),
-      labelMedium: style(13.5, height: 1.35, color: muted),
-      labelSmall: style(12.5, bold: true, height: 1.2),
+      displaySmall: style(34, bold: true, height: 1.1),
+      headlineMedium: style(25, bold: true, height: 1.2),
+      headlineSmall: style(22, bold: true, height: 1.2),
+      titleLarge: style(20, bold: true, height: 1.25),
+      titleMedium: style(17, bold: true, height: 1.3),
+      titleSmall: style(16, bold: true, height: 1.3),
+      bodyLarge: style(17, height: 1.4),
+      bodyMedium: style(16, height: 1.4),
+      bodySmall: style(15, height: 1.35, color: muted),
+      labelLarge: style(17, bold: true, height: 1.2),
+      labelMedium: style(13, height: 1.35, color: muted),
+      labelSmall: style(11, height: 1.2),
     );
 
     BorderSide? focusRing(Set<WidgetState> states) => states.contains(WidgetState.focused)
@@ -226,7 +234,8 @@ class NazzilTheme {
       colorScheme: scheme,
       textTheme: type,
       scaffoldBackgroundColor: page,
-      splashFactory: InkRipple.splashFactory,
+      // iOS answers a tap with a quick dim, not a spreading ripple.
+      splashFactory: NoSplash.splashFactory,
       // One size of control on every platform: a computer would otherwise shave 8 off each.
       visualDensity: VisualDensity.standard,
       appBarTheme: AppBarTheme(
@@ -234,7 +243,8 @@ class NazzilTheme {
         scrolledUnderElevation: 0,
         backgroundColor: page,
         foregroundColor: text,
-        titleTextStyle: type.titleLarge,
+        centerTitle: true,
+        titleTextStyle: type.titleMedium,
         systemOverlayStyle: overlay(brightness, page),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -243,9 +253,9 @@ class NazzilTheme {
         hintStyle: type.bodyLarge?.copyWith(color: muted),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: text,
-        selectionColor: text.withValues(alpha: 0.3),
-        selectionHandleColor: text,
+        cursorColor: NazzilColors.grape,
+        selectionColor: NazzilColors.grape.withValues(alpha: 0.28),
+        selectionHandleColor: NazzilColors.grape,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
@@ -258,21 +268,21 @@ class NazzilTheme {
           iconColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled) ? muted : NazzilColors.ink,
           ),
-          iconSize: const WidgetStatePropertyAll(22),
+          iconSize: const WidgetStatePropertyAll(21),
           overlayColor: WidgetStatePropertyAll(NazzilColors.ink.withValues(alpha: 0.12)),
           elevation: const WidgetStatePropertyAll(0),
-          minimumSize: const WidgetStatePropertyAll(Size(64, 56)),
+          minimumSize: const WidgetStatePropertyAll(Size(64, 50)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
           shape: WidgetStateProperty.resolveWith(control),
-          textStyle: WidgetStatePropertyAll(style(17.5, bold: true, height: 1.2)),
+          textStyle: WidgetStatePropertyAll(style(17, bold: true, height: 1.2)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
           foregroundColor: WidgetStateProperty.resolveWith(quiet),
           iconColor: WidgetStateProperty.resolveWith(quiet),
-          iconSize: const WidgetStatePropertyAll(22),
-          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.1)),
+          iconSize: const WidgetStatePropertyAll(21),
+          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.08)),
           minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
           shape: WidgetStateProperty.resolveWith(control),
@@ -284,8 +294,8 @@ class NazzilTheme {
         style: ButtonStyle(
           foregroundColor: WidgetStateProperty.resolveWith(quiet),
           iconColor: WidgetStateProperty.resolveWith(quiet),
-          iconSize: const WidgetStatePropertyAll(22),
-          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.1)),
+          iconSize: const WidgetStatePropertyAll(21),
+          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.08)),
           minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
           side: WidgetStateProperty.resolveWith(
@@ -302,6 +312,7 @@ class NazzilTheme {
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled) ? text.withValues(alpha: 0.38) : text,
           ),
+          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.08)),
           minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
           shape: WidgetStateProperty.resolveWith(control),
         ),
@@ -313,7 +324,7 @@ class NazzilTheme {
         contentTextStyle: type.bodyMedium?.copyWith(color: scheme.onInverseSurface),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.control)),
       ),
-      // Sheets, dialogs and menus are flat, so a hairline is what parts them from the page.
+      // Dialogs are the rounded, centred iOS kind; a hairline parts a sheet from the page.
       dialogTheme: DialogThemeData(
         backgroundColor: sheet,
         elevation: 0,

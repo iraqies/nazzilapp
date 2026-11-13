@@ -38,17 +38,13 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   fonts:
-    - family: Fraunces Text
+    - family: Inter
       fonts:
-        - asset: assets/fonts/Fraunces-Text-Regular.ttf
-        - asset: assets/fonts/Fraunces-Text-SemiBold.ttf
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
-    - family: Fraunces Display
+    - family: IBM Plex Sans Arabic
       fonts:
-        - asset: assets/fonts/Fraunces-Display-SemiBold.ttf
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
           weight: 600
-    - family: Aref Ruqaa
-      fonts:
-        - asset: assets/fonts/ArefRuqaa-Regular.ttf
-        - asset: assets/fonts/ArefRuqaa-Bold.ttf
-          weight: 700
