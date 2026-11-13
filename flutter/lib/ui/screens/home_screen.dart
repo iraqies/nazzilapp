@@ -8,7 +8,6 @@ import '../../l10n/strings.dart';
 import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
-import '../widgets/arriving.dart';
 import '../widgets/cover.dart';
 import '../widgets/item_sheet.dart';
 import '../widgets/library_tile.dart';
@@ -133,8 +132,6 @@ class HomeScreen extends StatelessWidget {
     // Saving one photo of an album is a job of its own, shown while that photo is up.
     final job = controller.jobForCurrent() ??
         (album ? controller.jobForCurrent(onlyPhoto: controller.photoIndex) : null);
-    final running = job != null && job.id == controller.activeJobId;
-    final arriving = running && job.status == LibraryItem.statusDownloading && !controller.converting;
     return [
       _Poster(
         // A new post, or the same post turned from its video to its photos, starts a new frame.
@@ -145,8 +142,6 @@ class HomeScreen extends StatelessWidget {
         body: body,
         below: _Result.heightFor(context, media, body.width - 40, album: album) + 12,
         inset: inset,
-        progress: arriving ? controller.progress : null,
-        unsaved: job != null && !arriving && !(running && controller.converting),
       ),
       SliverToBoxAdapter(
         child: FocusTraversalGroup(
@@ -294,8 +289,6 @@ class _Poster extends StatefulWidget {
     required this.body,
     required this.below,
     required this.inset,
-    required this.progress,
-    required this.unsaved,
   });
 
   final NazzilController controller;
@@ -310,8 +303,6 @@ class _Poster extends StatefulWidget {
 
   /// The height of the status bar the poster runs under, or 0.
   final double inset;
-  final double? progress;
-  final bool unsaved;
 
   @override
   State<_Poster> createState() => _PosterState();
@@ -375,9 +366,7 @@ class _PosterState extends State<_Poster> {
     final controller = widget.controller;
     final media = widget.media;
     final s = controller.s;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final progress = widget.progress;
+    final scheme = Theme.of(context).colorScheme;
     final thumbnail = media.thumbnail;
     final Widget stand = Center(child: Icon(Icons.videocam_outlined, size: 42, color: scheme.onSurfaceVariant));
     return Stack(
@@ -391,17 +380,11 @@ class _PosterState extends State<_Poster> {
                   index: controller.photoIndex,
                   onChanged: controller.setPhotoIndex,
                   s: s,
-                  progress: progress,
-                  unsaved: widget.unsaved,
                 )
+              // The post is shown in full colour; the download shows as a bar below it.
               : thumbnail == null || thumbnail.isEmpty
                   ? stand
-                  : ArrivingPicture(
-                      progress: progress,
-                      unsaved: widget.unsaved,
-                      ghost: NetPicture(url: thumbnail, alignment: posterAlignment, bare: true),
-                      child: NetPicture(url: thumbnail, alignment: posterAlignment, loading: stand, failed: stand),
-                    ),
+                  : NetPicture(url: thumbnail, alignment: posterAlignment, loading: stand, failed: stand),
         ),
         PositionedDirectional(
           top: widget.inset + 6,
@@ -429,27 +412,45 @@ class _PosterState extends State<_Poster> {
             icon: const Icon(Icons.close_rounded),
           ),
         ),
-        if (progress != null)
-          PositionedDirectional(
-            bottom: 0,
-            start: 0,
-            // On a block of the page colour, the number reads the same over any picture.
-            child: ColoredBox(
-              color: scheme.surface,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 16, 0),
-                child: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: 1.3,
-                  child: Text(
-                    '${(progress * 100).round()}%',
-                    textDirection: TextDirection.ltr,
-                    style: theme.textTheme.displayLarge,
-                  ),
+      ],
+    );
+  }
+}
+
+/// The download of a fetched post, shown the way iOS shows one: a thin track
+/// that fills from the side reading starts on, left to right in English and
+/// right to left in Arabic.
+class DownloadBar extends StatelessWidget {
+  const DownloadBar({super.key, required this.value});
+
+  /// How much has arrived, from 0 to 1.
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: value.clamp(0.0, 1.0)),
+      duration: NazzilMotion.of(context, NazzilMotion.arrive),
+      curve: Curves.easeOut,
+      builder: (context, filled, _) => ClipRRect(
+        borderRadius: BorderRadius.circular(100),
+        child: SizedBox(
+          height: 6,
+          child: Stack(
+            children: [
+              Positioned.fill(child: ColoredBox(color: scheme.outlineVariant)),
+              Positioned.fill(
+                child: FractionallySizedBox(
+                  alignment: AlignmentDirectional.centerStart,
+                  widthFactor: filled,
+                  child: const ColoredBox(color: NazzilColors.grape),
                 ),
               ),
-            ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 }
@@ -597,8 +598,13 @@ class _Result extends StatelessWidget {
         16 +
         math.max(48, line(type.labelLarge!) + 16) +
         16 +
+        // The tallest download is a paused one: Resume, then the bar and the line that stops it.
         math.max(buttonLeast, button == null ? 0 : line(button) + 24) +
-        4 +
+        10 +
+        line(type.bodyMedium!) +
+        10 +
+        6 +
+        12 +
         48;
   }
 
@@ -682,37 +688,57 @@ class _Result extends StatelessWidget {
               icon: Icons.play_arrow_rounded,
               onPressed: () => controller.resumeJob(job),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
           ],
-          // While it downloads, the percentage is on the poster and this line holds the ways to stop.
-          OverflowBar(
-            alignment: MainAxisAlignment.spaceBetween,
-            overflowAlignment: OverflowBarAlignment.end,
+          // The state of the download, and the number beside it while bytes are counted.
+          Row(
             children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  widthFactor: 1,
-                  heightFactor: 1,
-                  child: Semantics(
-                    liveRegion: live,
-                    child: Text(
-                      job.paused
-                          ? s.paused
-                          : converting
-                              ? s.converting
-                              : downloading
-                                  ? s.downloading
-                                  : s.queued,
-                      // Lighter than the two ways to stop beside it, which are the things to press.
-                      style: theme.textTheme.bodyMedium,
-                    ),
+              Expanded(
+                child: Semantics(
+                  liveRegion: live,
+                  child: Text(
+                    job.paused
+                        ? s.paused
+                        : converting
+                            ? s.converting
+                            : downloading
+                                ? s.downloading
+                                : s.queued,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
                   ),
                 ),
               ),
-              Wrap(
+              if (downloading && !converting)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 8),
+                  child: Text(
+                    s.percent((controller.progress * 100).round()),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          DownloadBar(
+            value: converting
+                ? 1
+                : job.status == LibraryItem.statusQueued
+                    ? 0
+                    : controller.progress,
+          ),
+          const SizedBox(height: 12),
+          // The ways to stop, on one line until the text grows too large to fit.
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(
                 alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (downloading && !converting)
                     TextButton.icon(
@@ -727,7 +753,7 @@ class _Result extends StatelessWidget {
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ],
         if (controller.error.isNotEmpty) ...[

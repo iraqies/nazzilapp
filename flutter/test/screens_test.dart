@@ -18,6 +18,7 @@ import 'package:nazzil/theme/nazzil_theme.dart';
 import 'package:nazzil/ui/screens/home_screen.dart';
 import 'package:nazzil/ui/screens/viewer_screen.dart';
 import 'package:nazzil/ui/widgets/arriving.dart';
+import 'package:nazzil/ui/widgets/cover.dart';
 import 'package:nazzil/ui/widgets/done_sheet.dart';
 import 'package:nazzil/ui/widgets/library_tile.dart';
 import 'package:nazzil/ui/widgets/link_frame.dart';
@@ -470,7 +471,7 @@ void main() {
         ..notifyListeners();
       await tester.pump();
       await pictures(tester);
-      return tester.getSize(find.byType(ArrivingPicture)).height;
+      return tester.getSize(find.byType(NetPicture)).height;
     }
 
     expect(await posterOf(pictured('https://pictures.example/photo.png', id: 'p')), closeTo(240, 0.01));
@@ -490,7 +491,7 @@ void main() {
       ..library = [jobFor(tallPost, LibraryItem.statusPaused)]
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(ArrivingPicture)).height, tall, reason: 'one height, whatever the download is doing');
+    expect(tester.getSize(find.byType(NetPicture)).height, tall, reason: 'one height, whatever the download is doing');
     expect(find.text('Resume'), findsOneWidget);
     expect(
       tester.getRect(find.widgetWithText(TextButton, 'Cancel')).bottom,
@@ -508,7 +509,7 @@ void main() {
       ..selected = sampleVideo.options.first
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(find.byType(ArrivingPicture), findsNothing);
+    expect(find.byType(NetPicture), findsNothing);
     final stand = find.ancestor(of: find.byIcon(Icons.videocam_outlined), matching: find.byType(ColoredBox)).first;
     expect(tester.getSize(stand).height, closeTo(360 / 1.6, 0.01));
   });
@@ -528,11 +529,11 @@ void main() {
       ..notifyListeners();
     await tester.pump();
     await pictures(tester);
-    expect(tester.getRect(find.byType(ArrivingPicture)).top, 0);
+    expect(tester.getRect(find.byType(NetPicture)).top, 0);
     expect(tester.getRect(find.byTooltip('Clear')).top, greaterThanOrEqualTo(30), reason: 'the way out stays clear of the bar');
     expect(clock(), Brightness.light, reason: 'light figures over the picture and its fade');
 
-    final poster = tester.getSize(find.byType(ArrivingPicture)).height;
+    final poster = tester.getSize(find.byType(NetPicture)).height;
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
     await tester.pumpAndSettle();
     expect(scrolled(tester), greaterThan(poster - 30), reason: 'the poster has left but for the strip under the bar');
@@ -542,12 +543,12 @@ void main() {
     expect(strip, isNot(contains('RenderParagraph')));
   });
 
-  testWidgets('download: the picture goes from grey to colour, the number sits on it, and the line under holds the ways to stop', (tester) async {
+  testWidgets('download: a bar fills under the post in colour, the number beside it, and the ways to stop below', (tester) async {
     final controller = await boot(tester);
     LocalPictures.serve({'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200)});
     final media = pictured('https://pictures.example/photo.png');
     final job = jobFor(media, LibraryItem.statusDownloading);
-    ArrivalFrame frame() => tester.widget<ArrivalFrame>(find.byType(ArrivalFrame).first);
+    double? bar() => tester.widget<DownloadBar>(find.byType(DownloadBar)).value;
 
     controller
       ..media = media
@@ -555,8 +556,8 @@ void main() {
       ..notifyListeners();
     await tester.pump();
     await pictures(tester);
-    expect(frame().arrived, 1, reason: 'a post that was only fetched is shown in full colour');
-    expect(find.byType(ColorFiltered), findsNothing);
+    expect(find.byType(DownloadBar), findsNothing, reason: 'a post that was only fetched shows no bar');
+    expect(find.byType(ColorFiltered), findsNothing, reason: 'the post is shown in full colour');
 
     controller
       ..library = [job]
@@ -565,29 +566,20 @@ void main() {
       ..progress = 0.5
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(frame().arrived, closeTo(0.5, 0.001));
-    expect(find.byType(ColorFiltered), findsOneWidget);
+    expect(find.byType(DownloadBar), findsOneWidget);
+    expect(bar(), closeTo(0.5, 0.001), reason: 'the bar stands for how much has arrived');
+    expect(find.byType(ColorFiltered), findsNothing, reason: 'the post stays in colour while it downloads');
     expect(find.text('50%'), findsOneWidget);
     expect(find.text('Downloading…'), findsOneWidget);
     expect(find.text('Pause'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.byType(FilledButton), findsNothing, reason: 'nothing to start while it runs');
 
-    // Half the picture is in colour and half is grey, with the line between them.
-    final poster = tester.getRect(find.byType(ArrivingPicture));
-    final shot = await capture(tester);
-    int at(double x) => shot.pixels.getUint32((poster.center.dy.round() * shot.width + x.round()) * 4);
-    expect(at(poster.left + 40) >> 8, 0xCC3355);
-    final grey = at(poster.right - 40);
-    expect(grey >> 24, grey >> 16 & 0xFF);
-    expect(grey >> 16 & 0xFF, grey >> 8 & 0xFF);
-    expect(at(poster.center.dx) >> 8, NazzilColors.grape.toARGB32() & 0xFFFFFF);
-
     controller
       ..converting = true
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(frame().arrived, 1, reason: 'the whole file is here; only the conversion is left');
+    expect(bar(), 1, reason: 'the whole file is here; only the conversion is left');
     expect(find.text('50%'), findsNothing);
     expect(find.text('Converting…'), findsOneWidget);
     expect(find.text('Pause'), findsNothing, reason: 'nothing is left to pause');
@@ -611,14 +603,13 @@ void main() {
       ..library = [jobFor(media, LibraryItem.statusPaused)]
       ..goTab(0);
     await tester.pumpAndSettle();
-    expect(frame().arrived, 0, reason: 'a paused download is all grey');
-    expect(frame().line, isFalse);
     expect(find.text('Paused'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Resume'), findsOneWidget);
     expect(find.text('Pause'), findsNothing);
+    expect(find.byType(DownloadBar), findsOneWidget, reason: 'a paused download still shows its bar');
   });
 
-  testWidgets('download: in the Arabic app the colour arrives from the right', (tester) async {
+  testWidgets('download: in the Arabic app the bar fills from the right', (tester) async {
     final controller = await boot(tester, language: 'ar');
     LocalPictures.serve({'https://pictures.example/photo.png': await picture(tester, 'photo', 300, 200)});
     final media = pictured('https://pictures.example/photo.png');
@@ -633,14 +624,13 @@ void main() {
       ..notifyListeners();
     await tester.pump();
     await pictures(tester);
-    final poster = tester.getRect(find.byType(ArrivingPicture));
+    final grape = NazzilColors.grape.toARGB32() & 0xFFFFFF;
+    final bar = tester.getRect(find.byType(DownloadBar));
     final shot = await capture(tester);
-    int at(double x) => shot.pixels.getUint32((poster.center.dy.round() * shot.width + x.round()) * 4);
-    expect(at(poster.right - 30) >> 8, 0xCC3355);
-    final grey = at(poster.left + 30);
-    expect(grey >> 24, grey >> 8 & 0xFF);
-    // The number is digits, so it reads left to right, and sits where reading starts.
-    expect(tester.getRect(find.text('25%')).right, greaterThan(poster.center.dx));
+    int at(double x) => shot.pixels.getUint32((bar.center.dy.round() * shot.width + x.round()) * 4);
+    // A quarter in: the far (right) end carries the fill, the near (left) end is still the track.
+    expect(at(bar.right - 8) >> 8, grape);
+    expect(at(bar.left + 8) >> 8, isNot(grape));
   });
 
   testWidgets('a picture that is not on the device is grey, at 42% of its brightness', (tester) async {
