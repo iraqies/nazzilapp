@@ -4,14 +4,13 @@ import '../../l10n/strings.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
 
-/// The empty frame on Home. It asks for a link, and it is the link field:
-/// tapping it lets the user type one or edit the one in it. It fills the
-/// height it is given, and is never shorter than [minHeight] or its own words.
+/// The link field on Home: a single rounded iOS-style field that holds the
+/// link to fetch. Tapping it anywhere starts typing; a clear button sits at
+/// its end once there is something to clear.
 class LinkFrame extends StatefulWidget {
-  const LinkFrame({super.key, required this.controller, required this.s, required this.minHeight});
+  const LinkFrame({super.key, required this.controller, required this.s});
   final NazzilController controller;
   final S s;
-  final double minHeight;
 
   @override
   State<LinkFrame> createState() => _LinkFrameState();
@@ -54,72 +53,29 @@ class _LinkFrameState extends State<LinkFrame> {
     final scheme = theme.colorScheme;
     final empty = _text.text.isEmpty;
     final focused = _focus.hasFocus;
-    final asking = empty && !focused;
-    final label = theme.textTheme.labelMedium!;
-    // The link starts under its label, however large the system font is.
-    final labelHeight = MediaQuery.textScalerOf(context).scale(label.fontSize!) * label.height!;
-    return CustomPaint(
-      foregroundPainter: _FramePainter(
-        color: focused ? scheme.onSurface : scheme.outline,
-        width: focused ? 2 : 1.5,
-        dashed: !focused,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: widget.minHeight),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // It keeps its place when hidden, so the frame does not change size under the finger.
-            Visibility(
-              visible: asking,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.content_paste_rounded, size: 32, color: scheme.onSurfaceVariant),
-                    const SizedBox(height: 10),
-                    MediaQuery.withClampedTextScaling(
-                      maxScaleFactor: 1.3,
-                      child: Text(
-                        s.framePrompt,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(s.frameHint, textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
-                  ],
-                ),
+    return Semantics(
+      label: s.linkLabel,
+      textField: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(NazzilRadius.control),
+          border: Border.all(
+            color: focused ? scheme.onSurface : Colors.transparent,
+            width: focused ? 2 : 1.5,
+          ),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 14, end: 8),
+                child: Icon(Icons.link_rounded, size: 22, color: scheme.onSurfaceVariant),
               ),
-            ),
-            if (!asking)
-              PositionedDirectional(
-                top: 14,
-                start: 16,
-                end: 16,
-                child: ExcludeSemantics(child: Text(s.linkLabel, maxLines: 1, style: label)),
-              ),
-            // The field is as tall as its text; a tap anywhere else in the frame reaches it too.
-            Positioned.fill(
-              child: MouseRegion(
-                cursor: SystemMouseCursors.text,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  excludeFromSemantics: true,
-                  onTap: _focus.requestFocus,
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: Semantics(
-                label: s.linkLabel,
+              Expanded(
                 child: TextField(
-                  // A long link scrolls inside the frame. Named, that place is not the page's.
                   key: const PageStorageKey('link'),
                   controller: _text,
                   focusNode: _focus,
@@ -128,70 +84,33 @@ class _LinkFrameState extends State<LinkFrame> {
                   keyboardType: TextInputType.url,
                   textInputAction: TextInputAction.go,
                   autocorrect: false,
-                  maxLines: null,
-                  // A link reads left to right in the Arabic app too, on the lines Latin is set on.
+                  maxLines: 1,
+                  // A link reads left to right in the Arabic app too.
                   textDirection: TextDirection.ltr,
                   style: NazzilTheme.inScript(theme.textTheme.bodyLarge!, arabic: false),
                   decoration: InputDecoration(
-                    hintText: asking ? null : s.pasteHint,
-                    hintMaxLines: 8,
+                    isCollapsed: true,
+                    border: InputBorder.none,
+                    hintText: s.framePrompt,
                     hintTextDirection: Directionality.of(context),
-                    contentPadding: EdgeInsetsDirectional.fromSTEB(16, 14 + labelHeight + 6, 16, empty ? 16 : 52),
+                    hintStyle: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
               ),
-            ),
-            if (!empty)
-              PositionedDirectional(
-                bottom: 2,
-                end: 2,
-                child: IconButton(
+              if (empty)
+                const SizedBox(width: 14)
+              else
+                IconButton(
                   tooltip: s.clear,
                   onPressed: widget.controller.clear,
-                  icon: const Icon(Icons.close_rounded),
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.cancel, size: 20),
+                  color: scheme.onSurfaceVariant,
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-class _FramePainter extends CustomPainter {
-  const _FramePainter({required this.color, required this.width, required this.dashed});
-  final Color color;
-  final double width;
-  final bool dashed;
-
-  static const _dash = 6.0;
-  static const _gap = 5.0;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final frame = RRect.fromRectAndRadius(
-      (Offset.zero & size).deflate(width / 2),
-      const Radius.circular(NazzilRadius.control),
-    );
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width;
-    if (!dashed) {
-      canvas.drawRRect(frame, paint);
-      return;
-    }
-    for (final metric in (Path()..addRRect(frame)).computeMetrics()) {
-      // A whole number of dashes, so the last one meets the first.
-      final count = (metric.length / (_dash + _gap)).round();
-      final step = metric.length / count;
-      for (var i = 0; i < count; i++) {
-        canvas.drawPath(metric.extractPath(i * step, i * step + step * _dash / (_dash + _gap)), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_FramePainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.width != width || oldDelegate.dashed != dashed;
 }

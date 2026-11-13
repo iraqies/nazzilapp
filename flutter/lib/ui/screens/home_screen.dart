@@ -50,7 +50,7 @@ class HomeScreen extends StatelessWidget {
                 // and a new post gets a new key, so it opens at its top.
                 key: PageStorageKey('home ${media?.webpageUrl ?? ''}'),
                 slivers: media == null
-                    ? _asking(context, constraints.biggest)
+                    ? _asking(context)
                     : _fetched(context, media, constraints.biggest, inset),
               ),
             ),
@@ -61,33 +61,29 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  List<Widget> _asking(BuildContext context, Size body) {
+  List<Widget> _asking(BuildContext context) {
     final s = controller.s;
     final typed = controller.url.trim().isNotEmpty;
     final recent = wide ? const <LibraryItem>[] : controller.library.take(12).toList();
+    final type = Theme.of(context).textTheme;
     return [
-      // One screenful when there is room: the frame takes what the rest leaves,
-      // so the button and the last saves stay at the bottom, near the thumb.
       SliverFillRemaining(
         hasScrollBody: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!wide) TopBar(controller: controller, onSettings: onSettings),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, wide ? 20 : 12, 20, 0),
-                // Never flatter than a film frame.
-                child: LinkFrame(controller: controller, s: s, minHeight: (body.width - 40) * 9 / 16),
-              ),
-            ),
             FocusTraversalGroup(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: EdgeInsets.fromLTRB(20, wide ? 20 : 16, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // One button, named for the next step: Paste into an empty frame, Fetch once it holds a link.
+                    LinkFrame(controller: controller, s: s),
+                    const SizedBox(height: 10),
+                    Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
+                    const SizedBox(height: 20),
+                    // One button, named for the next step: Paste when empty, Fetch once it holds a link.
                     NazzilButton(
                       label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
                       icon: typed ? null : Icons.content_paste_rounded,
@@ -106,17 +102,16 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       _ErrorLine(controller.error),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _Apps(s: s),
                   ],
                 ),
               ),
             ),
-            if (recent.isEmpty)
-              const SizedBox(height: 28)
-            else
+            const Spacer(),
+            if (recent.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 28, bottom: 24),
+                padding: const EdgeInsets.only(bottom: 24),
                 child: FocusTraversalGroup(child: _Recent(controller: controller, items: recent)),
               ),
           ],
