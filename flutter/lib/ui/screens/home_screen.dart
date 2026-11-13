@@ -65,55 +65,88 @@ class HomeScreen extends StatelessWidget {
     final s = controller.s;
     final typed = controller.url.trim().isNotEmpty;
     final recent = wide ? const <LibraryItem>[] : controller.library.take(12).toList();
-    final type = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final type = theme.textTheme;
+    final layout = Directionality.of(context);
     return [
       SliverFillRemaining(
-        hasScrollBody: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        hasScrollBody: true,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            if (!wide) TopBar(controller: controller, onSettings: onSettings),
-            FocusTraversalGroup(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, wide ? 20 : 16, 20, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    LinkFrame(controller: controller, s: s),
-                    const SizedBox(height: 10),
-                    Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
-                    const SizedBox(height: 20),
-                    // One button, named for the next step: Paste when empty, Fetch once it holds a link.
-                    NazzilButton(
-                      label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
-                      icon: typed ? null : Icons.content_paste_rounded,
-                      busy: controller.loading,
-                      onPressed: typed ? () => controller.fetch() : _paste,
-                    ),
-                    if (controller.loading)
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: controller.cancelFetch,
-                          icon: const Icon(Icons.close_rounded),
-                          label: Text(s.cancel),
+            const Positioned.fill(child: IgnorePointer(child: _FrostGlow())),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!wide) TopBar(controller: controller, onSettings: onSettings),
+                // The hero sits in the middle of the room, and slides up to clear the keyboard.
+                Expanded(
+                  child: FocusTraversalGroup(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 24),
+                              Align(alignment: Alignment.center, child: _HeroBadge(text: s.heroBadge)),
+                              const SizedBox(height: 20),
+                              Text(
+                                s.heroTitle,
+                                textAlign: TextAlign.center,
+                                style: styleIn(s.heroTitle, type.displaySmall!, layout),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                s.heroSubtitle,
+                                textAlign: TextAlign.center,
+                                style: styleIn(s.heroSubtitle, type.bodyLarge!, layout)
+                                    .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                              const SizedBox(height: 32),
+                              LinkFrame(controller: controller, s: s),
+                              const SizedBox(height: 10),
+                              Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
+                              const SizedBox(height: 16),
+                              // One button, named for the next step: Paste when empty, Fetch once it holds a link.
+                              NazzilButton(
+                                label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
+                                icon: typed ? null : Icons.content_paste_rounded,
+                                busy: controller.loading,
+                                onPressed: typed ? () => controller.fetch() : _paste,
+                              ),
+                              if (controller.loading)
+                                Center(
+                                  child: TextButton.icon(
+                                    onPressed: controller.cancelFetch,
+                                    icon: const Icon(Icons.close_rounded),
+                                    label: Text(s.cancel),
+                                  ),
+                                ),
+                              if (controller.error.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                _ErrorLine(controller.error),
+                              ],
+                              const SizedBox(height: 28),
+                              _Apps(s: s),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
                         ),
                       ),
-                    if (controller.error.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _ErrorLine(controller.error),
-                    ],
-                    const SizedBox(height: 20),
-                    _Apps(s: s),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
+                if (recent.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: FocusTraversalGroup(child: _Recent(controller: controller, items: recent)),
+                  ),
+              ],
             ),
-            const Spacer(),
-            if (recent.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: FocusTraversalGroup(child: _Recent(controller: controller, items: recent)),
-              ),
           ],
         ),
       ),
@@ -170,6 +203,55 @@ class _ErrorLine extends StatelessWidget {
           ),
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: error))),
         ],
+      ),
+    );
+  }
+}
+
+/// A soft wash of the tint from the top of Home, the frost the owner asked for.
+class _FrostGlow extends StatelessWidget {
+  const _FrostGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.9),
+          radius: 1.15,
+          colors: [
+            NazzilColors.tint.withValues(alpha: dark ? 0.22 : 0.12),
+            NazzilColors.tint.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.62],
+        ),
+      ),
+    );
+  }
+}
+
+/// The small frosted pill over the hero, naming what Nazzil saves.
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: NazzilColors.tint.withValues(alpha: dark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        child: Text(
+          text,
+          style: styleIn(text, theme.textTheme.labelMedium!, Directionality.of(context))
+              .copyWith(color: theme.colorScheme.onSurface, fontWeight: NazzilTheme.strong),
+        ),
       ),
     );
   }

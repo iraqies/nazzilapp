@@ -89,7 +89,9 @@ class _LinkFrameState extends State<LinkFrame> {
                   textDirection: TextDirection.ltr,
                   style: NazzilTheme.inScript(theme.textTheme.bodyLarge!, arabic: false),
                   decoration: InputDecoration(
-                    isCollapsed: true,
+                    isDense: true,
+                    // The field fills the row's height, so its tap target clears 48.
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
                     border: InputBorder.none,
                     hintText: s.framePrompt,
                     hintTextDirection: Directionality.of(context),

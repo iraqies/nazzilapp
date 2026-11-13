@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 abstract final class NazzilColors {
-  /// The one accent of the interface: Apple's link blue. It fills the button that
+  /// The one accent of the interface: Polyfrost's blue. It fills the button that
   /// does the next step, the bar a download fills, and the mark on the logo, and is
-  /// kept to those, the sparing way the system spends its tint. The owner asked for
-  /// apple.com's own palette on 2026-11-13.
-  static const tint = Color(0xFF0066CC);
+  /// kept to those, the sparing way the frost is spent. The owner asked to take after
+  /// Polyfrost on 2026-11-13.
+  static const tint = Color(0xFF1F65D6);
 
   /// Text on the tint. White clears 4.5:1 on this blue, so the filled button carries
   /// white letters, the way Apple's own buttons do.
