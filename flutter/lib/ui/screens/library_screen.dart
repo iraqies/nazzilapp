@@ -20,37 +20,31 @@ class LibraryScreen extends StatelessWidget {
   final bool wide;
 
   static const _maxTile = 220.0;
-  static const _gap = 2.0;
+  static const _gap = 12.0;
 
   @override
   Widget build(BuildContext context) {
     final s = controller.s;
-    final theme = Theme.of(context);
     final items = controller.visibleLibrary;
     final platforms = controller.libraryPlatforms;
-    final arabic = s.isAr;
     return Padding(
-      // The wall stops below the status bar, so no picture passes behind the clock.
+      // The grid stops below the status bar, so no picture passes behind the clock.
       padding: EdgeInsets.only(top: wide ? 0 : MediaQuery.paddingOf(context).top),
       child: CustomScrollView(
         key: const PageStorageKey('library'),
         slivers: [
           if (!wide) SliverToBoxAdapter(child: TopBar(controller: controller, onSettings: onSettings)),
+          // Finery's catalogue head: the count as an eyebrow over the heading, centred.
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, wide ? 20 : 8, 20, 0),
-              child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.end,
-                spacing: 12,
+              padding: EdgeInsets.fromLTRB(20, wide ? 20 : 4, 20, 0),
+              child: Column(
                 children: [
-                  Heading(s.library),
-                  if (controller.library.isNotEmpty)
-                    Padding(
-                      // Sets the count on the baseline of the heading beside it.
-                      padding: EdgeInsets.only(bottom: arabic ? 9 : 5),
-                      child: Text(s.itemsN(items.length), style: theme.textTheme.bodySmall),
-                    ),
+                  if (controller.library.isNotEmpty) ...[
+                    Eyebrow(s.itemsN(items.length), textAlign: TextAlign.center),
+                    const SizedBox(height: 6),
+                  ],
+                  Heading(s.library, textAlign: TextAlign.center),
                 ],
               ),
             ),
@@ -59,34 +53,23 @@ class LibraryScreen extends StatelessWidget {
             SliverToBoxAdapter(
               child: FocusTraversalGroup(
                 child: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(11, 4, 10, 4),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                   child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
+                    alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: Wrap(
-                          children: [
-                            for (final kind in [
-                              ('all', s.filterAll),
-                              ('photos', s.filterPhotos),
-                              ('videos', s.filterVideos),
-                              ('audio', s.filterAudio),
-                            ])
-                              _KindTab(
-                                label: kind.$2,
-                                active: controller.libraryKind == kind.$1,
-                                onTap: () => controller.setLibraryKind(kind.$1),
-                              ),
-                          ],
+                      for (final kind in [
+                        ('all', s.filterAll),
+                        ('photos', s.filterPhotos),
+                        ('videos', s.filterVideos),
+                        ('audio', s.filterAudio),
+                      ])
+                        _KindTab(
+                          label: kind.$2,
+                          active: controller.libraryKind == kind.$1,
+                          onTap: () => controller.setLibraryKind(kind.$1),
                         ),
-                      ),
-                      if (platforms.length > 1 || controller.libraryPlatform != 'all')
-                        Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: _AppMenu(controller: controller),
-                        ),
+                      if (platforms.length > 1 || controller.libraryPlatform != 'all') _AppMenu(controller: controller),
                     ],
                   ),
                 ),
@@ -107,7 +90,9 @@ class LibraryScreen extends StatelessWidget {
                     ),
             )
           else
-            SliverLayoutBuilder(
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+              sliver: SliverLayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.crossAxisExtent;
                 final columns = ((width + _gap) / (_maxTile + _gap)).ceil().clamp(2, 12);
@@ -135,6 +120,7 @@ class LibraryScreen extends StatelessWidget {
                   ),
                 );
               },
+              ),
             ),
         ],
       ),
@@ -142,7 +128,52 @@ class LibraryScreen extends StatelessWidget {
   }
 }
 
-/// A kind filter: plain words, underlined when picked.
+/// A filter as a pill: filled with the text colour when picked, a white tile edged
+/// by a hairline when not. The pill stands 36 high inside a tap target of 48.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.onTap, required this.active, required this.child, this.selected});
+  final VoidCallback onTap;
+  final bool active;
+  final Widget child;
+  final bool? selected;
+
+  static TextStyle style(BuildContext context, {required bool active}) {
+    final theme = Theme.of(context);
+    return theme.textTheme.labelLarge!.copyWith(
+      fontSize: 15,
+      color: active ? theme.colorScheme.surface : theme.colorScheme.onSurface,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tappable(
+      onTap: onTap,
+      selected: selected,
+      radius: NazzilRadius.pill,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: active ? scheme.onSurface : scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(NazzilRadius.pill),
+              border: Border.all(color: active ? scheme.onSurface : scheme.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A kind filter.
 class _KindTab extends StatelessWidget {
   const _KindTab({required this.label, required this.active, required this.onTap});
   final String label;
@@ -151,37 +182,11 @@ class _KindTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Tappable(
+    return _Pill(
       onTap: onTap,
+      active: active,
       selected: active,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 7),
-          child: Center(
-            widthFactor: 1,
-            heightFactor: 1,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: active ? scheme.onSurface : Colors.transparent, width: 2),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: active ? scheme.onSurface : scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      child: Text(label, style: _Pill.style(context, active: active)),
     );
   }
 }
@@ -239,29 +244,19 @@ class _AppMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = controller.s;
-    final theme = Theme.of(context);
     // By name, not from the apps present: a filter can outlive the last item it matched.
     final picked = PlatformId.values.where((p) => p.name == controller.libraryPlatform).firstOrNull;
-    return Tappable(
+    final style = _Pill.style(context, active: picked != null);
+    return _Pill(
       onTap: () => _open(context),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  picked == null ? s.filterAllApps : s.platformName(picked),
-                  style: theme.textTheme.labelLarge,
-                ),
-              ),
-              const SizedBox(width: 2),
-              Icon(Icons.expand_more_rounded, size: 22, color: theme.colorScheme.onSurface),
-            ],
-          ),
-        ),
+      active: picked != null,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(picked == null ? s.filterAllApps : s.platformName(picked), style: style)),
+          const SizedBox(width: 2),
+          Icon(Icons.expand_more_rounded, size: 20, color: style.color),
+        ],
       ),
     );
   }

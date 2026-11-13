@@ -6,12 +6,16 @@ import 'logo_outline.g.dart';
 /// text colour, and the dots and the shadda are Grape.
 /// It is the same in both languages, as a logo is.
 class NazzilLogo extends StatelessWidget {
-  const NazzilLogo({super.key, required this.height, required this.name});
+  const NazzilLogo({super.key, required this.height, required this.name, this.letters});
 
   final double height;
 
   /// The name as a screen reader says it.
   final String name;
+
+  /// The colour of the letters where they stand on a ground of their own, as on
+  /// the icon; elsewhere they take the text colour.
+  final Color? letters;
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +25,7 @@ class NazzilLogo extends StatelessWidget {
       image: true,
       child: CustomPaint(
         size: Size(height * LogoOutline.width / LogoOutline.height, height),
-        painter: _LogoPainter(letters: scheme.onSurface, dots: scheme.primaryContainer),
+        painter: _LogoPainter(letters: letters ?? scheme.onSurface, dots: scheme.primaryContainer),
       ),
     );
   }

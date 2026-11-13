@@ -287,9 +287,10 @@ class _Tabs extends StatelessWidget {
       (s.home, Icons.home_outlined, Icons.home_rounded),
       (s.library, Icons.photo_library_outlined, Icons.photo_library_rounded),
     ];
+    final link = NazzilTheme.link(theme.brightness);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color: scheme.surfaceContainerLow,
         border: Border(top: BorderSide(color: scheme.outlineVariant)),
       ),
       child: SafeArea(
@@ -307,8 +308,8 @@ class _Tabs extends StatelessWidget {
                       child: Builder(
                         builder: (context) {
                           final active = controller.tab == i;
-                          // The open tab is told apart by a filled icon as well as a brighter one.
-                          final ink = active ? scheme.onSurface : scheme.onSurfaceVariant;
+                          // The open tab is told apart by a filled icon as well as by the accent.
+                          final ink = active ? link : scheme.onSurfaceVariant;
                           return Tappable(
                             onTap: () => controller.goTab(i),
                             selected: active,

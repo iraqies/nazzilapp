@@ -9,13 +9,16 @@ import '../../models/media.dart';
 import '../../state/nazzil_controller.dart';
 import '../../theme/nazzil_theme.dart';
 import '../widgets/cover.dart';
+import '../widgets/heading.dart';
 import '../widgets/item_sheet.dart';
 import '../widgets/library_tile.dart';
 import '../widgets/link_frame.dart';
+import '../widgets/logo.dart';
 import '../widgets/nazzil_button.dart';
 import '../widgets/page_stepper.dart';
 import '../widgets/photo_film.dart';
 import '../widgets/quality_switch.dart';
+import '../widgets/tile.dart';
 import '../widgets/title_text.dart';
 import '../widgets/top_bar.dart';
 
@@ -71,81 +74,82 @@ class HomeScreen extends StatelessWidget {
     return [
       SliverFillRemaining(
         hasScrollBody: false,
-        child: Stack(
-          fit: StackFit.expand,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Positioned.fill(child: IgnorePointer(child: _FrostGlow())),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!wide) TopBar(controller: controller, onSettings: onSettings),
-                // The hero sits in the middle of the room the page leaves; when the
-                // keyboard or large text takes that room, the whole page scrolls.
-                Expanded(
-                  child: FocusTraversalGroup(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // The hero — a word on what Nazzil does — stands only on the
-                          // empty page; once there are last saves below, the field alone
-                          // leads, so the strip stays in view without the page scrolling.
-                          if (recent.isEmpty) ...[
-                            Align(alignment: Alignment.center, child: _HeroBadge(text: s.heroBadge)),
-                            const SizedBox(height: 20),
-                            Text(
-                              s.heroTitle,
-                              textAlign: TextAlign.center,
-                              style: styleIn(s.heroTitle, type.displaySmall!, layout),
+            if (!wide) TopBar(controller: controller, onSettings: onSettings),
+            // The page sits in the middle of the room it is left; when the keyboard
+            // or large text takes that room, the whole page scrolls.
+            Expanded(
+              child: FocusTraversalGroup(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // The header (eyebrow, headline, lede) and the showcase stand only
+                      // on the empty page; once there are last saves, the link tile alone
+                      // leads, so the strip stays in view without the page scrolling.
+                      if (recent.isEmpty) ...[
+                        Eyebrow(s.heroBadge, textAlign: TextAlign.center),
+                        const SizedBox(height: 10),
+                        Text(
+                          s.heroTitle,
+                          textAlign: TextAlign.center,
+                          style: styleIn(s.heroTitle, type.displaySmall!, layout),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          s.heroSubtitle,
+                          textAlign: TextAlign.center,
+                          style: styleIn(s.heroSubtitle, type.bodyLarge!, layout)
+                              .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 28),
+                      ],
+                      Tile(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            LinkFrame(controller: controller, s: s),
+                            const SizedBox(height: 16),
+                            // One button, named for the next step: Paste when empty, Fetch once it holds a link.
+                            NazzilButton(
+                              label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
+                              icon: typed ? null : Icons.content_paste_rounded,
+                              busy: controller.loading,
+                              onPressed: typed ? () => controller.fetch() : _paste,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              s.heroSubtitle,
-                              textAlign: TextAlign.center,
-                              style: styleIn(s.heroSubtitle, type.bodyLarge!, layout)
-                                  .copyWith(color: theme.colorScheme.onSurfaceVariant),
-                            ),
-                            const SizedBox(height: 32),
-                          ],
-                          LinkFrame(controller: controller, s: s),
-                          const SizedBox(height: 10),
-                          Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
-                          const SizedBox(height: 16),
-                          // One button, named for the next step: Paste when empty, Fetch once it holds a link.
-                          NazzilButton(
-                            label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
-                            icon: typed ? null : Icons.content_paste_rounded,
-                            busy: controller.loading,
-                            onPressed: typed ? () => controller.fetch() : _paste,
-                          ),
-                          if (controller.loading)
-                            Center(
-                              child: TextButton.icon(
-                                onPressed: controller.cancelFetch,
-                                icon: const Icon(Icons.close_rounded),
-                                label: Text(s.cancel),
+                            if (controller.loading)
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: controller.cancelFetch,
+                                  icon: const Icon(Icons.close_rounded),
+                                  label: Text(s.cancel),
+                                ),
                               ),
-                            ),
-                          if (controller.error.isNotEmpty) ...[
+                            if (controller.error.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              _ErrorLine(controller.error),
+                            ],
                             const SizedBox(height: 12),
-                            _ErrorLine(controller.error),
+                            Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
                           ],
-                          const SizedBox(height: 28),
-                          _Apps(s: s),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      if (recent.isEmpty) _WorksWith(s: s) else _Apps(s: s),
+                    ],
                   ),
                 ),
-                if (recent.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: FocusTraversalGroup(child: _Recent(controller: controller, items: recent)),
-                  ),
-              ],
+              ),
             ),
+            if (recent.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: FocusTraversalGroup(child: _Recent(controller: controller, items: recent)),
+              ),
           ],
         ),
       ),
@@ -159,6 +163,11 @@ class HomeScreen extends StatelessWidget {
     // Saving one photo of an album is a job of its own, shown while that photo is up.
     final job = controller.jobForCurrent() ??
         (album ? controller.jobForCurrent(onlyPhoto: controller.photoIndex) : null);
+    // The result is a tile set in from the sides and lifted off the foot; the poster fills the rest.
+    const edge = 12.0;
+    const above = 12.0;
+    const foot = 16.0;
+    const pad = 20.0;
     return [
       _Poster(
         // A new post, or the same post turned from its video to its photos, starts a new frame.
@@ -167,15 +176,20 @@ class HomeScreen extends StatelessWidget {
         media: media,
         photos: photos,
         body: body,
-        // The result sits in a card padded 12 above and 28 below; the poster fills the rest.
-        below: _Result.heightFor(context, media, body.width - 40, album: album, job: job) + 40,
+        below: _Result.heightFor(context, media, body.width - 2 * (edge + pad), album: album, job: job) +
+            above +
+            foot +
+            2 * pad,
         inset: inset,
       ),
       SliverToBoxAdapter(
         child: FocusTraversalGroup(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            child: _Result(controller: controller, media: media, photos: photos, job: job, live: !wide),
+            padding: const EdgeInsets.fromLTRB(edge, above, edge, foot),
+            child: Tile(
+              padding: const EdgeInsets.all(pad),
+              child: _Result(controller: controller, media: media, photos: photos, job: job, live: !wide),
+            ),
           ),
         ),
       ),
@@ -208,50 +222,58 @@ class _ErrorLine extends StatelessWidget {
   }
 }
 
-/// A soft wash of the tint from the top of Home, the frost the owner asked for.
-class _FrostGlow extends StatelessWidget {
-  const _FrostGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(0, -0.9),
-          radius: 1.15,
-          colors: [
-            NazzilColors.tint.withValues(alpha: dark ? 0.22 : 0.12),
-            NazzilColors.tint.withValues(alpha: 0),
-          ],
-          stops: const [0, 0.62],
-        ),
-      ),
-    );
-  }
-}
-
-/// The small frosted pill over the hero, naming what Nazzil saves.
-class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({required this.text});
-  final String text;
+/// Finery's showcase, for Home: the icon on its stand, and under it a badge
+/// for each app a link can come from.
+class _WorksWith extends StatelessWidget {
+  const _WorksWith({required this.s});
+  final S s;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: NazzilColors.tint.withValues(alpha: dark ? 0.18 : 0.10),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        child: Text(
-          text,
-          style: styleIn(text, theme.textTheme.labelMedium!, Directionality.of(context))
-              .copyWith(color: theme.colorScheme.onSurface, fontWeight: NazzilTheme.strong),
-        ),
+    final names = [
+      for (final platform in PlatformId.values)
+        if (platform != PlatformId.unknown) s.platformName(platform),
+    ];
+    return Tile(
+      showcase: true,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            s.worksWith,
+            style: theme.textTheme.labelMedium?.copyWith(fontWeight: NazzilTheme.strong),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: NazzilTheme.pedestal,
+              ),
+              child: SizedBox.square(
+                dimension: 88,
+                child: Center(child: NazzilLogo(height: 40, name: s.appName, letters: const Color(0xFF1D1D1F))),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Semantics(
+            label: names.join(', '),
+            child: ExcludeSemantics(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var i = 0; i < names.length; i++) PillBadge(names[i], gold: i == 0),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -332,7 +354,7 @@ class _Recent extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 2),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final item = items[index];
               final running = item.id == controller.activeJobId;
@@ -575,7 +597,11 @@ class _PosterDelegate extends SliverPersistentHeaderDelegate {
     final closed = inset <= 0 ? 0.0 : ((shrinkOffset - (maxExtent - inset - 48)) / 48).clamp(0.0, 1.0);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: NazzilTheme.overlay(theme.brightness, page, onPicture: pictured && closed < 0.5),
-      child: Stack(
+      // The poster runs to the edges and under the clock, and rounds off at its foot
+      // like the tiles under it, squaring up as it closes into the strip under the bar.
+      child: ClipRRect(
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(NazzilRadius.card * (1 - closed))),
+        child: Stack(
         fit: StackFit.expand,
         children: [
           // The picture keeps its full height and leaves by the top, as the page under it does.
@@ -615,6 +641,7 @@ class _PosterDelegate extends SliverPersistentHeaderDelegate {
               child: IgnorePointer(child: ColoredBox(color: page.withValues(alpha: closed))),
             ),
         ],
+      ),
       ),
     );
   }
@@ -679,9 +706,9 @@ class _Result extends StatelessWidget {
     final button = buttonStyle?.textStyle?.resolve(const {});
     // The filled button holds a least height; past that its own words carry it.
     final buttonLeast = buttonStyle?.minimumSize?.resolve(const {})?.height ?? 56;
-    // An album's first line also holds the buttons that turn its pages.
-    final head = math.max(line(type.bodySmall!), album ? 48 : 0) +
-        4 +
+    // The eyebrow of facts; an album's first line also holds the buttons that turn its pages.
+    final head = math.max(line(Eyebrow.styleOf(context, 'A')), album ? 48 : 0) +
+        8 +
         titleHeight +
         (author == null ? 0 : 6 + tall(author, styleIn(author, type.bodySmall!, layout))) +
         16 +
@@ -734,7 +761,7 @@ class _Result extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 12,
           children: [
-            if (facts.isNotEmpty) Text(facts, style: theme.textTheme.bodySmall),
+            if (facts.isNotEmpty) Eyebrow(facts),
             if (album)
               PageStepper(
                 index: controller.photoIndex,
@@ -744,7 +771,7 @@ class _Result extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         Semantics(
           header: true,
           child: MediaQuery.withClampedTextScaling(

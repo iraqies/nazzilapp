@@ -11,10 +11,11 @@ class S {
 
   // The Arabic name is written as the logo writes it, with its shadda.
   String get appName => _t('Nazzil', 'نزّل');
-  String get heroTitle => _t('Download from anywhere', 'نزّل من أي مكان');
+  String get heroTitle => _t('Download from anywhere.', 'نزّل من أي مكان.');
   String get heroSubtitle =>
       _t('Save video, photos and audio from your favourite apps.', 'احفظ الفيديو والصور والصوت من تطبيقاتك المفضلة.');
   String get heroBadge => _t('Video · Photos · Audio', 'فيديو · صور · صوت');
+  String get worksWith => _t('Works with', 'يعمل مع');
   String get framePrompt => _t('Paste a link', 'الصق رابطًا');
   String get frameHint => _pc
       ? _t('or drop it on this window', 'أو اسحبه إلى هذه النافذة')

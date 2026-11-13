@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 abstract final class NazzilColors {
-  /// The one accent of the interface: Polyfrost's blue. It fills the button that
-  /// does the next step, the bar a download fills, and the mark on the logo, and is
-  /// kept to those, the sparing way the frost is spent. The owner asked to take after
-  /// Polyfrost on 2026-11-13.
-  static const tint = Color(0xFF1F65D6);
+  /// The one accent of the interface: Finery's sapphire. It fills the button that
+  /// does the next step and the bar a download fills, and marks the logo. The owner
+  /// asked to take after Finery (finery.theiraqieslove.workers.dev) on 2026-11-14.
+  static const tint = Color(0xFF0071E3);
 
   /// Text on the tint. White clears 4.5:1 on this blue, so the filled button carries
   /// white letters, the way Apple's own buttons do.
   static const onTint = Color(0xFFFFFFFF);
+
+  /// Finery's gold, kept for the one badge that leads its row.
+  static const goldFill = Color(0xFFFDF6E2);
+  static const goldInk = Color(0xFF8C620A);
+  static const goldEdge = Color(0x47D49B1F);
 
   /// Dark text for the odd light fill, such as the warning red, where white would not clear 4.5:1.
   static const ink = Color(0xFF0B0B0C);
@@ -33,13 +37,14 @@ abstract final class NazzilColors {
   ]);
 }
 
-/// iOS rounds its corners, so controls, cells and sheets all carry a radius.
-/// The media keeps square, full-bleed edges; these are for the chrome around it.
+/// Finery's corners: tiles round wide, controls and fields at 14, badges all the way.
 abstract final class NazzilRadius {
   static const tag = 6.0;
-  static const control = 12.0;
-  static const card = 18.0;
-  static const sheet = 18.0;
+  static const control = 14.0;
+  static const picture = 18.0;
+  static const card = 28.0;
+  static const sheet = 26.0;
+  static const pill = 999.0;
 }
 
 /// Every animation asks here first, so the system reduce-motion setting
@@ -90,6 +95,13 @@ class NazzilTheme {
   /// What is set strong. Both typefaces carry a semibold at this weight.
   static const strong = FontWeight.w600;
 
+  /// Finery's titles and eyebrows. Both typefaces carry a bold.
+  static const bold = FontWeight.w700;
+
+  /// Finery's headlines. Inter carries an extra bold; IBM Plex Sans Arabic stops at
+  /// bold, which is what an Arabic headline is drawn in.
+  static const heavy = FontWeight.w800;
+
   /// Both typefaces are drawn to sit on the same line at the same point size, so
   /// one text size suits both scripts with no enlargement and no extra lead.
   static const arabicScale = 1.0;
@@ -111,11 +123,42 @@ class NazzilTheme {
           : arabic
               ? (height + arabicLead) * arabicScale
               : height / arabicScale - arabicLead,
+      // Spacing between letters breaks the joins of Arabic.
+      letterSpacing: arabic ? 0 : style.letterSpacing,
     );
   }
 
   static ThemeData light({required bool arabic}) => _build(Brightness.light, arabic: arabic);
   static ThemeData dark({required bool arabic}) => _build(Brightness.dark, arabic: arabic);
+
+  /// Words in the accent, such as an eyebrow or a link. The fill blue itself falls
+  /// short of 4.5:1 for small words on the page, so they take Apple's link blues.
+  static Color link(Brightness brightness) =>
+      brightness == Brightness.dark ? const Color(0xFF2997FF) : const Color(0xFF0066CC);
+
+  /// Finery's tile shadow: a hairline of shade under the edge and a wide soft fall
+  /// below. On a black page a shadow cannot show, so a dark tile stands on its grey.
+  static List<BoxShadow> tileShadow(Brightness brightness) => brightness == Brightness.dark
+      ? const []
+      : const [
+          BoxShadow(color: Color(0x0A000000), offset: Offset(0, 1), blurRadius: 1),
+          BoxShadow(color: Color(0x0F000000), offset: Offset(0, 12), blurRadius: 34),
+        ];
+
+  /// The glow under the button that does the next step, in its own blue.
+  static const glow = [BoxShadow(color: Color(0x3D0071E3), offset: Offset(0, 8), blurRadius: 16)];
+
+  /// The shadow a thing on show casts on its stand.
+  static const pedestal = [BoxShadow(color: Color(0x290F1626), offset: Offset(0, 18), blurRadius: 23)];
+
+  /// The faint light from above on a showcase tile.
+  static LinearGradient showcase(Brightness brightness) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: brightness == Brightness.dark
+            ? const [Color(0xFF222327), Color(0xFF141519)]
+            : const [Color(0xFFFBFBFD), Color(0xFFEAEEF5)],
+      );
 
   /// A translucent fill for the blurred bars (tab bar, nav bar), the one iOS
   /// material. Laid over a backdrop blur it is the system's own chrome.
@@ -138,13 +181,14 @@ class NazzilTheme {
 
   static ThemeData _build(Brightness brightness, {required bool arabic}) {
     final dark = brightness == Brightness.dark;
-    // apple.com's palette: the deep near-black #1D1D1F with raised greys in the
-    // dark, the soft #F5F5F7 with white cells in the light.
-    final text = dark ? const Color(0xFFFFFFFF) : const Color(0xFF1D1D1F);
+    // Finery's palette: the soft #F5F5F7 page with white tiles and #1D1D1F ink in
+    // the light; a black page with iOS's grouped greys in the dark. A field or a
+    // track inside a tile is set one step off the tile.
+    final text = dark ? const Color(0xFFF5F5F7) : const Color(0xFF1D1D1F);
     final muted = dark ? const Color(0xFFA1A1A6) : const Color(0xFF6E6E73);
-    final page = dark ? const Color(0xFF1D1D1F) : const Color(0xFFF5F5F7);
-    final sheet = dark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
-    final raised = dark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
+    final page = dark ? const Color(0xFF000000) : const Color(0xFFF5F5F7);
+    final sheet = dark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF);
+    final raised = dark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F3F7);
     // Hairlines sit light; control edges carry 3:1 so a bare outline reads.
     final line = dark ? const Color(0xFF38383A) : const Color(0xFFD2D2D7);
     final edge = dark ? const Color(0xFF8A8A8E) : const Color(0xFF6D6D72);
@@ -180,12 +224,13 @@ class NazzilTheme {
       onInverseSurface: page,
     );
 
-    // One size suits both scripts. Letter spacing stays at zero because it would
-    // break the joins of Arabic.
+    // One size suits both scripts. Finery draws its Latin headlines tight, so
+    // [tracking] is in ems, as it sets them; Arabic is never spaced (see inScript).
     TextStyle style(
       double size, {
-      bool bold = false,
+      FontWeight weight = FontWeight.w400,
       double height = 1.35,
+      double tracking = 0,
       Color? color,
       bool digits = false,
     }) {
@@ -193,32 +238,32 @@ class NazzilTheme {
         fontFamily: sans,
         fontFamilyFallback: const [arabicSans],
         fontSize: size,
-        fontWeight: bold ? strong : FontWeight.w400,
+        fontWeight: weight,
         height: height,
         leadingDistribution: TextLeadingDistribution.even,
-        letterSpacing: 0,
+        letterSpacing: tracking * size,
         color: color ?? text,
       );
       return arabic && !digits ? inScript(base, arabic: true) : base;
     }
 
-    // An iOS type ramp: a large title, headline and body, down to the tab label.
+    // Finery's ramp: heavy, tight headlines over plain reading sizes.
     final type = TextTheme(
       // The percentage on a poster: digits only, so it is the same in both languages.
-      displayLarge: style(80, bold: true, height: 0.92, digits: true)
+      displayLarge: style(80, weight: strong, height: 0.92, digits: true)
           .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      displaySmall: style(34, bold: true, height: 1.1),
-      headlineMedium: style(25, bold: true, height: 1.2),
-      headlineSmall: style(22, bold: true, height: 1.2),
-      titleLarge: style(20, bold: true, height: 1.25),
-      titleMedium: style(17, bold: true, height: 1.3),
-      titleSmall: style(16, bold: true, height: 1.3),
-      bodyLarge: style(17, height: 1.4),
+      displaySmall: style(34, weight: heavy, height: 1.08, tracking: -0.035),
+      headlineMedium: style(24, weight: heavy, height: 1.16, tracking: -0.025),
+      headlineSmall: style(22, weight: heavy, height: 1.2, tracking: -0.02),
+      titleLarge: style(20, weight: bold, height: 1.25, tracking: -0.02),
+      titleMedium: style(17, weight: bold, height: 1.3, tracking: -0.01),
+      titleSmall: style(16, weight: strong, height: 1.3),
+      bodyLarge: style(17, height: 1.4, tracking: -0.01),
       bodyMedium: style(16, height: 1.4),
       bodySmall: style(15, height: 1.35, color: muted),
-      labelLarge: style(17, bold: true, height: 1.2),
+      labelLarge: style(16, weight: strong, height: 1.2, tracking: -0.01),
       labelMedium: style(13, height: 1.35, color: muted),
-      labelSmall: style(11, height: 1.2),
+      labelSmall: style(12, weight: strong, height: 1.2),
     );
 
     BorderSide? focusRing(Set<WidgetState> states) => states.contains(WidgetState.focused)
@@ -230,10 +275,11 @@ class NazzilTheme {
           side: focusRing(states) ?? BorderSide.none,
         );
 
-    // apple.com rounds its buttons all the way to a pill.
-    OutlinedBorder pill(Set<WidgetState> states) => StadiumBorder(side: focusRing(states) ?? BorderSide.none);
+    final link = NazzilTheme.link(brightness);
+    // A second action is the accent's words on a wash of it, as iOS tints a bordered button.
+    final wash = dark ? const Color(0xFF1A2A3D) : const Color(0xFFE8F0FB);
 
-    Color quiet(Set<WidgetState> states) => states.contains(WidgetState.disabled) ? muted : text;
+    Color linked(Set<WidgetState> states) => states.contains(WidgetState.disabled) ? muted : link;
 
     return ThemeData(
       useMaterial3: true,
@@ -278,37 +324,38 @@ class NazzilTheme {
           iconSize: const WidgetStatePropertyAll(21),
           overlayColor: WidgetStatePropertyAll(NazzilColors.onTint.withValues(alpha: 0.16)),
           elevation: const WidgetStatePropertyAll(0),
-          minimumSize: const WidgetStatePropertyAll(Size(64, 50)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 24)),
-          shape: WidgetStateProperty.resolveWith(pill),
-          textStyle: WidgetStatePropertyAll(style(17, bold: true, height: 1.2)),
+          minimumSize: const WidgetStatePropertyAll(Size(64, 52)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 22)),
+          shape: WidgetStateProperty.resolveWith(control),
+          textStyle: WidgetStatePropertyAll(type.labelLarge),
         ),
       ),
+      // Words that act are in the accent, as Apple sets a link.
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith(quiet),
-          iconColor: WidgetStateProperty.resolveWith(quiet),
+          foregroundColor: WidgetStateProperty.resolveWith(linked),
+          iconColor: WidgetStateProperty.resolveWith(linked),
           iconSize: const WidgetStatePropertyAll(21),
-          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.08)),
+          overlayColor: WidgetStatePropertyAll(link.withValues(alpha: 0.1)),
           minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
           shape: WidgetStateProperty.resolveWith(control),
           textStyle: WidgetStatePropertyAll(type.labelLarge),
         ),
       ),
-      // An action that stands alone as words gets an outline, since no colour marks it as a button.
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith(quiet),
-          iconColor: WidgetStateProperty.resolveWith(quiet),
-          iconSize: const WidgetStatePropertyAll(21),
-          overlayColor: WidgetStatePropertyAll(text.withValues(alpha: 0.08)),
-          minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
-          side: WidgetStateProperty.resolveWith(
-            (states) => focusRing(states) ?? BorderSide(color: edge, width: 1.5),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled) ? raised : wash,
           ),
-          shape: const WidgetStatePropertyAll(StadiumBorder()),
+          foregroundColor: WidgetStateProperty.resolveWith(linked),
+          iconColor: WidgetStateProperty.resolveWith(linked),
+          iconSize: const WidgetStatePropertyAll(21),
+          overlayColor: WidgetStatePropertyAll(link.withValues(alpha: 0.1)),
+          minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
+          side: WidgetStateProperty.resolveWith((states) => focusRing(states) ?? BorderSide.none),
+          shape: WidgetStateProperty.resolveWith(control),
           textStyle: WidgetStatePropertyAll(type.labelLarge),
         ),
       ),
@@ -329,16 +376,13 @@ class NazzilTheme {
         contentTextStyle: type.bodyMedium?.copyWith(color: scheme.onInverseSurface),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.control)),
       ),
-      // Dialogs are the rounded, centred iOS kind; a hairline parts a sheet from the page.
+      // Dialogs and sheets are tiles of their own, rounded wide like the rest.
       dialogTheme: DialogThemeData(
         backgroundColor: sheet,
         elevation: 0,
         titleTextStyle: type.titleLarge,
         contentTextStyle: type.bodyMedium?.copyWith(color: muted),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(NazzilRadius.sheet),
-          side: BorderSide(color: line),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NazzilRadius.sheet)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: sheet,
@@ -346,9 +390,8 @@ class NazzilTheme {
         elevation: 0,
         modalElevation: 0,
         dragHandleColor: edge,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(NazzilRadius.sheet)),
-          side: BorderSide(color: line),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(NazzilRadius.sheet)),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
@@ -357,7 +400,7 @@ class NazzilTheme {
         labelTextStyle: WidgetStatePropertyAll(type.titleSmall),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(NazzilRadius.control),
-          side: BorderSide(color: edge),
+          side: BorderSide(color: line),
         ),
       ),
       tooltipTheme: TooltipThemeData(

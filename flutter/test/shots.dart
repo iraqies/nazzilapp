@@ -73,6 +73,9 @@ Future<NazzilController> boot(
     buildNumber: '27',
     buildSignature: '',
   );
+  // flutter_test draws shadows as hard blocks so goldens stay stable; a picture
+  // for the owner wants them soft, as a phone draws them. shoot() puts it back.
+  debugDisableShadows = false;
   tester.view.physicalSize = size * pixelRatio;
   tester.view.devicePixelRatio = pixelRatio;
   tester.view.padding = FakeViewPadding(top: statusBar * pixelRatio);
@@ -94,6 +97,7 @@ Future<void> shoot(WidgetTester tester, String name) async {
     File('$out/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
     image.dispose();
   });
+  debugDisableShadows = true;
 }
 
 MediaInfo pictured(String thumb) => MediaInfo(

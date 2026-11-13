@@ -26,7 +26,14 @@ class NazzilButton extends StatelessWidget {
     final quiet = WidgetStateProperty.resolveWith(
       (states) => states.contains(WidgetState.disabled) ? scheme.onSurfaceVariant : scheme.onSurface,
     );
-    return SizedBox(
+    // The button that does the next step glows in its own blue, as Finery's does.
+    final lit = !secondary && !busy && onPressed != null;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(NazzilRadius.control),
+        boxShadow: lit ? NazzilTheme.glow : null,
+      ),
+      child: SizedBox(
       width: double.infinity,
       child: FilledButton(
         onPressed: busy ? null : onPressed,
@@ -69,6 +76,7 @@ class NazzilButton extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

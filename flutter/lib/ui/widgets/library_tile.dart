@@ -79,7 +79,7 @@ class LibraryTile extends StatelessWidget {
       builder: (context, constraints) {
         return Tappable(
           onTap: onOpen,
-          radius: 0,
+          radius: NazzilRadius.picture,
           ringInside: true,
           label: [item.title, tag.text].where((part) => part.isNotEmpty).join(', '),
           color: scheme.surfaceContainerHigh,
@@ -151,10 +151,10 @@ class PictureTag extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: NazzilColors.photoScrim,
-        borderRadius: BorderRadius.circular(NazzilRadius.tag),
+        borderRadius: BorderRadius.circular(NazzilRadius.pill),
       ),
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(5, 3, 7, 3),
+        padding: const EdgeInsetsDirectional.fromSTEB(7, 3, 9, 3),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

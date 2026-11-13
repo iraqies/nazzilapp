@@ -64,13 +64,20 @@ class _TappableState extends State<Tappable> {
       ),
     );
     if (widget.ringInside) {
+      final corners = widget.circle ? null : BorderRadius.circular(widget.radius);
       // Both boxes stay in the tree with or without the ring, so the focus they wrap is kept.
       body = DecoratedBox(
         position: DecorationPosition.foreground,
-        decoration: BoxDecoration(border: _ring ? Border.all(color: scheme.surface, width: 2) : null),
+        decoration: BoxDecoration(
+          border: _ring ? Border.all(color: scheme.surface, width: 2) : null,
+          borderRadius: _ring ? corners : null,
+        ),
         child: DecoratedBox(
           position: DecorationPosition.foreground,
-          decoration: BoxDecoration(border: _ring ? Border.all(color: ringColor, width: 4) : null),
+          decoration: BoxDecoration(
+            border: _ring ? Border.all(color: ringColor, width: 4) : null,
+            borderRadius: _ring ? corners : null,
+          ),
           child: body,
         ),
       );

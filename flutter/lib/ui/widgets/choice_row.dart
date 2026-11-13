@@ -29,7 +29,7 @@ class ChoiceRow<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final track = dark ? const Color(0xFF2C2C2E) : const Color(0xFFE3E3E8);
+    final track = dark ? const Color(0xFF2C2C2E) : const Color(0xFFEEEEF0);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: track,
@@ -55,23 +55,35 @@ class ChoiceRow<T> extends StatelessWidget {
       color: scheme.onSurface,
       fontWeight: active ? FontWeight.w600 : FontWeight.w400,
     );
-    return Tappable(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onChanged(option.$1);
-      },
-      selected: active,
-      radius: _thumbRadius,
-      ringInside: true,
-      color: active ? thumb : Colors.transparent,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: _height),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(option.$2, maxLines: 1, style: style),
+    // The picked thumb sits a little proud of the track, as iOS draws it.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_thumbRadius),
+        boxShadow: active && !dark
+            ? const [
+                BoxShadow(color: Color(0x1F000000), offset: Offset(0, 3), blurRadius: 7),
+                BoxShadow(color: Color(0x0A000000), offset: Offset(0, 3), blurRadius: 1),
+              ]
+            : null,
+      ),
+      child: Tappable(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onChanged(option.$1);
+        },
+        selected: active,
+        radius: _thumbRadius,
+        ringInside: true,
+        color: active ? thumb : Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _height),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(option.$2, maxLines: 1, style: style),
+              ),
             ),
           ),
         ),
