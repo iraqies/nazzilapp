@@ -19,10 +19,11 @@ class ChoiceRow<T> extends StatelessWidget {
   final List<(T, String)> options;
   final ValueChanged<T> onChanged;
 
-  static const _trackRadius = 9.0;
-  static const _thumbRadius = 7.0;
+  static const _trackRadius = 11.0;
+  static const _thumbRadius = 9.0;
   static const _inset = 2.0;
-  static const _height = 36.0;
+  // A segment is its own tap target, so it clears the 48 the guidelines ask for.
+  static const _height = 48.0;
 
   @override
   Widget build(BuildContext context) {

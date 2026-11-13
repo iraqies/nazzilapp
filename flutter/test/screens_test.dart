@@ -390,28 +390,31 @@ void main() {
     expect(find.text('Paste'), findsOneWidget);
   });
 
-  testWidgets('home: the frame is the link field, and takes the room the rest of the page leaves', (tester) async {
+  testWidgets('home: the link field leads the hero, with the hint and the paste button under it', (tester) async {
     await boot(tester);
     final frame = tester.getRect(find.byType(LinkFrame));
     final button = tester.getRect(find.byType(FilledButton));
-    expect(frame.width, 320);
-    expect(frame.height, greaterThan(320 * 9 / 16), reason: 'more than a film frame when the screen has the room');
-    expect(button.top - frame.bottom, 16);
-    // The icon and the two lines under it sit in the middle of the frame, as one block.
-    expect(tester.getCenter(find.text('Paste a link')).dx, frame.center.dx);
-    final top = tester.getRect(find.descendant(of: find.byType(LinkFrame), matching: find.byIcon(Icons.content_paste_rounded))).top;
-    final bottom = tester.getRect(find.text('or share a post to Nazzil from any app')).bottom;
-    expect((top + bottom) / 2, closeTo(frame.center.dy, 0.5));
-
-    // A tap anywhere in the frame starts typing, and the frame keeps its size.
-    await tester.tapAt(frame.bottomLeft + const Offset(30, -30));
-    await tester.pumpAndSettle();
-    expect(tester.testTextInput.isVisible, isTrue);
-    expect(find.text('Link'), findsOneWidget);
+    // The field spans the page within its margins, as one compact row.
+    expect(frame.width, 312);
+    expect(frame.height, greaterThanOrEqualTo(52));
+    expect(frame.height, lessThan(80), reason: 'a single row, not the old film-frame drop zone');
+    // The link icon leads the field, and the prompt is its hint.
     expect(
-      find.text('Paste or share a YouTube, TikTok, Instagram, Facebook, Reddit, X or Pinterest link'),
+      find.descendant(of: find.byType(LinkFrame), matching: find.byIcon(Icons.link_rounded)),
       findsOneWidget,
     );
+    expect(find.text('Paste a link'), findsOneWidget);
+    // Under the field runs the share hint, then the button that pastes.
+    final hint = tester.getRect(find.text('or share a post to Nazzil from any app'));
+    expect(hint.top, greaterThan(frame.bottom));
+    expect(button.top, greaterThan(hint.bottom));
+    expect(find.widgetWithIcon(FilledButton, Icons.content_paste_rounded), findsOneWidget);
+
+    // A tap on the field starts typing, and the field keeps its size.
+    await tester.tap(find.byType(LinkFrame));
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+    expect(find.bySemanticsLabel('Link'), findsOneWidget);
     expect(tester.getRect(find.byType(LinkFrame)), frame);
   });
 
@@ -2021,13 +2024,13 @@ void main() {
     FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
     addTearDown(() => FocusManager.instance.highlightStrategy = FocusHighlightStrategy.automatic);
 
+    // The segmented control rings the focused segment from inside its edge, in
+    // two tones; the inner band, four wide, counts one ring per focused segment.
     int rings() => tester
         .widgetList<DecoratedBox>(find.byType(DecoratedBox))
         .map((box) => box.decoration)
-        .whereType<ShapeDecoration>()
-        .map((decoration) => decoration.shape)
-        .whereType<OutlinedBorder>()
-        .where((shape) => shape.side.width == 2 && shape.side.strokeAlign == BorderSide.strokeAlignOutside)
+        .whereType<BoxDecoration>()
+        .where((decoration) => decoration.border?.top.width == 4)
         .length;
 
     // One stop for the back button, then three languages and three themes;

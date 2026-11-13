@@ -70,7 +70,7 @@ class HomeScreen extends StatelessWidget {
     final layout = Directionality.of(context);
     return [
       SliverFillRemaining(
-        hasScrollBody: true,
+        hasScrollBody: false,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -79,63 +79,62 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!wide) TopBar(controller: controller, onSettings: onSettings),
-                // The hero sits in the middle of the room, and slides up to clear the keyboard.
+                // The hero sits in the middle of the room the page leaves; when the
+                // keyboard or large text takes that room, the whole page scrolls.
                 Expanded(
                   child: FocusTraversalGroup(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 24),
-                              Align(alignment: Alignment.center, child: _HeroBadge(text: s.heroBadge)),
-                              const SizedBox(height: 20),
-                              Text(
-                                s.heroTitle,
-                                textAlign: TextAlign.center,
-                                style: styleIn(s.heroTitle, type.displaySmall!, layout),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                s.heroSubtitle,
-                                textAlign: TextAlign.center,
-                                style: styleIn(s.heroSubtitle, type.bodyLarge!, layout)
-                                    .copyWith(color: theme.colorScheme.onSurfaceVariant),
-                              ),
-                              const SizedBox(height: 32),
-                              LinkFrame(controller: controller, s: s),
-                              const SizedBox(height: 10),
-                              Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
-                              const SizedBox(height: 16),
-                              // One button, named for the next step: Paste when empty, Fetch once it holds a link.
-                              NazzilButton(
-                                label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
-                                icon: typed ? null : Icons.content_paste_rounded,
-                                busy: controller.loading,
-                                onPressed: typed ? () => controller.fetch() : _paste,
-                              ),
-                              if (controller.loading)
-                                Center(
-                                  child: TextButton.icon(
-                                    onPressed: controller.cancelFetch,
-                                    icon: const Icon(Icons.close_rounded),
-                                    label: Text(s.cancel),
-                                  ),
-                                ),
-                              if (controller.error.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                _ErrorLine(controller.error),
-                              ],
-                              const SizedBox(height: 28),
-                              _Apps(s: s),
-                              const SizedBox(height: 24),
-                            ],
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // The hero — a word on what Nazzil does — stands only on the
+                          // empty page; once there are last saves below, the field alone
+                          // leads, so the strip stays in view without the page scrolling.
+                          if (recent.isEmpty) ...[
+                            Align(alignment: Alignment.center, child: _HeroBadge(text: s.heroBadge)),
+                            const SizedBox(height: 20),
+                            Text(
+                              s.heroTitle,
+                              textAlign: TextAlign.center,
+                              style: styleIn(s.heroTitle, type.displaySmall!, layout),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              s.heroSubtitle,
+                              textAlign: TextAlign.center,
+                              style: styleIn(s.heroSubtitle, type.bodyLarge!, layout)
+                                  .copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 32),
+                          ],
+                          LinkFrame(controller: controller, s: s),
+                          const SizedBox(height: 10),
+                          Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
+                          const SizedBox(height: 16),
+                          // One button, named for the next step: Paste when empty, Fetch once it holds a link.
+                          NazzilButton(
+                            label: controller.loading ? s.fetching : (typed ? s.fetch : s.paste),
+                            icon: typed ? null : Icons.content_paste_rounded,
+                            busy: controller.loading,
+                            onPressed: typed ? () => controller.fetch() : _paste,
                           ),
-                        ),
+                          if (controller.loading)
+                            Center(
+                              child: TextButton.icon(
+                                onPressed: controller.cancelFetch,
+                                icon: const Icon(Icons.close_rounded),
+                                label: Text(s.cancel),
+                              ),
+                            ),
+                          if (controller.error.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _ErrorLine(controller.error),
+                          ],
+                          const SizedBox(height: 28),
+                          _Apps(s: s),
+                        ],
                       ),
                     ),
                   ),
@@ -673,7 +672,10 @@ class _Result extends StatelessWidget {
         titleHeight +
         (author == null ? 0 : 6 + tall(author, styleIn(author, type.bodySmall!, layout))) +
         16 +
-        math.max(48, line(type.labelLarge!) + 16) +
+        // The quality picker is one iOS segmented control: a track of 48-high
+        // segments, padded two all round, that grows only if the words need it.
+        4 +
+        math.max(48, line(type.labelLarge!) + 12) +
         16 +
         // The tallest download is a paused one: Resume, then the bar and the line that stops it.
         math.max(buttonLeast, button == null ? 0 : line(button) + 24) +

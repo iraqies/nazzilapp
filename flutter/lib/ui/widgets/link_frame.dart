@@ -105,7 +105,6 @@ class _LinkFrameState extends State<LinkFrame> {
                 IconButton(
                   tooltip: s.clear,
                   onPressed: widget.controller.clear,
-                  visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.cancel, size: 20),
                   color: scheme.onSurfaceVariant,
                 ),
