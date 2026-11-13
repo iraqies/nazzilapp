@@ -107,9 +107,10 @@ void main() {
         // left to whatever the phone has.
         expect(style.fontFamily, latinFirst ? NazzilTheme.sans : NazzilTheme.arabicSans);
         expect(style.fontFamilyFallback, [latinFirst ? NazzilTheme.arabicSans : NazzilTheme.sans]);
-        expect(style.fontWeight, anyOf(FontWeight.w400, NazzilTheme.strong));
-        // Spacing between letters breaks the joins of Arabic.
-        expect(style.letterSpacing, 0);
+        expect(style.fontWeight, anyOf(FontWeight.w400, NazzilTheme.strong, NazzilTheme.bold, NazzilTheme.heavy));
+        // Spacing between letters breaks the joins of Arabic, so only Latin is drawn tight,
+        // as Finery sets its headlines, and nothing is spaced out.
+        expect(style.letterSpacing, latinFirst ? lessThanOrEqualTo(0) : 0);
         expect(style.wordSpacing, isNull, reason: 'each typeface spaces its own words');
       }
     }
@@ -119,10 +120,20 @@ void main() {
     final shipped = shippedTypefaces();
     expect(shipped.keys, unorderedEquals([NazzilTheme.sans, NazzilTheme.arabicSans]));
     Set<int> weights(String family) => {for (final file in shipped[family]!) typefaceFacts(file).weight};
+    final set = {
+      for (final arabic in [false, true])
+        for (final style in stylesOf(NazzilTheme.dark(arabic: arabic).textTheme)) style.fontWeight!.value,
+      NazzilTheme.bold.value,
+    };
     // A weight that is not shipped would be faked by the screen, by smearing the letters.
-    // Each typeface carries a regular and the semibold that answers for what is set strong.
-    expect(weights(NazzilTheme.sans), {400, NazzilTheme.strong.value});
-    expect(weights(NazzilTheme.arabicSans), {400, NazzilTheme.strong.value});
+    expect(weights(NazzilTheme.sans), set);
+    // Plex Arabic is drawn no heavier than bold, which then answers for extra bold too:
+    // a screen smears a face only when it is asked for 200 or more above it.
+    expect(weights(NazzilTheme.arabicSans), {400, NazzilTheme.strong.value, NazzilTheme.bold.value});
+    for (final weight in set) {
+      final answer = weights(NazzilTheme.arabicSans).where((w) => w <= weight).reduce(math.max);
+      expect(weight - answer, lessThan(200), reason: 'Arabic set at $weight is drawn from the face at $answer');
+    }
     expect(NazzilTheme.strong.value, greaterThan(500), reason: 'at 500 or less a screen picks the regular');
   });
 

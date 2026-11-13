@@ -246,16 +246,19 @@ class _WorksWith extends StatelessWidget {
             style: theme.textTheme.labelMedium?.copyWith(fontWeight: NazzilTheme.strong),
           ),
           const SizedBox(height: 10),
-          Center(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: NazzilTheme.pedestal,
-              ),
-              child: SizedBox.square(
-                dimension: 88,
-                child: Center(child: NazzilLogo(height: 40, name: s.appName, letters: const Color(0xFF1D1D1F))),
+          // The header already names the app; the icon on its pedestal is only a picture.
+          ExcludeSemantics(
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: NazzilTheme.pedestal,
+                ),
+                child: SizedBox.square(
+                  dimension: 88,
+                  child: Center(child: NazzilLogo(height: 40, name: s.appName, letters: const Color(0xFF1D1D1F))),
+                ),
               ),
             ),
           ),

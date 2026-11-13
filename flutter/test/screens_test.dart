@@ -24,6 +24,7 @@ import 'package:nazzil/ui/widgets/library_tile.dart';
 import 'package:nazzil/ui/widgets/link_frame.dart';
 import 'package:nazzil/ui/widgets/logo.dart';
 import 'package:nazzil/ui/widgets/title_text.dart';
+import 'package:nazzil/ui/widgets/top_bar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -328,8 +329,9 @@ void main() {
     }
   });
 
-  /// The logo in the header. It is drawn, so it is found by what it is and not by its letters.
-  final logo = find.byType(NazzilLogo);
+  /// The logo in the header. It is drawn, so it is found by what it is and not by its letters;
+  /// the empty Home shows the icon a second time, on the tile of the apps it works with.
+  final logo = find.descendant(of: find.byType(TopBar), matching: find.byType(NazzilLogo));
 
   /// The tab at the bottom of a phone: after the page in the tree, so the last match.
   Finder tab(String label) => find.text(label).last;
@@ -390,12 +392,12 @@ void main() {
     expect(find.text('Paste'), findsOneWidget);
   });
 
-  testWidgets('home: the link field leads the hero, with the hint and the paste button under it', (tester) async {
+  testWidgets('home: the link field leads the hero, with the paste button and then the hint under it', (tester) async {
     await boot(tester);
     final frame = tester.getRect(find.byType(LinkFrame));
     final button = tester.getRect(find.byType(FilledButton));
-    // The field spans the page within its margins, as one compact row.
-    expect(frame.width, 312);
+    // The field spans its tile within the tile's margins, as one compact row.
+    expect(frame.width, 360 - 2 * 16 - 2 * 20);
     expect(frame.height, greaterThanOrEqualTo(52));
     expect(frame.height, lessThan(80), reason: 'a single row, not the old film-frame drop zone');
     // The link icon leads the field, and the prompt is its hint.
@@ -404,10 +406,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Paste a link'), findsOneWidget);
-    // Under the field runs the share hint, then the button that pastes.
+    // Under the field comes the button that pastes, and under that the other way in.
     final hint = tester.getRect(find.text('or share a post to Nazzil from any app'));
-    expect(hint.top, greaterThan(frame.bottom));
-    expect(button.top, greaterThan(hint.bottom));
+    expect(button.top, greaterThan(frame.bottom));
+    expect(hint.top, greaterThan(button.bottom));
     expect(find.widgetWithIcon(FilledButton, Icons.content_paste_rounded), findsOneWidget);
 
     // A tap on the field starts typing, and the field keeps its size.
@@ -425,7 +427,9 @@ void main() {
       ..selected = sampleVideo.options.first
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(find.text('YouTube · 9:56'), findsOneWidget);
+    // The facts are an eyebrow: set in capitals, and read out in the case they are written in.
+    expect(find.text('YOUTUBE · 9:56'), findsOneWidget);
+    expect(find.bySemanticsLabel('YouTube · 9:56'), findsOneWidget);
     expect(find.text('YouTube'), findsNothing);
     expect(find.byIcon(Icons.hd_outlined), findsNothing);
     expect(find.byType(LinkFrame), findsNothing, reason: 'the poster takes the place of the frame');
@@ -917,7 +921,7 @@ void main() {
     );
     await tester.tap(tab('Library'));
     await tester.pumpAndSettle();
-    expect(find.text('3 items'), findsOneWidget);
+    expect(find.text('3 ITEMS'), findsOneWidget);
     expect(find.text('3 photos'), findsOneWidget);
     expect(find.text('Video'), findsNWidgets(2));
     // The title is not on the picture; it is read out with the tag, and shown a tap away.
@@ -933,7 +937,7 @@ void main() {
     expect(find.text('All apps'), findsNWidgets(2), reason: 'the button, and the row that is picked');
     await tester.tap(find.text('Reddit'));
     await tester.pumpAndSettle();
-    expect(find.text('1 item'), findsOneWidget);
+    expect(find.text('1 ITEM'), findsOneWidget);
     expect(find.text('Reddit'), findsOneWidget, reason: 'the button names the pick');
     expect(find.text('All apps'), findsNothing);
 
@@ -942,7 +946,7 @@ void main() {
     expect(find.text('Nothing here for this filter'), findsOneWidget);
     await tester.tap(find.text('Show all'));
     await tester.pumpAndSettle();
-    expect(find.text('3 items'), findsOneWidget);
+    expect(find.text('3 ITEMS'), findsOneWidget);
     expect(controller.libraryKind, 'all');
     expect(controller.libraryPlatform, 'all');
     handle.dispose();
@@ -1054,7 +1058,7 @@ void main() {
     expect(find.text('Delete this download?'), findsNothing);
     expect(controller.library, isEmpty);
     expect(find.text('Nothing saved yet'), findsOneWidget);
-    expect(find.text('0 items'), findsNothing);
+    expect(find.text('0 ITEMS'), findsNothing);
     expect(find.text('Photos'), findsNothing, reason: 'no filters over an empty library');
     await tester.tap(find.text('Add a link'));
     await tester.pumpAndSettle();
@@ -1308,7 +1312,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Library'));
     await tester.pumpAndSettle();
     expect(controller.tab, 1);
-    expect(find.text('14 items'), findsOneWidget);
+    expect(find.text('14 ITEMS'), findsOneWidget);
   });
 
   testWidgets('home: a link on the clipboard is offered in a bar that can be taken or closed', (tester) async {
@@ -1535,7 +1539,7 @@ void main() {
       ..notifyListeners();
     await tester.pump();
     await pictures(tester);
-    expect(find.text('TikTok · 3 photos'), findsOneWidget);
+    expect(find.text('TIKTOK · 3 PHOTOS'), findsOneWidget);
     expect(find.text('1 of 3'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Save photos'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Save this photo'), findsOneWidget);
@@ -1644,7 +1648,7 @@ void main() {
       ..selected = one.options.first
       ..notifyListeners();
     await tester.pumpAndSettle();
-    expect(find.text('TikTok · 1 photo'), findsOneWidget);
+    expect(find.text('TIKTOK · 1 PHOTO'), findsOneWidget);
     expect(find.text('Photo'), findsOneWidget);
     expect(find.text('Photos'), findsNothing);
     expect(find.text('Save photo'), findsOneWidget);
@@ -1756,7 +1760,7 @@ void main() {
       );
       expect(find.text('Paste a link'), findsOneWidget);
       expect(find.text('or drop it on this window'), findsOneWidget);
-      expect(find.text('6 items'), findsOneWidget);
+      expect(find.text('6 ITEMS'), findsOneWidget);
       expect(find.text('Home'), findsNothing);
       expect(find.text('Recent'), findsNothing, reason: 'the library itself is in view');
       expect(logo, findsOneWidget, reason: 'one header for both panes');
