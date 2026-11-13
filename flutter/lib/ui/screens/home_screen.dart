@@ -354,8 +354,9 @@ class _Recent extends StatelessWidget {
   }
 }
 
-/// The picture of the fetched post, from the top edge of the screen. It takes
-/// the shape of the picture once that is known, and shows the download on it.
+/// The picture of the fetched post, from the top edge of the screen. A video
+/// thumbnail is a hero that fills the room the controls leave; a photo frame
+/// takes the shape of the first photo, so the whole photo shows.
 class _Poster extends StatefulWidget {
   const _Poster({
     super.key,
@@ -371,7 +372,7 @@ class _Poster extends StatefulWidget {
   final MediaInfo media;
   final bool photos;
 
-  /// The room Home has, which caps the height of the poster.
+  /// The room Home has, which sizes the poster.
   final Size body;
 
   /// How much of that room the words and controls under the poster need.
@@ -389,13 +390,15 @@ class _PosterState extends State<_Poster> {
   ImageStream? _stream;
   late final _listener = ImageStreamListener(_measured, onError: (_, _) {});
 
-  /// The picture that gives the frame its shape: the first photo, or the video's thumbnail.
+  /// The picture shown: the first photo, or the video's thumbnail.
   String? get _url => widget.photos ? widget.media.photos.firstOrNull : widget.media.thumbnail;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_stream != null) return;
+    // Only a photo frame takes the picture's shape, so only a photo is measured;
+    // a video thumbnail is a hero that fills, whatever its shape.
+    if (!widget.photos || _stream != null) return;
     final url = _url;
     if (url == null || url.isEmpty) return;
     _stream = CachedNetworkImageProvider(url).resolve(createLocalImageConfiguration(context))
@@ -417,10 +420,20 @@ class _PosterState extends State<_Poster> {
   @override
   Widget build(BuildContext context) {
     final width = widget.body.width;
+    final room = widget.body.height;
     // Never flatter than a film frame, and never so tall that the controls leave the screen.
     final least = width * 9 / 16;
-    final most = math.max(least, math.min(widget.body.height - widget.below, widget.body.height * 0.62));
-    final height = (width / (_aspect ?? 16 / 10)).clamp(least, most);
+    final cap = math.max(least, room * 0.70);
+    final double height;
+    if (widget.photos) {
+      // The frame takes the shape of the first photo, bounded like the hero.
+      final upper = math.max(least, math.min(room - widget.below, cap));
+      height = (width / (_aspect ?? 3 / 2)).clamp(least, upper);
+    } else {
+      // A hero: the thumbnail fills the room the words and controls leave below,
+      // cover-cropped, so the picture is large and they sit low, not in the middle.
+      height = (room - widget.below).clamp(least, cap);
+    }
     return TweenAnimationBuilder<double>(
       tween: Tween(end: height),
       duration: NazzilMotion.of(context, NazzilMotion.reshape),

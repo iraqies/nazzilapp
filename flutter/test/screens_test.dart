@@ -457,7 +457,7 @@ void main() {
     expect(find.byType(LinkFrame), findsOneWidget);
   });
 
-  testWidgets('poster: it takes the shape of the picture, between a film frame and the room on screen', (tester) async {
+  testWidgets('poster: a hero of one height, filling the room the words and controls leave', (tester) async {
     final controller = await boot(tester);
     LocalPictures.serve({
       'https://pictures.example/flat.png': await picture(tester, 'flat', 400, 100),
@@ -476,17 +476,18 @@ void main() {
       return tester.getSize(find.byType(NetPicture)).height;
     }
 
-    expect(await posterOf(pictured('https://pictures.example/photo.png', id: 'p')), closeTo(240, 0.01));
-    expect(
-      await posterOf(pictured('https://pictures.example/flat.png', id: 'f')),
-      closeTo(360 * 9 / 16, 0.01),
-      reason: 'never flatter than a film frame',
-    );
+    // Whatever the picture's shape, the poster is one hero height: it fills the
+    // room the words and controls leave, cover-cropped, so a wide clip reads as
+    // large as a tall one and the download sits low, not in the middle.
+    final photoH = await posterOf(pictured('https://pictures.example/photo.png', id: 'p'));
+    final flatH = await posterOf(pictured('https://pictures.example/flat.png', id: 'f'));
+    expect(flatH, closeTo(photoH, 0.01), reason: 'one height whatever the shape');
     final tallPost = pictured('https://pictures.example/tall.png', id: 't');
     final tall = await posterOf(tallPost);
-    expect(tall, greaterThan(360 * 9 / 16));
-    expect(tall, lessThanOrEqualTo(room * 0.62));
-    expect(tester.getRect(find.text('Download')).bottom, lessThan(room));
+    expect(tall, closeTo(photoH, 0.01));
+    expect(tall, greaterThan(360 * 9 / 16), reason: 'a hero, bigger than a film frame');
+    expect(tall, lessThanOrEqualTo(room * 0.70));
+    expect(tester.getRect(find.text('Download')).bottom, lessThanOrEqualTo(room));
     // What it leaves is the room the words and controls need at their tallest, which is
     // a paused download: Resume, and under it the line that cancels.
     controller
@@ -505,7 +506,7 @@ void main() {
       ..notifyListeners();
     await tester.pumpAndSettle();
 
-    // With no picture to go by, a plain block stands in.
+    // With no picture to go by, a plain block stands in, at the same hero height.
     controller
       ..media = sampleVideo
       ..selected = sampleVideo.options.first
@@ -513,7 +514,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(NetPicture), findsNothing);
     final stand = find.ancestor(of: find.byIcon(Icons.videocam_outlined), matching: find.byType(ColoredBox)).first;
-    expect(tester.getSize(stand).height, closeTo(360 / 1.6, 0.01));
+    expect(tester.getSize(stand).height, greaterThan(360 * 9 / 16), reason: 'the stand-in is a hero too');
   });
 
   testWidgets('poster: it runs under the status bar, and hands the bar back once scrolled away', (tester) async {
