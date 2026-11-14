@@ -23,6 +23,7 @@ import 'package:nazzil/ui/widgets/done_sheet.dart';
 import 'package:nazzil/ui/widgets/library_tile.dart';
 import 'package:nazzil/ui/widgets/link_frame.dart';
 import 'package:nazzil/ui/widgets/logo.dart';
+import 'package:nazzil/ui/widgets/tile.dart';
 import 'package:nazzil/ui/widgets/title_text.dart';
 import 'package:nazzil/ui/widgets/top_bar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -772,6 +773,33 @@ void main() {
         await tester.tap(find.byTooltip(controller.s.settings));
         await tester.pump();
         await sweep(find.byType(ListView), 'settings');
+      });
+    }
+  }
+
+  for (final language in ['en', 'ar']) {
+    for (final theme in ['dark', 'light']) {
+      testWidgets('home: every app it works with wears the same badge, and the row fits a 320 wide phone at double text ($language, $theme)',
+          (tester) async {
+        await boot(tester, language: language, theme: theme, size: const Size(320, 640), textScale: 2);
+        final badges = find.byType(PillBadge);
+        await tester.scrollUntilVisible(
+          badges.last,
+          120,
+          scrollable: find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(badges, findsNWidgets(PlatformId.values.length - 1));
+
+        final looks = {
+          for (var i = 0; i < PlatformId.values.length - 1; i++)
+            (
+              tester.widget<DecoratedBox>(find.descendant(of: badges.at(i), matching: find.byType(DecoratedBox)).first).decoration,
+              tester.widget<Text>(find.descendant(of: badges.at(i), matching: find.byType(Text))).style?.color,
+            ),
+        };
+        expect(looks, hasLength(1), reason: 'no app is set apart from the others, as YouTube once was in gold');
       });
     }
   }
