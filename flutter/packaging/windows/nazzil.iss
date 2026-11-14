@@ -1,7 +1,5 @@
-; The Windows installer, built by Inno Setup from the release build:
-;   iscc /DAppVersion=2.5.0 packaging\windows\nazzil.iss   (run in flutter\)
-; Paths below are relative to this file. The AppId must never change, or a new
-; version installs beside the old one instead of over it.
+; Build in flutter\ with: iscc /DAppVersion=2.5.0 packaging\windows\nazzil.iss
+; The AppId must never change, or a new version installs beside the old one instead of over it.
 
 #ifndef AppVersion
   #error Pass the version: iscc /DAppVersion=x.y.z

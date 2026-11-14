@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Packs the Linux release bundle as a .deb and as an AppImage, into build/dist/.
-# Run after `flutter build linux --release`, on the Ubuntu the bundle was built on:
-# the .deb names its dependencies from that system.
+# Packs the Linux release bundle as a .deb and an AppImage into build/dist/.
+# Run it on the Ubuntu that built the bundle: the .deb takes its dependencies from that system.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."

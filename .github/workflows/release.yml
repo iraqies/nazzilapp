@@ -1,10 +1,7 @@
 name: Release
 
-# A tag v<version> builds Nazzil for every platform and publishes a GitHub release with
-# the files. The tag must name the version in flutter/pubspec.yaml, and the release notes
-# are flutter/packaging/notes/<version>.md.
-# Each run pushes its outcome and the end of each job's log to the ci-report branch, so a
-# run can be read with git alone.
+# A tag v<version> builds every platform and publishes a release, with flutter/packaging/notes/<version>.md as its notes.
+# Each run pushes its outcome and the end of each job's log to the ci-report branch.
 
 on:
   push:

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Packs the macOS release build as a disk image, into build/dist/: the app beside a link
-# to Applications, so it installs by dragging one onto the other.
+# Packs the macOS release build as a disk image in build/dist/, the app beside a link to Applications.
 # Run after `flutter build macos --release`.
 set -euo pipefail
 
