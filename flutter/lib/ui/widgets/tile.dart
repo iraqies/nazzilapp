@@ -42,39 +42,27 @@ class Tile extends StatelessWidget {
 }
 
 /// A few words in a pill, as Finery lines its badges up under what is on show.
-/// The gold one leads the row.
+/// Every badge is alike: no app a link comes from ranks above another.
 class PillBadge extends StatelessWidget {
-  const PillBadge(this.text, {super.key, this.gold = false});
+  const PillBadge(this.text, {super.key});
   final String text;
-  final bool gold;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final Color fill;
-    final Color edge;
-    final Color ink;
-    if (gold) {
-      fill = dark ? const Color(0x2ED49B1F) : NazzilColors.goldFill;
-      edge = dark ? const Color(0x59D49B1F) : NazzilColors.goldEdge;
-      ink = dark ? const Color(0xFFF2C561) : NazzilColors.goldInk;
-    } else {
-      fill = dark ? const Color(0x14FFFFFF) : const Color(0xD9FFFFFF);
-      edge = dark ? const Color(0x1AFFFFFF) : const Color(0x0F000000);
-      ink = theme.colorScheme.onSurface;
-    }
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: fill,
+        color: dark ? const Color(0x14FFFFFF) : const Color(0xD9FFFFFF),
         borderRadius: BorderRadius.circular(NazzilRadius.pill),
-        border: Border.all(color: edge),
+        border: Border.all(color: dark ? const Color(0x1AFFFFFF) : const Color(0x0F000000)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         child: Text(
           text,
-          style: styleIn(text, theme.textTheme.labelSmall!, Directionality.of(context)).copyWith(color: ink),
+          style: styleIn(text, theme.textTheme.labelSmall!, Directionality.of(context))
+              .copyWith(color: theme.colorScheme.onSurface),
         ),
       ),
     );

@@ -51,7 +51,7 @@ The accent is Finery's sapphire, `#0071E3` (`NazzilColors.tint`). It is the only
 
 Words in the accent take Apple's link blues instead: `#0066CC` on light and `#2997FF` on dark. That covers eyebrows, the open tab, the version number and link icons. `#0071E3` falls just short of 4.5:1 for small words on the page.
 
-Finery's gold appears once, on the first badge of the Home showcase (YouTube): `#8C620A` on `#FDF6E2`, edged with gold at 28%. Nothing else is gold.
+Finery gilds the first badge in its row to put its main product forward. Nazzil's badges name the apps a link can come from, and none of them comes first, so every badge is the same plain pill and nothing is gold. YouTube's badge was gold until the owner asked why on 2026-11-14.
 
 A picked choice shows without the accent, so the accent stays for the next step alone:
 

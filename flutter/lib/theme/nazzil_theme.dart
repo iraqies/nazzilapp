@@ -12,11 +12,6 @@ abstract final class NazzilColors {
   /// white letters, the way Apple's own buttons do.
   static const onTint = Color(0xFFFFFFFF);
 
-  /// Finery's gold, kept for the one badge that leads its row.
-  static const goldFill = Color(0xFFFDF6E2);
-  static const goldInk = Color(0xFF8C620A);
-  static const goldEdge = Color(0x47D49B1F);
-
   /// Dark text for the odd light fill, such as the warning red, where white would not clear 4.5:1.
   static const ink = Color(0xFF0B0B0C);
 

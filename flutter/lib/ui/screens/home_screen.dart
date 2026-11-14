@@ -270,9 +270,7 @@ class _WorksWith extends StatelessWidget {
                 alignment: WrapAlignment.center,
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  for (var i = 0; i < names.length; i++) PillBadge(names[i], gold: i == 0),
-                ],
+                children: [for (final name in names) PillBadge(name)],
               ),
             ),
           ),
