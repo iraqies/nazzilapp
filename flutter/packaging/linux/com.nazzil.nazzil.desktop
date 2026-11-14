@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Nazzil
+Name[ar]=نزّل
+Comment=Save video, photos and audio from your favourite apps
+Comment[ar]=احفظ الفيديو والصور والصوت من تطبيقاتك المفضلة
+Exec=nazzil
+Icon=com.nazzil.nazzil
+Terminal=false
+Categories=AudioVideo;Video;
+StartupWMClass=com.nazzil.nazzil

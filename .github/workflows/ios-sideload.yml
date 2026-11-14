@@ -3,8 +3,6 @@ name: iOS sideload IPA
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
     branches:
       - "cursor/**"
 
