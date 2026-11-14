@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Packs the Linux release bundle as a .deb and as an AppImage, into build/dist/.
 # Run after `flutter build linux --release`, on the Ubuntu the bundle was built on:
-# the .deb names its dependencies, and the AppImage carries its codecs, from that system.
+# the .deb names its dependencies from that system.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -11,8 +11,9 @@ WORK="$PWD/build/packaging/linux"
 DIST="$PWD/build/dist"
 ID=com.nazzil.nazzil
 ICON=macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png
-# FFmpeg's audio build links these codec libraries, and a desktop Ubuntu does not ship them all.
-CODECS=(libmp3lame0 libogg0 libopencore-amrnb0 libopus0 libshine3 libsoxr0 libspeex1 libtwolame0 libvo-amrwbenc0 libvorbis0a libvorbisenc2)
+# The build copies these codec libraries, which FFmpeg's audio build links, into the bundle's
+# lib/, where the program's RPATH finds them. So the .deb does not ask the system for them.
+BUNDLED=(libmp3lame0 libogg0 libopencore-amrnb0 libopus0 libshine3 libsoxr0 libspeex1 libtwolame0 libvo-amrwbenc0 libvorbis0a libvorbisenc2)
 
 [[ -x "$BUNDLE/nazzil" ]] || { echo "No bundle at $BUNDLE: run flutter build linux --release first" >&2; exit 1; }
 rm -rf "$WORK"
@@ -30,7 +31,7 @@ cp "$ICON" "$DEB/usr/share/icons/hicolor/512x512/apps/$ID.png"
 # the packages that hold them. The libraries in the bundle's own lib/ need no package.
 mkdir -p "$WORK/shlibs/debian"
 touch "$WORK/shlibs/debian/control"
-DEPENDS="$(cd "$WORK/shlibs" && dpkg-shlibdeps -O --ignore-missing-info -l"$DEB/opt/nazzil/lib" \
+DEPENDS="$(cd "$WORK/shlibs" && dpkg-shlibdeps -O --ignore-missing-info "${BUNDLED[@]/#/-x}" -l"$DEB/opt/nazzil/lib" \
   "$DEB/opt/nazzil/nazzil" "$DEB"/opt/nazzil/lib/*.so* 2>"$WORK/shlibdeps.log" | sed -n 's/^shlibs:Depends=//p')"
 [[ -n "$DEPENDS" ]] || { cat "$WORK/shlibdeps.log" >&2; echo "dpkg-shlibdeps named no dependencies" >&2; exit 1; }
 
@@ -49,22 +50,17 @@ Description: Save video, photos and audio from your favourite apps
 EOF
 dpkg-deb --root-owner-group --build "$DEB" "$DIST/Nazzil-$VERSION-linux-amd64.deb"
 
-# AppImage: the bundle and the codecs in one file that runs where it is put. GTK and the
-# C library come from the system, as they do for any GTK app.
+# AppImage: the bundle in one file that runs where it is put. GTK and the C library come
+# from the system, as they do for any GTK app.
 APPDIR="$WORK/Nazzil.AppDir"
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 cp -a "$BUNDLE" "$APPDIR/usr/lib/nazzil"
-mkdir -p "$APPDIR/usr/lib/codecs"
-for package in "${CODECS[@]}"; do
-  dpkg -L "$package" | grep -E '/lib[^/]*\.so[.0-9]*$' | xargs -r cp -a -t "$APPDIR/usr/lib/codecs/"
-done
 cp "packaging/linux/$ID.desktop" "$APPDIR/$ID.desktop"
 cp "$ICON" "$APPDIR/$ID.png"
 cp "$ICON" "$APPDIR/usr/share/icons/hicolor/512x512/apps/$ID.png"
 cat >"$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="$HERE/usr/lib/codecs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$HERE/usr/lib/nazzil/nazzil" "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
