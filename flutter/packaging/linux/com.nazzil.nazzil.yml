@@ -1,0 +1,38 @@
+# Wraps the prebuilt release bundle: package.sh builds it with flutter build linux first.
+app-id: com.nazzil.nazzil
+runtime: org.freedesktop.Platform
+runtime-version: "26.08"
+sdk: org.freedesktop.Sdk
+command: nazzil
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Desktop downloads land in Downloads/Nazzil.
+  - --filesystem=xdg-download
+modules:
+  - name: nazzil
+    buildsystem: simple
+    # The bundle is a stripped release build; stripping libapp.so again could damage the Dart snapshot.
+    build-options:
+      strip: false
+      no-debuginfo: true
+    build-commands:
+      - cp -a bundle /app/nazzil
+      - mkdir -p /app/bin && ln -s /app/nazzil/nazzil /app/bin/nazzil
+      - install -Dm644 com.nazzil.nazzil.desktop -t /app/share/applications
+      - install -Dm644 com.nazzil.nazzil.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 com.nazzil.nazzil.png -t /app/share/icons/hicolor/512x512/apps
+    sources:
+      - type: dir
+        path: ../../build/linux/x64/release/bundle
+        dest: bundle
+      - type: file
+        path: com.nazzil.nazzil.desktop
+      - type: file
+        path: com.nazzil.nazzil.metainfo.xml
+      - type: file
+        path: ../../macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png
+        dest-filename: com.nazzil.nazzil.png

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packs the Linux release bundle as a .deb and an AppImage into build/dist/.
+# Packs the Linux release bundle as a .deb, an AppImage and a Flatpak into build/dist/.
 # Run it on the Ubuntu that built the bundle: the .deb takes its dependencies from that system.
 set -euo pipefail
 
@@ -72,5 +72,13 @@ if [[ -z "$TOOL" ]]; then
 fi
 # Extract-and-run needs no FUSE, which a CI machine or a container may not have.
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" --no-appstream "$APPDIR" "$DIST/Nazzil-$VERSION-linux-x86_64.AppImage"
+
+# Flatpak: the bundle on the Freedesktop runtime, which installing the file fetches from Flathub.
+FLATHUB=https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak remote-add --user --if-not-exists flathub "$FLATHUB"
+# rofiles-fuse needs FUSE, which a CI machine or a container may not have.
+flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse --force-clean \
+  --state-dir="$WORK/flatpak-state" --repo="$WORK/flatpak-repo" "$WORK/flatpak-build" "packaging/linux/$ID.yml"
+flatpak build-bundle --runtime-repo="$FLATHUB" "$WORK/flatpak-repo" "$DIST/Nazzil-$VERSION-linux-x86_64.flatpak" "$ID"
 
 ls -l "$DIST"

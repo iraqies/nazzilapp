@@ -140,7 +140,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libjson-glib-dev \
             libmp3lame0 libogg0 libopencore-amrnb0 libopus0 libshine3 libsoxr0 libspeex1 \
-            libtwolame0 libvo-amrwbenc0 libvorbis0a libvorbisenc2 dpkg-dev file desktop-file-utils
+            libtwolame0 libvo-amrwbenc0 libvorbis0a libvorbisenc2 dpkg-dev file desktop-file-utils \
+            flatpak flatpak-builder
+          # AppArmor on Ubuntu 24.04 keeps bwrap, which flatpak-builder runs, out of user namespaces.
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.nazzil.nazzil</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>Nazzil</name>
+  <name xml:lang="ar">نزّل</name>
+  <summary>Save video, photos and audio from your favourite apps</summary>
+  <summary xml:lang="ar">احفظ الفيديو والصور والصوت من تطبيقاتك المفضلة</summary>
+  <description>
+    <p>Paste a link from YouTube, TikTok, Instagram, Facebook, Reddit, X or Pinterest, pick the quality, and Nazzil saves the file to your Downloads folder.</p>
+  </description>
+  <developer id="io.github.iraqies">
+    <name>iraqies</name>
+  </developer>
+  <url type="homepage">https://github.com/iraqies/nazzilapp</url>
+  <launchable type="desktop-id">com.nazzil.nazzil.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+</component>
