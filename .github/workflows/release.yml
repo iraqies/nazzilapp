@@ -1,6 +1,7 @@
 name: Release
 
 # A tag v<version> builds every platform and publishes a release, with flutter/packaging/notes/<version>.md as its notes.
+# A tag with a suffix, such as v2.5.1-rc1, builds every platform and publishes nothing.
 # Each run pushes its outcome and the end of each job's log to the ci-report branch.
 
 on:
@@ -162,7 +163,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
     needs: [android, apple, windows, linux]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
