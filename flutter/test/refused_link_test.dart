@@ -57,6 +57,7 @@ class _Downloader extends MediaDownloader {
       : super(extractor: extractor, gallery: GalleryService(), net: NetClient());
   final bool Function(Uri link) refuses;
   final tried = <String>[];
+  final resumedFrom = <List<String>>[];
 
   @override
   Future<DownloadResult> download({
@@ -70,6 +71,7 @@ class _Downloader extends MediaDownloader {
   }) async {
     final link = Uri.parse(option.directUrl!);
     tried.add(option.directUrl!);
+    resumedFrom.add(resumePaths);
     if (refuses(link)) throw HttpException('This post blocked the download. Try again.', uri: link);
     return DownloadResult(files: [File('${scratch.path}/glitter.mp3')..writeAsBytesSync([1, 2, 3])], photoCount: 0);
   }
@@ -179,5 +181,23 @@ void main() {
     expect(item.status, LibraryItem.statusFailed);
     expect(downloader.tried.toSet(), hasLength(2), reason: 'the second try is on the new link');
     expect(extractor.asked, hasLength(1));
+  });
+
+  test('a paused song carries on from its file only while the new link is the same stream', () async {
+    Future<_Downloader> resume({required int itagNow}) async {
+      final partial = File('${scratch.path}/glitter-source-$itagNow.m4a')..writeAsBytesSync(List.filled(1000, 1));
+      final extractor = _Extractor((_) => youtubeLink('ANDROID', itag: itagNow));
+      final downloader = _Downloader(extractor, (_) => false);
+      final paused = songItem(audioOption(youtubeLink('ANDROID')), status: LibraryItem.statusPaused, paths: [partial.path]);
+      final controller = await withLibrary(paused, extractor, downloader);
+      await controller.resumeJob(controller.library.single);
+      expect((await settled(controller)).status, LibraryItem.statusDone);
+      return downloader;
+    }
+
+    final same = await resume(itagNow: 140);
+    expect(same.resumedFrom.single, hasLength(1), reason: 'the same stream continues the bytes on disk');
+    final other = await resume(itagNow: 251);
+    expect(other.resumedFrom.single, isEmpty, reason: 'another stream under the same option starts over');
   });
 }

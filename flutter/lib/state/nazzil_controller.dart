@@ -658,6 +658,10 @@ class NazzilController extends ChangeNotifier {
     return text.contains('blocked') || text.contains('gone') || text.contains('403') || text.contains('410');
   }
 
+  static String _itags(QualityOption option) => [option.directUrl, option.audioUrl]
+      .map((url) => Uri.tryParse(url ?? '')?.queryParameters['itag'])
+      .join('+');
+
   Future<LibraryItem> _withFreshLinks(LibraryItem job, {Set<String> refused = const {}}) async {
     final old = job.option!;
     final MediaInfo media;
@@ -672,8 +676,9 @@ class NazzilController extends ChangeNotifier {
     final fresh = media.options.where((o) => o.id == old.id).firstOrNull ??
         media.options.where((o) => o.label == old.label && o.kind == old.kind).firstOrNull;
     if (fresh == null) return job;
-    // A different stream would not continue the bytes already on disk.
-    final keepPartial = fresh.id == old.id;
+    // A different stream would not continue the bytes already on disk. YouTube's app clients can
+    // offer different streams under one option, so the `itag` each link names has to match too.
+    final keepPartial = fresh.id == old.id && _itags(fresh) == _itags(old);
     if (!keepPartial) {
       for (final path in job.paths) {
         try {
