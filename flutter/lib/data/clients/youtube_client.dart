@@ -3,9 +3,34 @@ import '../link_parser.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class YouTubeClient {
+  /// YouTube's Apple Vision Pro app. Its links work without the proof-of-origin
+  /// token that YouTube now asks for on many songs from the Android and iPhone apps.
+  static const _visionOs = YoutubeApiClient(
+    {
+      'context': {
+        'client': {
+          'clientName': 'VISIONOS',
+          'clientVersion': '1.02',
+          'deviceMake': 'Apple',
+          'deviceModel': 'RealityDevice17,1',
+          'userAgent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
+          'osName': 'visionOS',
+          'osVersion': '26.5.23O471',
+          'hl': 'en',
+          'timeZone': 'UTC',
+          'utcOffsetMinutes': 0,
+        },
+      },
+    },
+    'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+    headers: {'X-Youtube-Client-Name': '101'},
+  );
+
   /// Tried one at a time: asking for several at once makes the library query
   /// all of them even after the first one works.
   static final _clients = <YoutubeApiClient>[
+    _visionOs,
     YoutubeApiClient.androidSdkless,
     YoutubeApiClient.androidVr,
     YoutubeApiClient.ios,
