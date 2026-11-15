@@ -1,10 +1,9 @@
 name: Desktop builds
 
+# Manual only: release.yml builds every platform for a tag, and while the repo is private
+# each Mac minute uses up 10 of its free minutes and each Windows minute 2.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "cursor/**"
 
 defaults:
   run:

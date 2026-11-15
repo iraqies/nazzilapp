@@ -1,10 +1,9 @@
 name: iOS sideload IPA
 
+# Manual only: release.yml builds the IPA for a tag, and while the repo is private
+# each Mac minute uses up 10 of its free minutes.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "cursor/**"
 
 jobs:
   ipa:
