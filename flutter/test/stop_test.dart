@@ -54,7 +54,7 @@ class _Extractor extends MediaExtractor {
   final gate = Completer<void>();
 
   @override
-  Future<MediaInfo> fetch(String rawUrl) async {
+  Future<MediaInfo> fetch(String rawUrl, {Set<String> refused = const {}}) async {
     if (!entered.isCompleted) entered.complete();
     await gate.future;
     return answer;

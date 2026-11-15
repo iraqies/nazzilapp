@@ -12,14 +12,21 @@ class YouTubeClient {
     YoutubeApiClient.tv,
   ];
 
-  Future<MediaInfo> fetch(String url) async {
+  /// The app client a googlevideo link was given to, which the link names in `c`.
+  static String? clientOf(Uri? link) =>
+      link != null && link.host.endsWith('googlevideo.com') ? link.queryParameters['c'] : null;
+
+  static String _nameOf(YoutubeApiClient client) => client.payload['context']['client']['clientName'] as String;
+
+  /// [refused] holds the app clients, as [clientOf] names them, whose links YouTube would not serve.
+  Future<MediaInfo> fetch(String url, {Set<String> refused = const {}}) async {
     final id = LinkParser.youtubeId(url);
     if (id == null) throw StateError('Could not read this YouTube link');
     final watch = 'https://www.youtube.com/watch?v=$id';
     final yt = YoutubeExplode();
     try {
       final video = await yt.videos.get(id);
-      final manifest = await _manifest(yt, id);
+      final manifest = await _manifest(yt, id, refused);
       final options = optionsFrom(manifest);
       if (options.isEmpty) throw StateError('No downloadable YouTube video');
       return MediaInfo(
@@ -37,9 +44,10 @@ class YouTubeClient {
     }
   }
 
-  Future<StreamManifest> _manifest(YoutubeExplode yt, String id) async {
+  Future<StreamManifest> _manifest(YoutubeExplode yt, String id, Set<String> refused) async {
     Object? last;
     for (final client in _clients) {
+      if (refused.contains(_nameOf(client))) continue;
       try {
         final manifest = await yt.videos.streams.getManifest(id, ytClients: [client]);
         if (manifest.streams.isNotEmpty) return manifest;

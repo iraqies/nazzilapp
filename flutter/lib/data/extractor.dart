@@ -21,14 +21,15 @@ class MediaExtractor {
   late final _pinterest = PinterestClient(net);
   final _youtube = YouTubeClient();
 
-  Future<MediaInfo> fetch(String rawUrl) async {
+  /// [refused] only steers YouTube: see [YouTubeClient.fetch].
+  Future<MediaInfo> fetch(String rawUrl, {Set<String> refused = const {}}) async {
     final resolved = await LinkParser.resolve(rawUrl);
     if (!LinkParser.isSupported(resolved)) {
       throw StateError('This link is not from a supported app yet.');
     }
     return switch (LinkParser.platformOf(resolved)) {
       PlatformId.tiktok => _tiktok.fetch(resolved),
-      PlatformId.youtube => _youtube.fetch(resolved),
+      PlatformId.youtube => _youtube.fetch(resolved, refused: refused),
       PlatformId.instagram => _instagram.fetch(resolved),
       PlatformId.facebook => _facebook.fetch(resolved),
       PlatformId.reddit => _reddit.fetch(resolved),

@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../data/clients/youtube_client.dart';
 import '../data/downloader.dart';
 import '../data/extractor.dart';
 import '../data/gallery.dart';
@@ -576,12 +577,16 @@ class NazzilController extends ChangeNotifier {
         }
       }
       DownloadResult result;
-      try {
-        result = await attempt();
-      } on HttpException catch (e) {
-        if (!_looksExpired(e)) rethrow;
-        job = await _withFreshLinks(job);
-        result = await attempt();
+      // Each refused YouTube link rules out the app client it was given to; other sites get one new link.
+      final refused = <String>{};
+      while (true) {
+        try {
+          result = await attempt();
+          break;
+        } on HttpException catch (e) {
+          if (!_looksExpired(e) || !refused.add(YouTubeClient.clientOf(e.uri) ?? '')) rethrow;
+          job = await _withFreshLinks(job, refused: refused);
+        }
       }
       final current = _byId(job.id);
       if (current == null ||
@@ -653,11 +658,11 @@ class NazzilController extends ChangeNotifier {
     return text.contains('blocked') || text.contains('gone') || text.contains('403') || text.contains('410');
   }
 
-  Future<LibraryItem> _withFreshLinks(LibraryItem job) async {
+  Future<LibraryItem> _withFreshLinks(LibraryItem job, {Set<String> refused = const {}}) async {
     final old = job.option!;
     final MediaInfo media;
     try {
-      media = await extractor.fetch(job.sourceUrl);
+      media = await extractor.fetch(job.sourceUrl, refused: refused);
     } catch (_) {
       return job;
     }
