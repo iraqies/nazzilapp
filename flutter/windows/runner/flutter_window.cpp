@@ -1,5 +1,7 @@
 #include "flutter_window.h"
 
+#include <flutter_windows.h>
+
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -65,6 +67,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case WM_GETMINMAXINFO: {
+      // The layout needs 400 by 560 points at the least; Windows asks in pixels.
+      const double scale = FlutterDesktopGetDpiForMonitor(::MonitorFromWindow(
+                               hwnd, MONITOR_DEFAULTTONEAREST)) /
+                           96.0;
+      auto* limits = reinterpret_cast<MINMAXINFO*>(lparam);
+      limits->ptMinTrackSize.x = static_cast<LONG>(400 * scale);
+      limits->ptMinTrackSize.y = static_cast<LONG>(560 * scale);
+      return 0;
+    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

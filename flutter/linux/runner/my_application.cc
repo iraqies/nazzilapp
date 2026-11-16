@@ -52,7 +52,20 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Nazzil");
   }
 
-  gtk_window_set_default_size(window, 480, 880);
+  // 1200 by 800, or 90% of the screen when that is smaller. Wayland keeps the
+  // primary monitor to itself, so the first one stands in for it there.
+  GdkRectangle area = {0, 0, 1280, 800};
+  GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(window));
+  GdkMonitor* monitor = gdk_display_get_primary_monitor(display);
+  if (monitor == nullptr) monitor = gdk_display_get_monitor(display, 0);
+  if (monitor != nullptr) gdk_monitor_get_workarea(monitor, &area);
+  gtk_window_set_default_size(window, MIN(1200, area.width * 9 / 10),
+                              MIN(800, area.height * 9 / 10));
+  gtk_window_set_position(window, GTK_WIN_POS_CENTER);
+  GdkGeometry least = {};
+  least.min_width = 400;
+  least.min_height = 560;
+  gtk_window_set_geometry_hints(window, nullptr, &least, GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
