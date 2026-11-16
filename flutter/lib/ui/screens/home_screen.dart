@@ -23,13 +23,9 @@ import '../widgets/title_text.dart';
 import '../widgets/top_bar.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.controller, required this.onSettings, this.wide = false});
+  const HomeScreen({super.key, required this.controller, required this.onSettings});
   final NazzilController controller;
   final VoidCallback onSettings;
-
-  /// Beside the library on a wide window: the shell draws the header, and
-  /// the strip of last saves goes, since the library itself is in view.
-  final bool wide;
 
   Future<void> _paste() async {
     final data = await Clipboard.getData('text/plain');
@@ -40,7 +36,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.s;
     final media = controller.media;
-    final inset = wide ? 0.0 : MediaQuery.paddingOf(context).top;
+    final inset = MediaQuery.paddingOf(context).top;
     return Column(
       children: [
         Expanded(
@@ -59,7 +55,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-        if (controller.clipOffer != null) _ClipOffer(controller: controller, s: s),
+        if (controller.clipOffer != null) ClipOfferBar(controller: controller, s: s),
       ],
     );
   }
@@ -67,7 +63,7 @@ class HomeScreen extends StatelessWidget {
   List<Widget> _asking(BuildContext context) {
     final s = controller.s;
     final typed = controller.url.trim().isNotEmpty;
-    final recent = wide ? const <LibraryItem>[] : controller.library.take(12).toList();
+    final recent = controller.library.take(12).toList();
     final theme = Theme.of(context);
     final type = theme.textTheme;
     final layout = Directionality.of(context);
@@ -77,7 +73,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (!wide) TopBar(controller: controller, onSettings: onSettings),
+            TopBar(controller: controller, onSettings: onSettings),
             // The page sits in the middle of the room it is left; when the keyboard
             // or large text takes that room, the whole page scrolls.
             Expanded(
@@ -131,7 +127,7 @@ class HomeScreen extends StatelessWidget {
                               ),
                             if (controller.error.isNotEmpty) ...[
                               const SizedBox(height: 12),
-                              _ErrorLine(controller.error),
+                              ErrorLine(controller.error),
                             ],
                             const SizedBox(height: 12),
                             Text(s.frameHint, textAlign: TextAlign.center, style: type.labelMedium),
@@ -188,7 +184,7 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(edge, above, edge, foot),
             child: Tile(
               padding: const EdgeInsets.all(pad),
-              child: _Result(controller: controller, media: media, photos: photos, job: job, live: !wide),
+              child: _Result(controller: controller, media: media, photos: photos, job: job, live: true),
             ),
           ),
         ),
@@ -197,8 +193,8 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _ErrorLine extends StatelessWidget {
-  const _ErrorLine(this.text);
+class ErrorLine extends StatelessWidget {
+  const ErrorLine(this.text, {super.key});
   final String text;
 
   @override
@@ -501,30 +497,227 @@ class _PosterState extends State<_Poster> {
         PositionedDirectional(
           top: widget.inset + 6,
           start: 12,
-          child: IconButton(
-            tooltip: s.clear,
-            onPressed: controller.clear,
-            style: ButtonStyle(
-              backgroundColor: const WidgetStatePropertyAll(NazzilColors.screen),
-              foregroundColor: const WidgetStatePropertyAll(NazzilColors.onScreen),
-              overlayColor: WidgetStatePropertyAll(NazzilColors.onScreen.withValues(alpha: 0.14)),
-              // Round like the disc it sits on, so hover, press and the focus ring follow the edge.
-              shape: WidgetStateProperty.resolveWith(
-                (states) => CircleBorder(
-                  side: states.contains(WidgetState.focused)
-                      ? const BorderSide(
-                          color: NazzilColors.onScreen,
-                          width: 2,
-                          strokeAlign: BorderSide.strokeAlignOutside,
-                        )
-                      : BorderSide.none,
-                ),
-              ),
-            ),
-            icon: const Icon(Icons.close_rounded),
-          ),
+          child: _CloseDisc(controller: controller),
         ),
       ],
+    );
+  }
+}
+
+/// The black disc on a post's picture that puts the post away, alike in both themes.
+class _CloseDisc extends StatelessWidget {
+  const _CloseDisc({required this.controller});
+  final NazzilController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: controller.s.clear,
+      onPressed: controller.clear,
+      style: ButtonStyle(
+        backgroundColor: const WidgetStatePropertyAll(NazzilColors.screen),
+        foregroundColor: const WidgetStatePropertyAll(NazzilColors.onScreen),
+        overlayColor: WidgetStatePropertyAll(NazzilColors.onScreen.withValues(alpha: 0.14)),
+        // Round like the disc it sits on, so hover, press and the focus ring follow the edge.
+        shape: WidgetStateProperty.resolveWith(
+          (states) => CircleBorder(
+            side: states.contains(WidgetState.focused)
+                ? const BorderSide(
+                    color: NazzilColors.onScreen,
+                    width: 2,
+                    strokeAlign: BorderSide.strokeAlignOutside,
+                  )
+                : BorderSide.none,
+          ),
+        ),
+      ),
+      icon: const Icon(Icons.close_rounded),
+    );
+  }
+}
+
+/// The fetched post on a wide window, in one tile: its picture at the start and
+/// its words and controls at the end, or the picture on top when the tile is narrow.
+class WidePost extends StatelessWidget {
+  const WidePost({super.key, required this.controller, required this.media});
+  final NazzilController controller;
+  final MediaInfo media;
+
+  @override
+  Widget build(BuildContext context) {
+    final photos = controller.selected?.kind == MediaKind.photo ||
+        (media.isPhotoAlbum && controller.selected == null);
+    final album = photos && media.photos.length > 1;
+    final job = controller.jobForCurrent() ??
+        (album ? controller.jobForCurrent(onlyPhoto: controller.photoIndex) : null);
+    return Tile(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // A wide window always has room for the two side by side; the column is for a narrower tile.
+          final beside = constraints.maxWidth >= 600;
+          final width = beside ? math.min(480.0, constraints.maxWidth * 0.45) : constraints.maxWidth;
+          final picture = _WidePicture(
+            // A new post, or the same post turned from its video to its photos, starts a new frame.
+            key: ValueKey('${media.webpageUrl} $photos'),
+            controller: controller,
+            media: media,
+            photos: photos,
+            width: width,
+            tallest: beside ? width : math.min(width * 9 / 16, 300),
+          );
+          // The toolbar's status line already speaks up for the download.
+          final words = _Result(controller: controller, media: media, photos: photos, job: job, live: false);
+          if (!beside) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [picture, const SizedBox(height: 20), words],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [picture, const SizedBox(width: 28), Expanded(child: words)],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The picture in [WidePost], [width] wide: a film frame, or the shape of the
+/// picture itself up to [tallest], so little of a tall clip or photo is cut.
+class _WidePicture extends StatefulWidget {
+  const _WidePicture({
+    super.key,
+    required this.controller,
+    required this.media,
+    required this.photos,
+    required this.width,
+    required this.tallest,
+  });
+
+  final NazzilController controller;
+  final MediaInfo media;
+  final bool photos;
+  final double width;
+  final double tallest;
+
+  @override
+  State<_WidePicture> createState() => _WidePictureState();
+}
+
+class _WidePictureState extends State<_WidePicture> {
+  double? _aspect;
+  ImageStream? _stream;
+  late final _listener = ImageStreamListener(_measured, onError: (_, _) {});
+
+  String? get _url => widget.photos ? widget.media.photos.firstOrNull : widget.media.thumbnail;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_stream != null) return;
+    final url = _url;
+    if (url == null || url.isEmpty) return;
+    _stream = CachedNetworkImageProvider(url).resolve(createLocalImageConfiguration(context))
+      ..addListener(_listener);
+  }
+
+  void _measured(ImageInfo info, bool _) {
+    final aspect = info.image.width / info.image.height;
+    info.dispose();
+    if (mounted && aspect != _aspect) setState(() => _aspect = aspect);
+  }
+
+  @override
+  void dispose() {
+    _stream?.removeListener(_listener);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = widget.controller;
+    final media = widget.media;
+    final scheme = Theme.of(context).colorScheme;
+    final width = widget.width;
+    final film = math.min(width * 9 / 16, widget.tallest);
+    final height = (width / (_aspect ?? 16 / 9)).clamp(film, math.max(film, widget.tallest)).toDouble();
+    final thumbnail = media.thumbnail;
+    final Widget stand = Center(child: Icon(Icons.videocam_outlined, size: 42, color: scheme.onSurfaceVariant));
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: height),
+      duration: NazzilMotion.of(context, NazzilMotion.reshape),
+      curve: Curves.easeOutCubic,
+      builder: (context, extent, picture) => SizedBox(width: width, height: extent, child: picture),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(NazzilRadius.picture),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
+              color: scheme.surfaceContainerHigh,
+              child: widget.photos
+                  ? PhotoFilm(
+                      urls: media.photos,
+                      index: controller.photoIndex,
+                      onChanged: controller.setPhotoIndex,
+                      s: controller.s,
+                    )
+                  : thumbnail == null || thumbnail.isEmpty
+                      ? stand
+                      : NetPicture(url: thumbnail, alignment: posterAlignment, loading: stand, failed: stand),
+            ),
+            PositionedDirectional(top: 8, start: 8, child: _CloseDisc(controller: controller)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A wide window with nothing saved and nothing fetched: Finery's head, the
+/// first thing to do, and the apps a link can come from.
+class WideIntro extends StatelessWidget {
+  const WideIntro({super.key, required this.controller});
+  final NazzilController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = controller.s;
+    final theme = Theme.of(context);
+    final type = theme.textTheme;
+    final layout = Directionality.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Eyebrow(s.heroBadge, textAlign: TextAlign.center),
+              const SizedBox(height: 10),
+              Text(s.heroTitle, textAlign: TextAlign.center, style: styleIn(s.heroTitle, type.displaySmall!, layout)),
+              const SizedBox(height: 12),
+              Text(
+                s.heroSubtitle,
+                textAlign: TextAlign.center,
+                style: styleIn(s.heroSubtitle, type.bodyLarge!, layout).copyWith(color: muted),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                s.introHint,
+                textAlign: TextAlign.center,
+                style: styleIn(s.introHint, type.bodyLarge!, layout).copyWith(color: muted),
+              ),
+              const SizedBox(height: 28),
+              _WorksWith(s: s),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -885,7 +1078,7 @@ class _Result extends StatelessWidget {
         ],
         if (controller.error.isNotEmpty) ...[
           const SizedBox(height: 8),
-          _ErrorLine(controller.error),
+          ErrorLine(controller.error),
         ],
       ],
     );
@@ -893,8 +1086,8 @@ class _Result extends StatelessWidget {
 }
 
 /// A link Nazzil found on the clipboard, offered along the bottom of Home.
-class _ClipOffer extends StatelessWidget {
-  const _ClipOffer({required this.controller, required this.s});
+class ClipOfferBar extends StatelessWidget {
+  const ClipOfferBar({super.key, required this.controller, required this.s});
   final NazzilController controller;
   final S s;
 

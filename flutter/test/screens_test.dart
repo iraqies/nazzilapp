@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,7 @@ import 'package:nazzil/ui/widgets/done_sheet.dart';
 import 'package:nazzil/ui/widgets/library_tile.dart';
 import 'package:nazzil/ui/widgets/link_frame.dart';
 import 'package:nazzil/ui/widgets/logo.dart';
+import 'package:nazzil/ui/widgets/nazzil_button.dart';
 import 'package:nazzil/ui/widgets/tile.dart';
 import 'package:nazzil/ui/widgets/title_text.dart';
 import 'package:nazzil/ui/widgets/top_bar.dart';
@@ -883,7 +885,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(toPhone, isEmpty);
-    expect(find.text('Paste a link'), findsOneWidget);
+    expect(find.text('Paste a link, or press Ctrl+V'), findsOneWidget);
   });
 
   for (final earlier in ['sunset', 'rose']) {
@@ -1777,7 +1779,7 @@ void main() {
   });
 
   testWidgets(
-    'wide window: link frame and library side by side, no tab bar and no strip',
+    'wide window: a toolbar with the link field, over one page of the post and the library, and no tabs',
     (tester) async {
       final controller = await boot(
         tester,
@@ -1786,30 +1788,99 @@ void main() {
           for (var i = 0; i < 6; i++) entry('w$i', PlatformId.values[i], MediaKind.video, onDisk: true),
         ],
       );
-      expect(find.text('Paste a link'), findsOneWidget);
-      expect(find.text('or drop it on this window'), findsOneWidget);
-      expect(find.text('6 ITEMS'), findsOneWidget);
+      final mark = find.descendant(of: find.byType(WideBar), matching: find.byType(NazzilLogo));
+      expect(mark, findsOneWidget);
+      expect(logo, findsNothing, reason: 'the phone header is gone');
       expect(find.text('Home'), findsNothing);
       expect(find.text('Recent'), findsNothing, reason: 'the library itself is in view');
-      expect(logo, findsOneWidget, reason: 'one header for both panes');
-      final first = tester.getTopLeft(find.byType(LibraryTile).at(0));
-      final fourth = tester.getTopLeft(find.byType(LibraryTile).at(3));
-      expect(fourth.dy, first.dy, reason: 'at least four tiles share the first row');
-      expect(tester.getRect(find.byType(LinkFrame)).right, lessThan(first.dx));
+      expect(find.text('Paste a link, or press Ctrl+V'), findsOneWidget);
+      final field = tester.getRect(find.byType(LinkFrame));
+      expect(field.left, greaterThan(tester.getRect(mark).right), reason: 'the link field is in the toolbar');
+      expect(field.top, lessThan(tester.getRect(mark).bottom));
+      expect(tester.getRect(find.byTooltip('Settings')).left, greaterThan(field.right));
 
-      // A fetched post stays in its pane, with the header still above it.
+      expect(find.text('6 ITEMS'), findsOneWidget);
+      final first = tester.getTopLeft(find.byType(LibraryTile).at(0));
+      expect(tester.getTopLeft(find.byType(LibraryTile).at(5)).dy, first.dy, reason: 'six cards share the first row');
+      expect(first.dy, greaterThan(field.bottom));
+      final title = tester.getRect(find.text('Saved item w0'));
+      expect(title.top, greaterThanOrEqualTo(tester.getRect(find.byType(LibraryTile).at(0)).bottom),
+          reason: 'a card carries its title under its picture');
+
+      // The button is named for the next step, as on a phone.
+      expect(find.widgetWithText(NazzilButton, 'Paste'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'https://www.youtube.com/watch?v=abc');
+      await tester.pump();
+      expect(find.widgetWithText(NazzilButton, 'Fetch'), findsOneWidget);
+
+      // A fetched post leads the page in one tile, its picture beside its words, the library under it.
       controller
         ..media = sampleVideo
         ..selected = sampleVideo.options.first
+        ..fetchedUrl = controller.url
         ..notifyListeners();
       await tester.pumpAndSettle();
-      expect(logo, findsOneWidget);
-      expect(find.byTooltip('Settings'), findsOneWidget);
-      expect(tester.getRect(find.byTooltip('Clear')).top, greaterThan(tester.getRect(logo).bottom));
-      expect(tester.getRect(find.text('Download')).right, lessThan(first.dx));
+      expect(find.widgetWithText(NazzilButton, 'Paste'), findsOneWidget, reason: 'the link of the post on show is no next step');
+      final post = find.byType(WidePost);
+      final clear = tester.getRect(find.descendant(of: post, matching: find.byTooltip('Clear')));
+      final download = tester.getRect(find.text('Download'));
+      expect(clear.top, greaterThan(field.bottom));
+      expect(download.left, greaterThan(clear.right), reason: 'the words stand beside the picture');
+      expect(tester.getTopLeft(find.byType(LibraryTile).at(0)).dy, greaterThan(download.bottom));
+
+      // Esc takes the post off the page, as its close button does.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(controller.media, isNull);
+      expect(post, findsNothing);
     },
     variant: linux,
   );
+
+  testWidgets(
+    'wide window: an item opens in a dialog, and a right click opens its actions where it was made',
+    (tester) async {
+      await boot(
+        tester,
+        size: const Size(1280, 800),
+        library: [entry('d', PlatformId.youtube, MediaKind.video, onDisk: true, title: 'A saved clip')],
+      );
+      await tester.tap(find.text('A saved clip'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.text('Play'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+
+      final card = tester.getCenter(find.byType(LibraryTile));
+      await tester.tapAt(card, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      final menu = find.byType(PopupMenuItem<VoidCallback>);
+      expect(menu, findsNWidgets(4), reason: 'play, open the file, the original post and delete');
+      final play = tester.getRect(find.descendant(of: menu.first, matching: find.text('Play')));
+      expect((play.top - card.dy).abs(), lessThan(48), reason: 'the menu opens where the pointer is');
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget, reason: 'a saved file is asked about before it goes');
+    },
+    variant: linux,
+  );
+
+  testWidgets('a window under 720 wide keeps the phone layout', variant: linux, (tester) async {
+    await boot(tester, size: const Size(700, 800));
+    expect(find.byType(WideBar), findsNothing);
+    expect(logo, findsOneWidget);
+    expect(tab('Library'), findsOneWidget);
+  });
+
+  testWidgets('a phone on its side keeps the phone layout, being too short for a toolbar over the page', (tester) async {
+    await boot(tester, size: const Size(844, 390));
+    expect(find.byType(WideBar), findsNothing);
+    expect(tab('Library'), findsOneWidget);
+  });
 
   testWidgets('done dialog: colour crosses the picture once, not at all under reduce motion, and the title counts the photos', (tester) async {
     final shown = await picture(tester, 'shown', 80, 60);
@@ -2152,9 +2223,9 @@ void main() {
 
   for (final wide in [false, true]) {
     testWidgets(
-      'keyboard: tab walks the page before the tabs, and one pane before the other (${wide ? 'wide' : 'phone'})',
+      'keyboard: tab walks the page before the tabs, and the toolbar before the page (${wide ? 'wide' : 'phone'})',
       (tester) async {
-        // On a phone the tabs come last; on a wide window the library follows the link pane.
+        // On a phone the tabs come last; on a wide window the toolbar comes first, then the post, then the library.
         final size = wide ? const Size(1280, 800) : const Size(360, 720);
         final controller = await boot(
           tester,
@@ -2168,6 +2239,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final stops = <String, Finder>{
+          'Link': find.byType(EditableText),
+          'Paste': find.widgetWithText(NazzilButton, 'Paste'),
           'Settings': find.byTooltip('Settings'),
           'Clear': find.byTooltip('Clear'),
           for (final text in ['HD', 'SD', 'Audio', 'Download', 'Home', 'Library', 'All']) text: find.text(text),
@@ -2190,7 +2263,7 @@ void main() {
         }
         final page = ['Clear', 'HD', 'SD', 'Audio', 'Download'];
         if (wide) {
-          expect(walked.take(7), ['Settings', ...page, 'All']);
+          expect(walked.take(9), ['Link', 'Paste', 'Settings', ...page, 'All']);
           expect(walked.where((stop) => stop == 'Settings').length, greaterThan(1), reason: 'the round closes');
         } else {
           // The poster stands where the header was, so its way out is the first stop.

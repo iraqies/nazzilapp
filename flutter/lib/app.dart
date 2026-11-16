@@ -11,6 +11,7 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/library_screen.dart';
 import 'ui/screens/settings_screen.dart';
 import 'ui/screens/viewer_screen.dart';
+import 'ui/screens/wide_page.dart';
 import 'ui/widgets/cover.dart';
 import 'ui/widgets/desktop_input.dart';
 import 'ui/widgets/done_sheet.dart';
@@ -62,9 +63,6 @@ class NazzilShell extends StatefulWidget {
 }
 
 class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
-  /// From this width up the link pane and the library sit side by side.
-  static const _wide = 960.0;
-
   bool _settings = false;
   String? _presentedDoneId;
   String? _presentedDupId;
@@ -174,53 +172,55 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
     });
   }
 
+  /// Esc steps back one thing at a time: out of Settings, out of a fetch, then off the post.
+  void _escape() {
+    final controller = widget.controller;
+    if (_settings) {
+      _toggleSettings();
+    } else if (controller.loading) {
+      controller.cancelFetch();
+    } else if (controller.media != null) {
+      controller.clear();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final theme = Theme.of(context);
-    final media = MediaQuery.of(context);
-    final wide = media.size.width - media.padding.horizontal >= _wide;
-    // The Tab key walks one group to its end before the next: header, page, tabs,
-    // and on a wide window one pane before the other. A scrolled page cannot cut in.
+    final wide = NazzilLayout.isWide(context);
+    // The Tab key walks one group to its end before the next: header, page, tabs.
+    // A scrolled page cannot cut in.
     final Widget page;
-    if (wide || _settings) {
-      // One header for the whole window. On a phone each tab draws its own,
+    if (wide) {
+      // A toolbar across the whole window, with the link field in it, as a
+      // computer's apps have, over one page or Settings.
+      page = SafeArea(
+        child: Column(
+          children: [
+            FocusTraversalGroup(
+              child: WideBar(controller: controller, onSettings: _toggleSettings, settingsOpen: _settings),
+            ),
+            Expanded(
+              child: FocusTraversalGroup(
+                child: _settings ? SettingsScreen(controller: controller) : WidePage(controller: controller),
+              ),
+            ),
+            if (controller.clipOffer != null && !_settings) ClipOfferBar(controller: controller, s: controller.s),
+          ],
+        ),
+      );
+    } else if (_settings) {
+      // One header over Settings. Home and Library each draw their own,
       // because the poster of a fetched post takes the header's place.
       page = SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: _settings ? 640 : 1280),
+            constraints: const BoxConstraints(maxWidth: 640),
             child: Column(
               children: [
-                TopBar(controller: controller, onSettings: _toggleSettings, settingsOpen: _settings),
-                if (wide && !_settings) const Divider(),
-                Expanded(
-                  child: FocusTraversalGroup(
-                    child: _settings
-                        ? SettingsScreen(controller: controller)
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: 460,
-                                child: FocusTraversalGroup(
-                                  child: HomeScreen(controller: controller, onSettings: _toggleSettings, wide: true),
-                                ),
-                              ),
-                              const VerticalDivider(),
-                              Expanded(
-                                child: FocusTraversalGroup(
-                                  child: LibraryScreen(
-                                    controller: controller,
-                                    onSettings: _toggleSettings,
-                                    wide: true,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
+                TopBar(controller: controller, onSettings: _toggleSettings, settingsOpen: true),
+                Expanded(child: FocusTraversalGroup(child: SettingsScreen(controller: controller))),
               ],
             ),
           ),
@@ -260,6 +260,7 @@ class _NazzilShellState extends State<NazzilShell> with WidgetsBindingObserver {
         },
         child: DesktopInput(
           controller: controller,
+          onEscape: _escape,
           child: Scaffold(
             // The tabs sit in this slot so a snack bar floats above them, not over them.
             bottomNavigationBar: _settings || wide

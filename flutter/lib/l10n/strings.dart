@@ -20,6 +20,10 @@ class S {
   String get frameHint => _pc
       ? _t('or drop it on this window', 'أو اسحبه إلى هذه النافذة')
       : _t('or share a post to Nazzil from any app', 'أو شارك منشورًا مع نزّل من أي تطبيق');
+  String get introHint => _pc
+      ? _t('Paste a link above, or drop one on this window.', 'الصق رابطًا في الأعلى، أو اسحبه إلى هذه النافذة.')
+      : _t('Paste a link above, or share a post to Nazzil from any app.', 'الصق رابطًا في الأعلى، أو شارك منشورًا مع نزّل من أي تطبيق.');
+  String promptKeys(String keys) => _t('Paste a link, or press $keys', 'الصق رابطًا، أو اضغط $keys');
   String get recent => _t('Recent', 'آخر التنزيلات');
   String get linkLabel => _t('Link', 'الرابط');
   String get pasteHint =>

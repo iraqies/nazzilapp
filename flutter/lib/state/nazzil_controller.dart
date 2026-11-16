@@ -56,6 +56,9 @@ class NazzilController extends ChangeNotifier {
   String? _resumedFirst;
   String url = '';
   MediaInfo? media;
+
+  /// The link [media] was fetched from, so a field still holding it offers no new step.
+  String fetchedUrl = '';
   QualityOption? selected;
   int photoIndex = 0;
   bool loading = false;
@@ -199,6 +202,7 @@ class NazzilController extends ChangeNotifier {
   void clear() {
     url = '';
     media = null;
+    fetchedUrl = '';
     selected = null;
     failure = Failure.none;
     doneItem = null;
@@ -275,6 +279,7 @@ class NazzilController extends ChangeNotifier {
       final result = await extractor.fetch(link);
       if (gen != _fetchGen) return;
       media = result;
+      fetchedUrl = link;
       selected = result.preferred;
       photoIndex = 0;
     } on CancelledException {

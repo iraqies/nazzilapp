@@ -14,9 +14,12 @@ import '../../theme/nazzil_theme.dart';
 /// Desktop link input: drop a link (or a .url / .webloc shortcut) anywhere
 /// on the window, or press Ctrl+V / Cmd+V.
 class DesktopInput extends StatefulWidget {
-  const DesktopInput({super.key, required this.controller, required this.child});
+  const DesktopInput({super.key, required this.controller, required this.child, this.onEscape});
   final NazzilController controller;
   final Widget child;
+
+  /// Called for the Esc key, unless a dialog or a menu over the window takes it first.
+  final VoidCallback? onEscape;
 
   @override
   State<DesktopInput> createState() => _DesktopInputState();
@@ -63,6 +66,7 @@ class _DesktopInputState extends State<DesktopInput> {
     return CallbackShortcuts(
       bindings: {
         SingleActivator(LogicalKeyboardKey.keyV, control: !mac, meta: mac): _paste,
+        const SingleActivator(LogicalKeyboardKey.escape): ?widget.onEscape,
       },
       child: Focus(
         autofocus: true,

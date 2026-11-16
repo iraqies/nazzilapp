@@ -42,6 +42,20 @@ abstract final class NazzilRadius {
   static const pill = 999.0;
 }
 
+abstract final class NazzilLayout {
+  /// From this width up a toolbar runs across the window, over one page that
+  /// holds the post on show and the library.
+  static const wide = 720.0;
+
+  /// A phone on its side can be as wide, but is too short for a toolbar over the page.
+  static const tall = 480.0;
+
+  static bool isWide(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return media.size.width - media.padding.horizontal >= wide && media.size.height >= tall;
+  }
+}
+
 /// Every animation asks here first, so the system reduce-motion setting
 /// switches all of them off in one place.
 abstract final class NazzilMotion {

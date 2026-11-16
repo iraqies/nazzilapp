@@ -6,6 +6,7 @@ import '../../theme/nazzil_theme.dart';
 import 'arriving.dart';
 import 'cover.dart';
 import 'tappable.dart';
+import 'title_text.dart';
 
 /// What a library item is, or what has become of its download, in a few words.
 ({IconData icon, String text}) itemTag(
@@ -109,6 +110,138 @@ class LibraryTile extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// A frame of the library wall with its title and app under it, for a wide
+/// window. A pointer's secondary button opens the item's actions where it points.
+class LibraryCard extends StatefulWidget {
+  const LibraryCard({
+    super.key,
+    required this.item,
+    required this.s,
+    required this.kept,
+    required this.onOpen,
+    required this.onMenu,
+    this.progress,
+    this.converting = false,
+  });
+
+  final LibraryItem item;
+  final S s;
+  final bool kept;
+  final VoidCallback onOpen;
+  final ValueChanged<Offset> onMenu;
+  final double? progress;
+  final bool converting;
+
+  static const _gap = 8.0;
+
+  /// The words grow with the system font as the tag on the picture does, up to 1.3 times.
+  static const _scale = 1.3;
+
+  static TextStyle _title(TextTheme type) => type.labelLarge!;
+
+  /// How tall the words under a picture stand, so a grid can give each card its height.
+  static double captionHeight(BuildContext context) {
+    final type = Theme.of(context).textTheme;
+    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: _scale);
+    double line(TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: ' ', style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    // The two lines the title may take, the app's line, and a pixel in hand for rounding.
+    return _gap + 2 * line(_title(type)) + 2 + line(type.labelMedium!) + 1;
+  }
+
+  @override
+  State<LibraryCard> createState() => _LibraryCardState();
+}
+
+class _LibraryCardState extends State<LibraryCard> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final type = Theme.of(context).textTheme;
+    final app = widget.s.platformName(item.platform);
+    return GestureDetector(
+      onSecondaryTapUp: (details) => widget.onMenu(details.globalPosition),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: LibraryTile.ratio,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  LibraryTile(
+                    item: item,
+                    s: widget.s,
+                    kept: widget.kept,
+                    onOpen: widget.onOpen,
+                    progress: widget.progress,
+                    converting: widget.converting,
+                  ),
+                  // Ink is drawn under the picture and cannot show, so a pointer over it dims the picture instead.
+                  IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _hover ? 1 : 0,
+                      duration: NazzilMotion.of(context),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0x1F000000),
+                          borderRadius: BorderRadius.circular(NazzilRadius.picture),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: LibraryCard._gap),
+            // The picture's label already reads the title out, so the words are only seen.
+            ExcludeSemantics(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onOpen,
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: LibraryCard._scale,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TitleText(item.title, maxLines: 2, style: LibraryCard._title(type)),
+                        const SizedBox(height: 2),
+                        Text(
+                          app,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: styleIn(app, type.labelMedium!, Directionality.of(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

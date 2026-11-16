@@ -8,9 +8,12 @@ import '../../theme/nazzil_theme.dart';
 /// link to fetch. Tapping it anywhere starts typing; a clear button sits at
 /// its end once there is something to clear.
 class LinkFrame extends StatefulWidget {
-  const LinkFrame({super.key, required this.controller, required this.s});
+  const LinkFrame({super.key, required this.controller, required this.s, this.hint});
   final NazzilController controller;
   final S s;
+
+  /// What the empty field says, in place of the usual prompt.
+  final String? hint;
 
   @override
   State<LinkFrame> createState() => _LinkFrameState();
@@ -93,7 +96,7 @@ class _LinkFrameState extends State<LinkFrame> {
                     // The field fills the row's height, so its tap target clears 48.
                     contentPadding: const EdgeInsets.symmetric(vertical: 15),
                     border: InputBorder.none,
-                    hintText: s.framePrompt,
+                    hintText: widget.hint ?? s.framePrompt,
                     hintTextDirection: Directionality.of(context),
                     hintStyle: theme.textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
                   ),

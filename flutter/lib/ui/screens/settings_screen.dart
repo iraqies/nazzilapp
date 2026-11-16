@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,8 +27,12 @@ class SettingsScreen extends StatelessWidget {
             children: [title(label), const SizedBox(height: 12), child],
           ),
         );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+    final wide = NazzilLayout.isWide(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
+      // A wide window keeps the column readable in its middle, and its scroll bar at the window's edge.
+      padding: EdgeInsets.symmetric(horizontal: math.max(16.0, (constraints.maxWidth - 640) / 2))
+          .copyWith(top: wide ? 28 : 4, bottom: 40),
       children: [
         Eyebrow(s.appName, textAlign: TextAlign.center),
         const SizedBox(height: 6),
@@ -104,6 +110,7 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       ],
+      ),
     );
   }
 

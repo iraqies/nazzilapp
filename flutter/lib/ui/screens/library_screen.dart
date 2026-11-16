@@ -11,33 +11,100 @@ import '../widgets/tappable.dart';
 import '../widgets/top_bar.dart';
 
 class LibraryScreen extends StatelessWidget {
-  const LibraryScreen({super.key, required this.controller, required this.onSettings, this.wide = false});
+  const LibraryScreen({super.key, required this.controller, required this.onSettings});
   final NazzilController controller;
   final VoidCallback onSettings;
 
-  /// Beside the link pane on a wide window: the shell draws the header, and
-  /// an empty library has no "Add a link" to offer, since the link pane is in view.
-  final bool wide;
-
   static const _maxTile = 220.0;
   static const _gap = 12.0;
+
+  static const _wideTile = 200.0;
+  static const _wideGap = 16.0;
+
+  /// The library as the lower part of a wide window's page: the head on one line with
+  /// the filters at its far end, over cards that carry their titles under the pictures.
+  static List<Widget> wideSlivers(BuildContext context, NazzilController controller) {
+    final s = controller.s;
+    final items = controller.visibleLibrary;
+    final caption = LibraryCard.captionHeight(context);
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          // Side by side while both fit; the filters drop under the heading when they do not.
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            runSpacing: 8,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Eyebrow(s.itemsN(items.length)),
+                  const SizedBox(height: 6),
+                  Heading(s.library),
+                ],
+              ),
+              FocusTraversalGroup(child: _Filters(controller: controller, alignment: WrapAlignment.end)),
+            ],
+          ),
+        ),
+      ),
+      if (items.isEmpty)
+        SliverToBoxAdapter(
+          child: StateMessage(title: s.emptyFilter, actions: [(s.showAll, controller.clearLibraryFilters)]),
+        )
+      else
+        SliverLayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.crossAxisExtent;
+            final columns = ((width + _wideGap) / (_wideTile + _wideGap)).ceil().clamp(2, 12);
+            final tile = (width - _wideGap * (columns - 1)) / columns;
+            return SliverGrid(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final item = items[index];
+                  final running = item.id == controller.activeJobId;
+                  return LibraryCard(
+                    item: item,
+                    s: s,
+                    kept: controller.libraryStore.stillHave(item),
+                    progress: running ? controller.progress : null,
+                    converting: running && controller.converting,
+                    onOpen: () => showItemSheet(context, controller, item),
+                    onMenu: (position) => showItemMenu(context, controller, item, position),
+                  );
+                },
+                childCount: items.length,
+              ),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: _wideGap,
+                mainAxisSpacing: 24,
+                mainAxisExtent: tile / LibraryTile.ratio + caption,
+              ),
+            );
+          },
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = controller.s;
     final items = controller.visibleLibrary;
-    final platforms = controller.libraryPlatforms;
     return Padding(
       // The grid stops below the status bar, so no picture passes behind the clock.
-      padding: EdgeInsets.only(top: wide ? 0 : MediaQuery.paddingOf(context).top),
+      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
       child: CustomScrollView(
         key: const PageStorageKey('library'),
         slivers: [
-          if (!wide) SliverToBoxAdapter(child: TopBar(controller: controller, onSettings: onSettings)),
+          SliverToBoxAdapter(child: TopBar(controller: controller, onSettings: onSettings)),
           // Finery's catalogue head: the count as an eyebrow over the heading, centred.
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, wide ? 20 : 4, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
               child: Column(
                 children: [
                   if (controller.library.isNotEmpty) ...[
@@ -54,24 +121,7 @@ class LibraryScreen extends StatelessWidget {
               child: FocusTraversalGroup(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      for (final kind in [
-                        ('all', s.filterAll),
-                        ('photos', s.filterPhotos),
-                        ('videos', s.filterVideos),
-                        ('audio', s.filterAudio),
-                      ])
-                        _KindTab(
-                          label: kind.$2,
-                          active: controller.libraryKind == kind.$1,
-                          onTap: () => controller.setLibraryKind(kind.$1),
-                        ),
-                      if (platforms.length > 1 || controller.libraryPlatform != 'all') _AppMenu(controller: controller),
-                    ],
-                  ),
+                  child: _Filters(controller: controller, alignment: WrapAlignment.center),
                 ),
               ),
             ),
@@ -82,7 +132,7 @@ class LibraryScreen extends StatelessWidget {
                   ? StateMessage(
                       title: s.emptyLibrary,
                       body: s.emptyLibraryHint,
-                      actions: [if (!wide) (s.addLink, () => controller.goTab(0))],
+                      actions: [(s.addLink, () => controller.goTab(0))],
                     )
                   : StateMessage(
                       title: s.emptyFilter,
@@ -169,6 +219,37 @@ class _Pill extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The kind filters, then the app filter once there are two apps to pick from.
+class _Filters extends StatelessWidget {
+  const _Filters({required this.controller, required this.alignment});
+  final NazzilController controller;
+  final WrapAlignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = controller.s;
+    return Wrap(
+      alignment: alignment,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final kind in [
+          ('all', s.filterAll),
+          ('photos', s.filterPhotos),
+          ('videos', s.filterVideos),
+          ('audio', s.filterAudio),
+        ])
+          _KindTab(
+            label: kind.$2,
+            active: controller.libraryKind == kind.$1,
+            onTap: () => controller.setLibraryKind(kind.$1),
+          ),
+        if (controller.libraryPlatforms.length > 1 || controller.libraryPlatform != 'all')
+          _AppMenu(controller: controller),
+      ],
     );
   }
 }
