@@ -14,6 +14,8 @@ All on 2026-11-13, each step at the owner's word:
 4. "the download shouldnt be in the middle": the fetched post became a poster that fills the screen, with its controls at the foot. He liked this, and it stays.
 5. "lets do this style": Finery, below.
 
+On 2026-11-16 he asked: "for pc and widescreens can you improve the gui for them? It looks like a mobile app and its unoptimized for pcs". A computer's window now opens wide, and a wide window has a toolbar over one page. See Wide windows below. The phone layout is unchanged.
+
 ## Design read
 
 Reading this as: a personal media saver for people who read Arabic or English, phone first and desktop second, dressed as Finery's product page. That means a soft grey page, white rounded tiles on soft shadows, one sapphire accent, and heavy, tight headlines under a blue eyebrow. Dial ENERGY 2 / RHYTHM 2 / MOTION 2.
@@ -152,7 +154,18 @@ Pictures are 3 by 4, two across on a phone and more as the width allows. Each is
 
 ### Wide windows
 
-In a window 960 wide or more, Home (460 wide) and the library sit side by side under one header. The tabs and the strip go away, since the library is in view.
+A computer opens Nazzil at 1200 by 800, or at 90% of a smaller screen, in the middle of it. The window can be made no smaller than 400 by 560. It used to open at 480 by 880, the shape of a phone, which is much of why it looked like a phone app.
+
+From 720 wide, and 480 high so that a phone on its side stays a phone, the tabs and the phone's header give way to a toolbar over one page:
+
+- The toolbar runs across the window in the tiles' colour, over a hairline. It holds the logo with its line of what is going on, then the link field and the next-step button in the middle, at most 720 wide, then Settings at the end. The button says Paste, or Fetch once a new link is typed. On a computer the empty field says "Paste a link, or press Ctrl+V", or ⌘V on a Mac.
+- The page under it is at most 1440 wide, in the middle of the window, and scrolls as one.
+  - A fetched post leads it in one tile. Its picture stands at the start, up to 480 wide and in its own shape up to a square, with the black close disc on it. The facts, title, choices and Download stand beside it.
+  - The library follows. Its count and heading stand at the start of one line and its filters at the far end. Its pictures are 3 by 4, no wider than 200 and 16 apart, each with its title (two lines at most) and its app under it.
+  - With nothing saved and nothing fetched, Finery's head and the "Works with" showcase stand in the middle of the page instead.
+- A picture dims a little under the pointer. A right click opens its actions where the pointer is. A click opens them in a dialog 440 wide, where a phone opens a sheet.
+- Settings takes the page's place under the same toolbar, in a column 640 wide.
+- Esc closes Settings, then stops a fetch, then takes the post off the page.
 
 ## Icons
 
@@ -171,7 +184,7 @@ Nothing loops, and nothing moves without a download or a tap behind it. Everythi
 
 ## Themes and checks
 
-Dark (the default), light, or follow the system. The tests in `flutter/test/` measure text contrast in both themes and pin the layout of each screen. `NAZZIL_SHOTS=<dir> flutter test test/shots.dart` renders every screen at 390 by 844 for review.
+Dark (the default), light, or follow the system. The tests in `flutter/test/` measure text contrast in both themes and pin the layout of each screen. `NAZZIL_SHOTS=<dir> flutter test test/shots.dart` renders every screen at 390 by 844 for review, and a computer's window at 1200 by 800, 1920 by 1080 and narrower sizes.
 
 ## Open to the owner
 

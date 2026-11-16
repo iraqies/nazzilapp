@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -73,6 +74,10 @@ Future<NazzilController> boot(
     buildNumber: '27',
     buildSignature: '',
   );
+  // A picture still loading for the shot before would hold settle() up for good.
+  PaintingBinding.instance.imageCache
+    ..clear()
+    ..clearLiveImages();
   // flutter_test draws shadows as hard blocks so goldens stay stable; a picture
   // for the owner wants them soft, as a phone draws them. shoot() puts it back.
   debugDisableShadows = false;
@@ -255,5 +260,117 @@ void main() {
     await tester.pump();
     await settle(tester);
     await shoot(tester, 'library-ar-dark');
+  });
+
+  // Desktop windows, as Windows draws them: no status bar, at the 1200 by 800 a window
+  // opens at, a monitor's 1920 by 1080, and narrower windows a person may drag it to.
+  final windows = TargetPlatformVariant.only(TargetPlatform.windows);
+
+  Future<NazzilController> desk(
+    WidgetTester tester, {
+    Size size = const Size(1200, 800),
+    String theme = 'dark',
+    String language = 'en',
+    bool shelved = true,
+    String? poster,
+  }) async {
+    final items = shelved ? await shelf(tester) : <LibraryItem>[];
+    LocalPictures.serve({
+      ?poster: poster,
+      for (final i in items)
+        if (i.thumbnail != null) i.thumbnail!: i.thumbnail!,
+    });
+    final controller = await boot(
+      tester,
+      theme: theme,
+      language: language,
+      library: items,
+      size: size,
+      statusBar: 0,
+      pixelRatio: 1,
+    );
+    if (poster != null) {
+      controller
+        ..media = pictured(poster)
+        ..selected = pictured(poster).options.first
+        ..notifyListeners();
+      await tester.pump();
+    }
+    await settle(tester);
+    return controller;
+  }
+
+  for (final (label, size) in [('1200', const Size(1200, 800)), ('1920', const Size(1920, 1080))]) {
+    testWidgets('desktop $label first run', variant: windows, (tester) async {
+      await desk(tester, size: size, shelved: false);
+      await shoot(tester, 'desktop-$label-first-run');
+    });
+
+    testWidgets('desktop $label library', variant: windows, (tester) async {
+      await desk(tester, size: size);
+      await shoot(tester, 'desktop-$label-library');
+    });
+
+    testWidgets('desktop $label result', variant: windows, (tester) async {
+      final poster = await solid(tester, 'poster', 400, 225, const Color(0xFF3B5BDB));
+      await desk(tester, size: size, poster: poster);
+      await shoot(tester, 'desktop-$label-result');
+    });
+
+    testWidgets('desktop $label settings', variant: windows, (tester) async {
+      await desk(tester, size: size);
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.pumpAndSettle();
+      await shoot(tester, 'desktop-$label-settings');
+    });
+  }
+
+  testWidgets('desktop 1200 downloading', variant: windows, (tester) async {
+    final poster = await solid(tester, 'poster', 400, 225, const Color(0xFF3B5BDB));
+    final controller = await desk(tester, poster: poster);
+    controller
+      ..library = [downloadingJob(controller.media!), ...controller.library]
+      ..activeJobId = 'job'
+      ..downloading = true
+      ..progress = 0.5
+      ..notifyListeners();
+    await settle(tester);
+    await shoot(tester, 'desktop-1200-downloading');
+  });
+
+  testWidgets('desktop 1200 result light', variant: windows, (tester) async {
+    final poster = await solid(tester, 'poster', 400, 225, const Color(0xFF3B5BDB));
+    await desk(tester, theme: 'light', poster: poster);
+    await shoot(tester, 'desktop-1200-result-light');
+  });
+
+  testWidgets('desktop 1200 library ar', variant: windows, (tester) async {
+    await desk(tester, language: 'ar');
+    await shoot(tester, 'desktop-1200-library-ar');
+  });
+
+  testWidgets('desktop 1200 item', variant: windows, (tester) async {
+    await desk(tester);
+    await tester.tap(find.text('Street food in Osaka at midnight'));
+    await settle(tester);
+    await shoot(tester, 'desktop-1200-item');
+  });
+
+  testWidgets('desktop 1200 menu', variant: windows, (tester) async {
+    await desk(tester);
+    await tester.tap(find.text('Street food in Osaka at midnight'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await shoot(tester, 'desktop-1200-menu');
+  });
+
+  testWidgets('desktop 800 result', variant: windows, (tester) async {
+    final poster = await solid(tester, 'poster', 400, 225, const Color(0xFF3B5BDB));
+    await desk(tester, size: const Size(800, 700), poster: poster);
+    await shoot(tester, 'desktop-800-result');
+  });
+
+  testWidgets('desktop 600 window', variant: windows, (tester) async {
+    await desk(tester, size: const Size(600, 800));
+    await shoot(tester, 'desktop-600-window');
   });
 }
