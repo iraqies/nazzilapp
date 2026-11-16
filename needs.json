@@ -1,0 +1,22 @@
+{
+  "android": {
+    "result": "success",
+    "outputs": {}
+  },
+  "apple": {
+    "result": "success",
+    "outputs": {}
+  },
+  "windows": {
+    "result": "success",
+    "outputs": {}
+  },
+  "linux": {
+    "result": "success",
+    "outputs": {}
+  },
+  "release": {
+    "result": "skipped",
+    "outputs": {}
+  }
+}
